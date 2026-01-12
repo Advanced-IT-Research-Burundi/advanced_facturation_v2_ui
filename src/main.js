@@ -1,13 +1,15 @@
-import { createApp } from 'vue'
-import App from './App.vue'
-import router from './router'
-import 'primeicons/primeicons.css'
-import 'bootstrap/dist/css/bootstrap.min.css'
-import 'bootstrap/dist/js/bootstrap.bundle.min.js'
-import './assets/base.css'
+import { createApp } from "vue";
+import App from "./App.vue";
+import router from "./router";
+import store from "./store";
+import "primeicons/primeicons.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import "./assets/base.css";
 
-const app = createApp(App)
+const app = createApp(App);
 
-app.use(router)
+app.use(router);
+app.use(store);
 
-app.mount('#app')
+app.mount("#app");
