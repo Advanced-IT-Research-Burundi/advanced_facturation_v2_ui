@@ -57,7 +57,7 @@ const router = createRouter({
         {
           path: "users",
           name: "users",
-          component: Users,
+          component: () => import("../views/Users.vue"),
         },
         {
           path: "profile",
@@ -82,6 +82,20 @@ const router = createRouter({
       component: () => import("../views/RegisterCompany.vue"),
     },
   ],
+});
+
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = !!localStorage.getItem("token");
+
+  if (
+    to.name !== "login" &&
+    to.name !== "register-company" &&
+    !isAuthenticated
+  ) {
+    next({ name: "login" });
+  } else {
+    next();
+  }
 });
 
 export default router;

@@ -37,7 +37,7 @@ const userInitials = computed(() => {
       .join("")
       .toUpperCase();
   }
-  return "AU"; // Default initials
+  return ""; // Default initials
 });
 </script>
 
@@ -46,7 +46,12 @@ const userInitials = computed(() => {
     <!-- Sidebar -->
     <aside
       class="d-flex flex-column flex-shrink-0 bg-dark text-white border-end border-secondary"
-      style="width: 90px; transition: width 0.3s ease"
+      style="
+        width: 120px;
+        transition: width 0.3s ease;
+        overflow-y: auto;
+        max-height: 100vh;
+      "
     >
       <div
         class="d-flex flex-column align-items-center justify-content-center py-4 text-white text-decoration-none border-bottom border-secondary"
@@ -139,6 +144,16 @@ const userInitials = computed(() => {
             <span class="small" style="font-size: 0.7rem">Entr.</span>
           </RouterLink>
         </li>
+        <li>
+          <RouterLink
+            to="/users"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
+            <Users :size="20" />
+            <span class="small" style="font-size: 0.7rem">Utilisateurs</span>
+          </RouterLink>
+        </li>
       </ul>
 
       <div
@@ -150,6 +165,7 @@ const userInitials = computed(() => {
           id="dropdownUser1"
           data-bs-toggle="dropdown"
           aria-expanded="false"
+          onclick="event.preventDefault();"
         >
           <div
             class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
@@ -223,6 +239,11 @@ const userInitials = computed(() => {
 </template>
 
 <style scoped>
+
+  aside {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
 .nav-link:hover:not(.active) {
   background-color: rgba(255, 255, 255, 0.1);
   color: white !important;
