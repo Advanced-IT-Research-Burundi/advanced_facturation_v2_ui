@@ -70,12 +70,12 @@ const invoiceTypes = [
 </script>
 
 <template>
-  <div class="h-100 d-flex flex-column overflow-hidden" style="margin: -1.5rem;">
+  <div class="d-flex flex-column overflow-hidden" style="margin: -1.5rem;">
     <!-- Tabs Header -->
     <div class="bg-white border-bottom px-3 pt-2">
       <ul class="nav nav-tabs border-bottom-0">
         <li class="nav-item" v-for="type in invoiceTypes" :key="type.id">
-          <a class="nav-link cursor-pointer" :class="{ active: activeTab === type.id }" @click="activeTab = type.id">
+          <a class="nav-link text-dark cursor-pointer" :class="{ active: activeTab === type.id }" @click="activeTab = type.id">
             {{ type.label }}
           </a>
         </li>
@@ -137,7 +137,7 @@ const invoiceTypes = [
         </template>
 
         <!-- Other Views Placeholders -->
-        <div v-else class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+        <div v-else class="d-flex flex-column align-items-center justify-content-center text-muted">
           <div class="text-center p-5">
             <h3 class="fw-light mb-3" v-if="activeTab === 'Service'">Facturation de Services</h3>
             <h3 class="fw-light mb-3" v-if="activeTab === 'Caution'">Remboursement de Caution</h3>
@@ -161,10 +161,9 @@ const invoiceTypes = [
 
         <!-- Client Selection -->
          <div class="p-3 border-bottom bg-light">
-           <label class="small text-muted mb-1 ms-1">Client</label>
            <div class="input-group">
              <span class="input-group-text bg-white border-end-0 text-muted"><User :size="18"/></span>
-             <input list="clientsList" class="form-control border-start-0 ps-0" placeholder="Rechercher ou sélectionner..." />
+             <input list="clientsList" class="form-control border-start-0 ps-0" placeholder="Rechercher du client..." />
              <datalist id="clientsList">
                <option value="Client de Passage"></option>
                <option value="Client Fidèle A"></option>
@@ -209,22 +208,22 @@ const invoiceTypes = [
             <span>{{ formatPrice(cartTotal) }}</span>
           </div>
           <div class="d-flex justify-content-between mb-3">
-            <span class="fs-5 fw-bold text-dark">Total à Payer</span>
-            <span class="fs-5 fw-bold text-primary">{{ formatPrice(cartTotal) }}</span>
+            <span class="fs-6 fw-bold text-dark">Total à Payer</span>
+            <span class="fs-6 fw-bold text-primary">{{ formatPrice(cartTotal) }}</span>
           </div>
           
            <div class="d-grid gap-2">
              <div class="row g-2 mb-2">
-               <div class="col-6">
-                 <label class="form-label small text-muted mb-1">Devise</label>
+               <div class="col-6 d-flex align-items-center">
+                 <label class="form-label small text-muted">Devise</label>
                  <select class="form-select form-select-sm">
                    <option value="FBU">FBU</option>
                    <option value="USD">USD</option>
                    <option value="EUR">EUR</option>
                  </select>
                </div>
-               <div class="col-6">
-                 <label class="form-label small text-muted mb-1">Paiement</label>
+               <div class="col-6 d-flex align-items-end gap-2">
+                 <label class="form-label small text-muted">Paiement</label>
                  <select class="form-select form-select-sm">
                    <option value="cash">Espèces</option>
                    <option value="card">Carte Bancaire</option>
@@ -234,10 +233,10 @@ const invoiceTypes = [
                </div>
              </div>
 
-             <button class="btn btn-primary py-3 fw-bold fs-5 d-flex align-items-center justify-content-center gap-2 shadow-sm" :disabled="cart.length === 0">
-               <CreditCard :size="24" />
-               Valider la facture
-             </button>
+              <button class="btn btn-sm fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-sm" :disabled="cart.length === 0" style="background-color:#4B5563; color:white;">
+                <CreditCard :size="24" />
+                Valider la facture
+              </button>
            </div>
         </div>
       </div>

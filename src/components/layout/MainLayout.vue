@@ -30,45 +30,45 @@ import { RouterLink, RouterView } from 'vue-router';
       
       <ul class="nav nav-pills flex-column mb-auto py-3 gap-2 px-2">
         <li class="nav-item">
-          <RouterLink to="/sales" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/sales" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <ShoppingCart :size="20" />
             <span class="small" style="font-size: 0.7rem;">Vente</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/clients" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/clients" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <Users :size="20" />
             <span class="small" style="font-size: 0.7rem;">Clients</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/stock" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/stock" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <Package :size="20" />
             <span class="small" style="font-size: 0.7rem;">Stock</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/journal" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/journal" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <ClipboardList :size="20" />
             <span class="small" style="font-size: 0.7rem;">Journal</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/reports" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/reports" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <BarChart2 :size="20" />
             <span class="small" style="font-size: 0.7rem;">Rapports</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/expenses" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/expenses" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <Wallet :size="20" />
             <span class="small" style="font-size: 0.7rem;">Dépenses</span>
           </RouterLink>
         </li>
          <li>
-          <RouterLink to="/company" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink to="/company" class="nav-link d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <Building :size="20" />
-            <span class="small" style="font-size: 0.7rem;">Entr.</span>
+            <span class="small" style="font-size: 0.7rem;">Entreprise</span>
           </RouterLink>
         </li>
       </ul>
