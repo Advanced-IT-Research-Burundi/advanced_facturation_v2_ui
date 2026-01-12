@@ -1,6 +1,5 @@
 <script setup>
 import {
-  LayoutDashboard,
   FileText,
   Package,
   BarChart2,
@@ -13,8 +12,33 @@ import {
   ClipboardList,
   Wallet,
   Building,
+  Home,
 } from "lucide-vue-next";
 import { RouterLink, RouterView } from "vue-router";
+import { computed } from "vue";
+import { useStore } from "vuex";
+
+// Add the logout handler
+const handleLogout = () => {
+  // Clear user session and redirect to login
+  localStorage.removeItem("token");
+  window.location.href = "/login";
+};
+
+const store = useStore();
+
+// Compute initials from the connected user's name
+const userInitials = computed(() => {
+  const user = store.state.auth.user;
+  if (user && user.name) {
+    return user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
+  }
+  return "AU"; // Default initials
+});
 </script>
 
 <template>
@@ -38,51 +62,81 @@ import { RouterLink, RouterView } from "vue-router";
 
       <ul class="nav nav-pills flex-column mb-auto py-3 gap-2 px-2">
         <li class="nav-item">
-          <RouterLink to="/dashboard" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
-            <LayoutDashboard :size="20" />
-            <span class="small" style="font-size: 0.7rem">Accueil
-              
-            </span>
+          <RouterLink
+            to="/dashboard"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
+            <Home :size="20" />
+            <span class="small" style="font-size: 0.7rem">Accueil </span>
           </RouterLink>
-          <RouterLink to="/sales" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink
+            to="/sales"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <ShoppingCart :size="20" />
             <span class="small" style="font-size: 0.7rem">Vente</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/clients" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink
+            to="/clients"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <Users :size="20" />
             <span class="small" style="font-size: 0.7rem">Clients</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/stock" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink
+            to="/stock"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <Package :size="20" />
             <span class="small" style="font-size: 0.7rem">Stock</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/journal" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink
+            to="/journal"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <ClipboardList :size="20" />
             <span class="small" style="font-size: 0.7rem">Journal</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/reports" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink
+            to="/reports"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <BarChart2 :size="20" />
             <span class="small" style="font-size: 0.7rem">Rapports</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/expenses" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+          <RouterLink
+            to="/expenses"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <Wallet :size="20" />
             <span class="small" style="font-size: 0.7rem">Dépenses</span>
           </RouterLink>
         </li>
-         <li>
-          <RouterLink to="/company" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+        <li>
+          <RouterLink
+            to="/company"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-primary text-white"
+          >
             <Building :size="20" />
-            <span class="small" style="font-size: 0.7rem;">Entr.</span>
+            <span class="small" style="font-size: 0.7rem">Entr.</span>
           </RouterLink>
         </li>
       </ul>
@@ -92,28 +146,40 @@ import { RouterLink, RouterView } from "vue-router";
       >
         <a
           href="#"
-          class="d-flex align-items-center text-white text-decoration-none"
+          class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
           id="dropdownUser1"
           data-bs-toggle="dropdown"
           aria-expanded="false"
         >
-          <img
-            src="https://ui-avatars.com/api/?name=Admin+User&background=random"
-            alt=""
-            width="36"
-            height="36"
-            class="rounded-circle border border-2 border-secondary"
-          />
+          <div
+            class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+            style="
+              width: 40px;
+              height: 40px;
+              font-size: 1rem;
+              font-weight: bold;
+            "
+          >
+            {{ userInitials }}
+          </div>
         </a>
         <ul
           class="dropdown-menu dropdown-menu-dark text-small shadow"
           aria-labelledby="dropdownUser1"
         >
-          <li><a class="dropdown-item" href="#">Paramètres</a></li>
-          <li><a class="dropdown-item" href="#">Profil</a></li>
+          <li>
+            <RouterLink to="/profile" class="dropdown-item">Profile</RouterLink>
+          </li>
+          <li>
+            <RouterLink to="/settings" class="dropdown-item"
+              >Paramètres</RouterLink
+            >
+          </li>
           <li><hr class="dropdown-divider" /></li>
           <li>
-            <a class="dropdown-item text-danger" href="#">Se Déconnecter</a>
+            <a href="#" class="dropdown-item" @click="handleLogout"
+              >Déconnexion</a
+            >
           </li>
         </ul>
       </div>
