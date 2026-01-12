@@ -1,20 +1,15 @@
 import axios from "axios";
 
-// Déterminer l'URL selon votre variable VITE_APP_LOCAL
-const isLocal = import.meta.env.VITE_APP_LOCAL === "true";
-const baseURL = isLocal
-  ? import.meta.env.VITE_API_BASE_URL_LOCAL
-  : import.meta.env.VITE_API_BASE_URL;
 
 const api = axios.create({
-  baseURL: baseURL || "http://127.0.0.1:8000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
 });
 
-// Intercepteur pour injecter le token
+// Intercepteur pour injecter le token de sécurité
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -23,7 +18,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Intercepteur pour gérer les erreurs 401 (Token expiré)
+// Intercepteur pour gérer la déconnexion automatique si le token expire (401)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
