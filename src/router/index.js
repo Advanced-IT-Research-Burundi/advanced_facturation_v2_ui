@@ -20,9 +20,14 @@ const router = createRouter({
           component: Dashboard
         },
         {
-          path: 'invoices',
-          name: 'invoices',
-          component: Invoices
+          path: 'sales',
+          name: 'sales',
+          component: () => import('../views/Sales.vue')
+        },
+        {
+          path: 'clients',
+          name: 'clients',
+          component: () => import('../views/Clients.vue')
         },
         {
           path: 'stock',
@@ -30,9 +35,24 @@ const router = createRouter({
           component: Stock
         },
         {
+          path: 'journal',
+          name: 'journal',
+          component: () => import('../views/Journal.vue')
+        },
+        {
           path: 'reports',
           name: 'reports',
           component: Reports
+        },
+        {
+          path: 'expenses',
+          name: 'expenses',
+          component: () => import('../views/Expenses.vue')
+        },
+        {
+          path: 'company',
+          name: 'company',
+          component: () => import('../views/Company.vue')
         },
         {
           path: 'users',

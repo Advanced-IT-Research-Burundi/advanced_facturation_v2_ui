@@ -8,7 +8,11 @@ import {
   Settings, 
   LogOut,
   Bell,
-  Search
+  Search,
+  ShoppingCart,
+  ClipboardList,
+  Wallet,
+  Building
 } from 'lucide-vue-next';
 import { RouterLink, RouterView } from 'vue-router';
 </script>
@@ -16,58 +20,62 @@ import { RouterLink, RouterView } from 'vue-router';
 <template>
   <div class="d-flex vh-100 vw-100 overflow-hidden bg-light">
     <!-- Sidebar -->
-    <aside class="d-flex flex-column flex-shrink-0 p-3 bg-dark text-white" style="width: 260px;">
-      <div class="d-flex align-items-center mb-4 mb-md-0 me-md-auto text-white text-decoration-none px-2">
-        <div class="bg-primary rounded-3 d-flex align-items-center justify-content-center me-2" style="width: 36px; height: 36px;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="2" width="20" height="20" rx="5" fill="white" fill-opacity="0.2"/>
-            <path d="M12 7V17M7 12H17" stroke="white" stroke-width="3" stroke-linecap="round"/>
-          </svg>
+    <aside class="d-flex flex-column flex-shrink-0 bg-dark text-white border-end border-secondary" style="width: 90px; transition: width 0.3s ease;">
+      <div class="d-flex flex-column align-items-center justify-content-center py-4 text-white text-decoration-none border-bottom border-secondary">
+        <div class="bg-primary rounded-3 d-flex align-items-center justify-content-center mb-2" style="width: 40px; height: 40px;">
+           <span class="fw-bold fs-4">A</span>
         </div>
-        <span class="fs-5 fw-bold">Advanced <span class="text-info">Facturation V2</span></span>
+        <small class="fw-bold" style="font-size: 0.65rem;">ADVANCED</small>
       </div>
       
-      <hr class="text-secondary opacity-25">
-
-      <ul class="nav nav-pills flex-column mb-auto gap-1">
+      <ul class="nav nav-pills flex-column mb-auto py-3 gap-2 px-2">
         <li class="nav-item">
-          <RouterLink to="/" class="nav-link text-white-50 d-flex align-items-center gap-2" active-class="active bg-primary text-white">
-            <LayoutDashboard :size="18" />
-            Tableau de Bord
+          <RouterLink to="/sales" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <ShoppingCart :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Vente</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/invoices" class="nav-link text-white-50 d-flex align-items-center gap-2" active-class="active bg-primary text-white">
-            <FileText :size="18" />
-            Factures
+          <RouterLink to="/clients" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <Users :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Clients</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/stock" class="nav-link text-white-50 d-flex align-items-center gap-2" active-class="active bg-primary text-white">
-            <Package :size="18" />
-            Stock
+          <RouterLink to="/stock" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <Package :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Stock</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/reports" class="nav-link text-white-50 d-flex align-items-center gap-2" active-class="active bg-primary text-white">
-            <BarChart2 :size="18" />
-            Rapports
+          <RouterLink to="/journal" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <ClipboardList :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Journal</span>
           </RouterLink>
         </li>
         <li>
-          <RouterLink to="/users" class="nav-link text-white-50 d-flex align-items-center gap-2" active-class="active bg-primary text-white">
-            <Users :size="18" />
-            Utilisateurs
+          <RouterLink to="/reports" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <BarChart2 :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Rapports</span>
+          </RouterLink>
+        </li>
+        <li>
+          <RouterLink to="/expenses" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <Wallet :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Dépenses</span>
+          </RouterLink>
+        </li>
+         <li>
+          <RouterLink to="/company" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <Building :size="20" />
+            <span class="small" style="font-size: 0.7rem;">Entr.</span>
           </RouterLink>
         </li>
       </ul>
       
-      <hr class="text-secondary opacity-25">
-      
-      <div class="dropdown">
-        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
-          <img src="https://ui-avatars.com/api/?name=Admin+User&background=random" alt="" width="32" height="32" class="rounded-circle me-2">
-          <strong>Admin User</strong>
+      <div class="dropdown border-top border-secondary py-3 d-flex justify-content-center">
+        <a href="#" class="d-flex align-items-center text-white text-decoration-none" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="https://ui-avatars.com/api/?name=Admin+User&background=random" alt="" width="36" height="36" class="rounded-circle border border-2 border-secondary">
         </a>
         <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
           <li><a class="dropdown-item" href="#">Paramètres</a></li>
@@ -82,9 +90,8 @@ import { RouterLink, RouterView } from 'vue-router';
     <main class="d-flex flex-column flex-grow-1 overflow-hidden">
       <!-- Header -->
       <header class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white">
-        <div class="input-group" style="max-width: 300px;">
-          <span class="input-group-text bg-light border-end-0"><Search :size="16" class="text-muted" /></span>
-          <input type="text" class="form-control bg-light border-start-0" placeholder="Rechercher des factures...">
+        <div>
+          <h4 class="mb-0 fw-bold text-primary">Company Name</h4>
         </div>
 
         <div class="d-flex align-items-center gap-3">
