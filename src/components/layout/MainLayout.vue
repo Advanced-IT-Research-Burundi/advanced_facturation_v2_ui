@@ -38,6 +38,12 @@ import { RouterLink, RouterView } from "vue-router";
 
       <ul class="nav nav-pills flex-column mb-auto py-3 gap-2 px-2">
         <li class="nav-item">
+          <RouterLink to="/dashboard" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
+            <LayoutDashboard :size="20" />
+            <span class="small" style="font-size: 0.7rem">Accueil
+              
+            </span>
+          </RouterLink>
           <RouterLink to="/sales" class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2" active-class="active bg-primary text-white">
             <ShoppingCart :size="20" />
             <span class="small" style="font-size: 0.7rem">Vente</span>
