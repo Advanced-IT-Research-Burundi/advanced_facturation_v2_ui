@@ -1,0 +1,135 @@
+:root {
+  /* Brand Colors */
+  --bs-primary: #C4251D;
+  --bs-primary-rgb: 196, 37, 29;
+  --bs-secondary: #1E293B;
+  --bs-secondary-rgb: 30, 41, 59;
+  --bs-info: #0ea5e9;
+  --bs-body-bg: #f3f4f6;
+  
+  /* Custom colors */
+  --text-main: #1E293B;
+  --text-muted: #4B5563;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-blur: 12px;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bs-body-bg);
+  color: var(--text-main);
+}
+
+/* Glass Card Override */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.card {
+  border: none;
+  border-radius: 1rem;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+.bg-dark {
+  background-color: var(--bs-secondary) !important;
+}
+
+.btn {
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active, .btn-primary:active:focus {
+  background-color: #9f1e17;
+  border-color: #9f1e17;
+  box-shadow: 0 0 0 0.25rem rgba(196, 37, 29, 0.5) !important;
+}
+
+.btn-check:focus + .btn-primary, .btn-primary:focus {
+    background-color: #9f1e17;
+    border-color: #9f1e17;
+    box-shadow: 0 0 0 0.25rem rgba(196, 37, 29, 0.5) !important;
+}
+
+/* Unified Input Group Styling */
+.input-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.8);
+  transition: all 0.2s ease-in-out;
+  overflow: hidden; /* Ensures child border-radius doesn't poke out */
+}
+
+/* When any child is focused, light up the whole group */
+.input-group:focus-within {
+  background-color: #fff;
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.25rem rgba(196, 37, 29, 0.25);
+}
+
+/* Remove default borders and shadows from children so the group handles it */
+.input-group .input-group-text,
+.input-group .form-control {
+  background: transparent;
+  border: none;
+  box-shadow: none !important;
+}
+
+/* Ensure text color is correct in the prefix */
+.input-group .input-group-text {
+  color: var(--text-muted);
+  padding-right: 0.5rem;
+}
+
+.input-group .form-control {
+  padding-left: 0.5rem; /* Reduce gap since border is gone */
+  color: var(--text-main);
+}
+
+/* Standalone Form Control (not in a group) - keep standard style */
+.form-control:not(.input-group > .form-control) {
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid #e5e7eb;
+}
+.form-control:not(.input-group > .form-control):focus {
+  background-color: #fff;
+  box-shadow: 0 0 0 0.25rem rgba(196, 37, 29, 0.25);
+  border-color: var(--bs-primary);
+}
+
+/* Sidebar Links */
+.sidebar-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s;
+}
+.sidebar-link:hover, .sidebar-link.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.sidebar-link.active {
+  background-color: var(--bs-primary);
+}
