@@ -2,10 +2,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import MainLayout from "../components/layout/MainLayout.vue";
 
 import Dashboard from "../views/Dashboard.vue";
-import Invoices from "../views/Invoices.vue";
 import Stock from "../views/Stock.vue";
 import Reports from "../views/Reports.vue";
-import Users from "../views/Users.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,9 +11,10 @@ const router = createRouter({
     {
       path: "/",
       component: MainLayout,
+      redirect: "/dashboard", // Ajout d'une redirection par défaut
       children: [
         {
-          path: "/dashboard",
+          path: "dashboard",
           name: "dashboard",
           component: Dashboard,
         },
@@ -27,7 +26,7 @@ const router = createRouter({
         {
           path: "clients",
           name: "clients",
-          component: () => import("../views/Clients.vue"),
+          component: () => import("../views/clients/Clients.vue"), // Votre vue dynamique
         },
         {
           path: "stock",
