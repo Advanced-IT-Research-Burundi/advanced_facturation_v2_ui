@@ -34,21 +34,14 @@
               <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
             </div>
           </div>
-          <div class="col-md-2">
+          <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">Marque</label>
             <div class="input-group">
               <input type="text" v-model="form.brand" class="form-control border-success" />
               <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
             </div>
           </div>
-          <div class="col-md-2">
-            <label class="form-label text-uppercase small text-muted">Quantité</label>
-            <div class="input-group">
-              <input type="number" v-model="form.quantity" class="form-control border-success bg-light-subtle" />
-              <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
-            </div>
-          </div>
-          <div class="col-md-2">
+          <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">Unité de mesure</label>
             <div class="input-group">
               <input type="text" v-model="form.unit" class="form-control border-success" />
@@ -59,47 +52,48 @@
           <div class="col-md-2">
             <label class="form-label text-uppercase small text-muted text-danger">Prix d'achat</label>
             <div class="input-group">
-              <input type="number" v-model="form.purchase_price" class="form-control border-danger" />
+              <input type="number" step="0.01" v-model="form.purchase_price" class="form-control border-danger" />
               <span class="input-group-text bg-white border-danger text-danger"><i class="bi bi-x-lg"></i></span>
             </div>
           </div>
           <div class="col-md-2">
             <label class="form-label text-uppercase small text-muted">Prix de revient TVAC</label>
             <div class="input-group">
-              <input type="number" v-model="form.cost_price_vat" class="form-control border-success" />
+              <input type="number" step="0.01" v-model="form.cost_price_vat" class="form-control border-success" />
               <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
             </div>
           </div>
+
           <div class="col-md-2">
             <label class="form-label text-uppercase small text-muted">Taux de TVA (%)</label>
-            <select v-model="form.tva_rate" class="form-select border-secondary">
+            <select v-model="form.tva_rate" @change="calculateFromHt" class="form-select border-secondary">
               <option :value="18">18</option>
               <option :value="10">10</option>
               <option :value="0">0</option>
             </select>
           </div>
-          <div class="col-md-2">
+          <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">PV HTVA</label>
             <div class="input-group">
-              <input type="number" step="0.01" v-model="form.selling_price_ht" class="form-control border-success" />
-              <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
+              <input type="number" step="0.01" v-model="form.selling_price_ht" @input="calculateFromHt" class="form-control border-success" />
+              <span class="input-group-text bg-white border-success text-success"><i class="bi bi-percent"></i></span>
             </div>
           </div>
-          <div class="col-md-2">
+          <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">PV TVAC (Auto)</label>
             <div class="input-group">
-              <input type="number" step="0.01" v-model="form.selling_price_ttc" class="form-control border-success bg-light" readonly />
+              <input type="number" step="0.01" v-model="form.selling_price_ttc" @input="calculateFromTtc" class="form-control border-success" />
               <span class="input-group-text bg-white border-success text-success"><i class="bi bi-calculator"></i></span>
             </div>
           </div>
-          <div class="col-md-2">
+
+          <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">Quantité Minimum</label>
             <div class="input-group">
               <input type="number" v-model="form.min_quantity" class="form-control border-success" />
               <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
             </div>
           </div>
-
           <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">Date d'expiration</label>
             <div class="input-group">
@@ -117,7 +111,7 @@
               <span class="input-group-text bg-white border-success text-success"><i class="bi bi-check2"></i></span>
             </div>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-12">
             <label class="form-label text-uppercase small text-muted">Spécification technique</label>
             <textarea v-model="form.specifications" class="form-control border-secondary" rows="3"></textarea>
           </div>
@@ -138,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from "vue"; // Ajout de watch
+import { ref, reactive } from "vue";
 import api from "@/services/api";
 import { useRouter } from "vue-router";
 
@@ -149,7 +143,6 @@ const form = reactive({
   sku: "",
   name: "",
   brand: "",
-  quantity: 0,
   unit: "",
   purchase_price: 0,
   cost_price_vat: 0,
@@ -162,22 +155,18 @@ const form = reactive({
   specifications: "",
 });
 
-// LOGIQUE DE CALCUL AUTOMATIQUE
-// On surveille le prix HT et le taux de TVA
-watch(
-  () => [form.selling_price_ht, form.tva_rate],
-  ([newHt, newTva]) => {
-    if (newHt && newTva !== undefined) {
-      const ht = parseFloat(newHt);
-      const tva = parseFloat(newTva);
-      // Formule : TTC = HT * (1 + TVA/100)
-      const calculatedTtc = ht * (1 + tva / 100);
-      form.selling_price_ttc = parseFloat(calculatedTtc.toFixed(2));
-    } else {
-      form.selling_price_ttc = 0;
-    }
-  }
-);
+// CALCULS BIDIRECTIONNELS POUR LA VENTE
+const calculateFromHt = () => {
+  const ht = parseFloat(form.selling_price_ht) || 0;
+  const tva = parseFloat(form.tva_rate) || 0;
+  form.selling_price_ttc = parseFloat((ht * (1 + tva / 100)).toFixed(2));
+};
+
+const calculateFromTtc = () => {
+  const ttc = parseFloat(form.selling_price_ttc) || 0;
+  const tva = parseFloat(form.tva_rate) || 0;
+  form.selling_price_ht = parseFloat((ttc / (1 + tva / 100)).toFixed(2));
+};
 
 const submitProduct = async () => {
   submitting.value = true;
@@ -207,6 +196,4 @@ const submitProduct = async () => {
 .text-danger { color: #dc3545 !important; }
 .cursor-pointer { cursor: pointer; }
 .input-group-text { font-size: 0.8rem; }
-/* Style pour le champ automatique en lecture seule */
-.bg-light { background-color: #f8f9fa !important; }
 </style>

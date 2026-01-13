@@ -124,11 +124,10 @@ import { useStore } from "vuex";
 const router = useRouter();
 const store = useStore();
 
-// Filtres locaux
 const search = ref("");
 const stockFilter = ref("TOUT");
 
-// Logique Vuex (Même logique que Clients.vue)
+
 const products = computed(() => store.getters["stock/allStock"]);
 const loading = computed(() => store.getters["stock/isLoading"]);
 const pagination = computed(() => store.state.stock.pagination);
