@@ -1,58 +1,56 @@
-import axios from "axios";
+import api from "/src/services/api";
 
 const state = {
   clients: [],
-  pagination: {},
+  pagination: {
+    total: 0,
+    current_page: 1,
+    next_page_url: null,
+    prev_page_url: null,
+  },
   loading: false,
-  error: null,
 };
 
 const getters = {
   allClients: (state) => state.clients,
-  totalClients: (state) => state.pagination.total || 0,
+  totalClients: (state) => state.pagination.total,
   isLoading: (state) => state.loading,
 };
 
 const actions = {
-  // Récupère la liste paginée (index du CustomerController)
   async fetchClients({ commit }, page = 1) {
-    commit("setLoading", true);
+    commit("SET_LOADING", true);
     try {
-      const response = await axios.get(`/api/customers?page=${page}`);
+      const response = await api.get(`/customers?page=${page}`);
       if (response.data.success) {
-        commit("setClients", response.data.data.data);
-        commit("setPagination", {
-          total: response.data.data.total,
-          current_page: response.data.data.current_page,
-          next_page_url: response.data.data.next_page_url,
-          prev_page_url: response.data.data.prev_page_url,
-        });
+        commit("SET_CLIENTS", response.data.data.data);
+        commit("SET_PAGINATION", response.data.data);
       }
     } catch (error) {
-      commit("setError", error.message);
+      console.error(error);
     } finally {
-      commit("setLoading", false);
+      commit("SET_LOADING", false);
     }
   },
 
-  // Ajoute un client (store du CustomerController)
   async addClient({ dispatch }, clientData) {
     try {
-      const response = await axios.post("/api/customers", clientData);
+      const response = await api.post("/customers", clientData);
       if (response.data.success) {
-        await dispatch("fetchClients"); // Rafraîchir la liste
+        await dispatch("fetchClients");
         return response.data;
       }
     } catch (error) {
-      throw error.response.data;
+      throw error.response ? error.response.data : error;
     }
   },
 
-  // Supprime un client (destroy du CustomerController)
   async deleteClient({ dispatch }, id) {
     try {
-      await axios.delete(`/api/customers/${id}`);
-      await dispatch("fetchClients");
+      const response = await api.delete(`/customers/${id}`);
+      if (response.data.success) {
+        await dispatch("fetchClients");
+      }
     } catch (error) {
       console.error(error);
     }
@@ -60,10 +58,20 @@ const actions = {
 };
 
 const mutations = {
-  setClients: (state, clients) => (state.clients = clients),
-  setPagination: (state, pagination) => (state.pagination = pagination),
-  setLoading: (state, status) => (state.loading = status),
-  setError: (state, error) => (state.error = error),
+  SET_CLIENTS(state, clients) {
+    state.clients = clients;
+  },
+  SET_PAGINATION(state, data) {
+    state.pagination = {
+      total: data.total,
+      current_page: data.current_page,
+      next_page_url: data.next_page_url,
+      prev_page_url: data.prev_page_url,
+    };
+  },
+  SET_LOADING(state, status) {
+    state.loading = status;
+  },
 };
 
 export default {
