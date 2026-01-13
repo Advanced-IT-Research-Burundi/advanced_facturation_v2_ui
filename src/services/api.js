@@ -1,7 +1,7 @@
 import axios from "axios";
 
 
-const api = axios.create({
+const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 // Intercepteur pour injecter le token de sécurité
-api.interceptors.request.use((config) => {
+apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
 });
 
 // Intercepteur pour gérer la déconnexion automatique si le token expire (401)
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
@@ -33,4 +33,21 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default {
+  apiClient,
+  get(url, config = {}) {
+    return apiClient.get(url, config);
+  },
+  post(url, data, config = {}) {
+    return apiClient.post(url, data, config);
+  },
+  put(url, data, config = {}) {
+    return apiClient.put(url, data, config);
+  },
+  patch(url, data, config = {}) {
+    return apiClient.patch(url, data, config);
+  },
+  delete(url, config = {}) {
+    return apiClient.delete(url, config);
+  },
+};
