@@ -3,7 +3,7 @@ import auth from "./modules/auth";
 import companies from "./modules/companies";
 import invoices from "./modules/invoices";
 import clients from "./modules/clients"; 
-
+import users from "./modules/users";
 const store = createStore({
   state: {
     data: {},
@@ -12,7 +12,8 @@ const store = createStore({
     auth,
     companies,
     invoices,
-    clients, 
+    clients,
+    users,
   },
 });
 
