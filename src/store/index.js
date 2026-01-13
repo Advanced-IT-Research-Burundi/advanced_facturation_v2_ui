@@ -7,6 +7,7 @@ import users from "./modules/users";
 // Ajout des nouveaux modules
 import products from "./modules/products";
 import stock from "./modules/stock";
+import expenses from "./modules/expenses";
 import api from "@/services/api";
 
 const store = createStore({
@@ -134,6 +135,7 @@ const store = createStore({
     clients,
     products,
     stock,
+    expenses,
   },
 });
 
