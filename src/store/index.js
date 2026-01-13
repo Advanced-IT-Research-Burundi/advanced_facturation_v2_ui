@@ -2,9 +2,14 @@ import { createStore } from "vuex";
 import auth from "./modules/auth";
 import companies from "./modules/companies";
 import invoices from "./modules/invoices";
+
 import clients from "./modules/clients"; 
 import users from "./modules/users";
-// Ajout des nouveaux modules
+
+
+
+
+
 import products from "./modules/products";
 import stock from "./modules/stock";
 import expenses from "./modules/expenses";
@@ -135,6 +140,12 @@ const store = createStore({
     companies,
     invoices,
     clients,
+
+    products,
+
+
+    users,
+
     products,
     stock,
     expenses,
