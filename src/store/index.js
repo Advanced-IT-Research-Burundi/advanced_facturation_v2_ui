@@ -2,17 +2,13 @@ import { createStore } from "vuex";
 import auth from "./modules/auth";
 import companies from "./modules/companies";
 import invoices from "./modules/invoices";
-<<<<<<< HEAD
 import clients from "./modules/clients"; 
 import users from "./modules/users";
-=======
-import clients from "./modules/clients";
 // Ajout des nouveaux modules
 import products from "./modules/products";
 import stock from "./modules/stock";
 import api from "@/services/api";
 
->>>>>>> 81e670b648fb1eba8eb30652ba898b34511777d0
 const store = createStore({
   state: {
     data: {
@@ -136,12 +132,8 @@ const store = createStore({
     companies,
     invoices,
     clients,
-<<<<<<< HEAD
-    users,
-=======
     products,
     stock,
->>>>>>> 81e670b648fb1eba8eb30652ba898b34511777d0
   },
 });
 
