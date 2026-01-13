@@ -1,6 +1,5 @@
 import { createStore } from "vuex";
 import auth from "./modules/auth";
-import clients from "./modules/clients";
 import invoices from "./modules/invoices";
 
 const store = createStore({
@@ -11,7 +10,6 @@ const store = createStore({
   },
   modules: {
     auth,
-    clients,
     invoices,
   },
 });
