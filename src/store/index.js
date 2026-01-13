@@ -8,7 +8,6 @@ import users from "./modules/users";
 // Ajout des nouveaux modules
 
 
-import clients from "./modules/clients"; 
 import users from "./modules/users";
 
 
