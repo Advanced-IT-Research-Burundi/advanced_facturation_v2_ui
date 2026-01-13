@@ -11,7 +11,7 @@ const router = createRouter({
     {
       path: "/",
       component: MainLayout,
-      redirect: "/dashboard", // Ajout d'une redirection par défaut
+      redirect: "/dashboard",
       children: [
         {
           path: "dashboard",
@@ -26,13 +26,20 @@ const router = createRouter({
         {
           path: "clients",
           name: "clients",
-          component: () => import("../views/clients/Clients.vue"), // Votre vue dynamique
+          component: () => import("../views/clients/Clients.vue"),
         },
         {
           path: "stock",
           name: "stock",
           component: Stock,
         },
+        // --- NOUVELLE ROUTE AJOUTÉE ICI ---
+        {
+          path: "stock/create",
+          name: "stock.create",
+          component: () => import("../views/ProductsCreate.vue"),
+        },
+        // ----------------------------------
         {
           path: "journal",
           name: "journal",

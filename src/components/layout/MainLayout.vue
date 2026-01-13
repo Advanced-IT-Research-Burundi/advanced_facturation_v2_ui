@@ -208,7 +208,7 @@ const userInitials = computed(() => {
         class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white"
       >
         <div>
-          <h4 class="mb-0 fw-bold text-primary">Company Name</h4>
+          <h4 class="mb-0 fw-bold text-primary">Advanced IT & Research Burundi</h4>
         </div>
 
         <div class="d-flex align-items-center gap-3">
