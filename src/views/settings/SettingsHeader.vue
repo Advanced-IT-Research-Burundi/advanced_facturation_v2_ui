@@ -31,7 +31,7 @@ const routeLinks = ref([
   },
   {
     name: "Configurations",
-    path: "/settings/configs",
+    path: "/settings",
     icon: "bi bi-sliders",
   },
 ]);
