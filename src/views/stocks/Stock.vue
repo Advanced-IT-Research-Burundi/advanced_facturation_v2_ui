@@ -1,26 +1,8 @@
 <template>
   <div class="container-fluid bg-light min-vh-100 p-4">
-    <div class="d-flex flex-wrap gap-3 mb-3 border-bottom pb-2 small fw-bold">
-      <span @click="goToCreate" class="cursor-pointer text-white bg-red-dark px-2 py-1 rounded shadow-sm">
-        <i class="bi bi-box-arrow-in-right"></i> Entré
-      </span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-arrow-counterclockwise"></i> Retour des marchandises</span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-tag"></i> Category</span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-file-earmark-text"></i> Fiche de Stock</span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-clock-history"></i> Historique</span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-activity"></i> Mouvement de stock</span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-barcode"></i> Bar Code</span>
-      <span class="cursor-pointer nav-link-custom"><i class="bi bi-cart"></i> Bon de Commande</span>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <button class="btn btn-red-dark text-white px-3 py-2 shadow-sm">
-        Les entrés et les sorties
-      </button>
-
+    <StockHeader />
       <div class="d-flex align-items-center gap-2">
         <h4 class="m-0 fw-normal me-4">Liste des produits</h4>
-
         <select v-model="stockFilter" @change="fetchStock(1)" class="form-select border-secondary-subtle" style="width: auto">
           <option value="TOUT">TOUT</option>
           <option value="STOCK VIDE">STOCK VIDE</option>
@@ -32,7 +14,6 @@
           <button class="btn btn-outline-dark" @click="fetchStock(1)">Ok</button>
         </div>
       </div>
-    </div>
 
     <div class="bg-white border rounded shadow-sm">
       <div class="table-responsive">
@@ -120,6 +101,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex"; 
+import StockHeader from "./StockHeader.vue";
 
 const router = useRouter();
 const store = useStore();

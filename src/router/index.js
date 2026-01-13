@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import MainLayout from "../components/layout/MainLayout.vue";
 
 import Dashboard from "../views/Dashboard.vue";
-import Stock from "../views/Stock.vue";
+import Stock from "../views/stocks/Stock.vue";
 import Reports from "../views/Reports.vue";
 
 const router = createRouter({
