@@ -15,7 +15,6 @@
               <option value="PERSONNE PHYSIQUE">PERSONNE PHYSIQUE OU SOCIETE ETRANGERE</option>
               <option value="PERSONNE MORAL">PERSONNE MORAL</option>
             </select>
-
             <label class="form-label text-muted small fw-bold text-uppercase">Nif du client</label>
             <div class="position-relative">
               <input v-model="form.customer_TIN" type="text" class="form-control border-success-subtle" />
@@ -29,7 +28,6 @@
               <option value="Non assujetti">Non assujetti</option>
               <option value="assujetti à la TVA">assujetti à la TVA</option>
             </select>
-
             <label class="form-label text-muted small fw-bold text-uppercase">Telephone</label>
             <div class="position-relative">
               <input v-model="form.customer_phone" type="text" class="form-control border-success-subtle" />
@@ -43,18 +41,12 @@
               <input v-model="form.customer_name" type="text" class="form-control border-success-subtle" required />
               <span class="position-absolute top-50 end-0 translate-middle-y me-2 text-success">✔</span>
             </div>
-
             <label class="form-label text-muted small fw-bold text-uppercase">Adresse</label>
             <div class="position-relative">
               <input v-model="form.customer_address" type="text" class="form-control border-success-subtle" />
               <span class="position-absolute top-50 end-0 translate-middle-y me-2 text-success">✔</span>
             </div>
           </div>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label text-muted small">Description</label>
-          <textarea v-model="form.description" class="form-control" rows="3"></textarea>
         </div>
 
         <div class="d-flex justify-content-center">
@@ -69,18 +61,19 @@
 
 <script setup>
 import { reactive, ref } from 'vue';
-import axios from 'axios';
+import { useStore } from 'vuex';
 
-const emit = defineEmits(['close', 'refresh']);
+const emit = defineEmits(['close']);
+const store = useStore();
 const isSaving = ref(false);
 
 const form = reactive({
-  customer_name: '', //
-  customer_TIN: '', //
-  customer_phone: '', //
-  customer_address: '', //
-  vat_customer_payer: 'Non assujetti', //
-  company_id: 1, //
+  customer_name: '',
+  customer_TIN: '',
+  customer_phone: '',
+  customer_address: '',
+  vat_customer_payer: 'Non assujetti',
+  company_id: 1, // À dynamiser selon votre logique entreprise
   type: '',
   description: ''
 });
@@ -88,15 +81,16 @@ const form = reactive({
 const saveClient = async () => {
   isSaving.value = true;
   try {
-    const response = await axios.post('/api/customers', form); //
-    if (response.data.success) {
-      emit('refresh');
-      emit('close');
-    }
-  } catch (e) { alert("Erreur lors de l'ajout"); }
-  finally { isSaving.value = false; }
+    await store.dispatch('clients/addClient', form);
+    emit('close');
+  } catch (e) {
+    alert("Erreur lors de l'enregistrement");
+  } finally {
+    isSaving.value = false;
+  }
 };
 </script>
+
 
 <style scoped>
 .modal-overlay {
