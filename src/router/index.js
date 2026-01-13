@@ -56,6 +56,11 @@ const router = createRouter({
           component: () => import("../views/depenses/Expenses.vue"),
         },
         {
+          path: "expenses/categories",
+          name: "expenses.categories",
+          component: () => import("../views/depenses/DepenseCategory.vue"),
+        },
+        {
           path: "company",
           name: "company",
           component: () => import("../views/companies/Company.vue"),
