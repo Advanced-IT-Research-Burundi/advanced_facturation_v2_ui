@@ -3,6 +3,9 @@ import auth from "./modules/auth";
 import companies from "./modules/companies";
 import invoices from "./modules/invoices";
 import clients from "./modules/clients";
+// Ajout des nouveaux modules
+import products from "./modules/products";
+import stock from "./modules/stock";
 import api from "@/services/api";
 
 const store = createStore({
@@ -10,7 +13,7 @@ const store = createStore({
     configs: [],
     pagination: {},
     loading: false,
-    error: null
+    error: null,
   },
   mutations: {
     SET_CONFIGS(state, { data, meta }) {
@@ -25,17 +28,16 @@ const store = createStore({
     },
     ADD_CONFIG(state, newConfig) {
       state.configs.unshift(newConfig);
-      // Optional: update pagination total
     },
     DELETE_CONFIG(state, configId) {
-      state.configs = state.configs.filter(c => c.id !== configId);
+      state.configs = state.configs.filter((c) => c.id !== configId);
     },
     SET_LOADING(state, status) {
       state.loading = status;
     },
     SET_ERROR(state, error) {
       state.error = error;
-    }
+    },
   },
   actions: {
     async fetchConfigs({ commit }, page = 1) {
@@ -43,14 +45,17 @@ const store = createStore({
       commit("SET_ERROR", null);
       try {
         const response = await api.get("/app-configs", {
-          params: { page }
+          params: { page },
         });
-        // Structure: { success: true, data: { current_page: 1, data: [...], links: ... } }
         const { data, ...meta } = response.data.data;
         commit("SET_CONFIGS", { data, meta });
       } catch (error) {
         console.error("Error fetching configs:", error);
-        commit("SET_ERROR", error.response?.data?.message || "Erreur lors du chargement des configurations");
+        commit(
+          "SET_ERROR",
+          error.response?.data?.message ||
+            "Erreur lors du chargement des configurations"
+        );
       } finally {
         commit("SET_LOADING", false);
       }
@@ -59,17 +64,19 @@ const store = createStore({
       commit("SET_LOADING", true);
       commit("SET_ERROR", null);
       try {
-        // We only send value as requested: "les cles modifiable a false on peut seulement modifier les valeurs"
         const response = await api.put(`/app-configs/${id}`, { value });
-        
         if (response.data.success) {
           commit("UPDATE_CONFIG", response.data.data);
           return { success: true };
         }
-        return { success: false, message: response.data.message || "Unknown error" };
+        return {
+          success: false,
+          message: response.data.message || "Unknown error",
+        };
       } catch (error) {
         console.error("Error updating config:", error);
-        const message = error.response?.data?.message || "Erreur lors de la mise à jour";
+        const message =
+          error.response?.data?.message || "Erreur lors de la mise à jour";
         commit("SET_ERROR", message);
         return { success: false, message };
       } finally {
@@ -82,12 +89,16 @@ const store = createStore({
       try {
         const response = await api.post("/app-configs", payload);
         if (response.data.success) {
-           commit("ADD_CONFIG", response.data.data);
-           return { success: true };
+          commit("ADD_CONFIG", response.data.data);
+          return { success: true };
         }
-        return { success: false, message: response.data.message || "Unknown error" };
+        return {
+          success: false,
+          message: response.data.message || "Unknown error",
+        };
       } catch (error) {
-        const message = error.response?.data?.message || "Erreur lors de la création";
+        const message =
+          error.response?.data?.message || "Erreur lors de la création";
         commit("SET_ERROR", message);
         return { success: false, message };
       } finally {
@@ -102,19 +113,22 @@ const store = createStore({
         commit("DELETE_CONFIG", id);
         return { success: true };
       } catch (error) {
-        const message = error.response?.data?.message || "Erreur lors de la suppression";
+        const message =
+          error.response?.data?.message || "Erreur lors de la suppression";
         commit("SET_ERROR", message);
         return { success: false, message };
       } finally {
         commit("SET_LOADING", false);
       }
-    }
+    },
   },
   modules: {
     auth,
     companies,
     invoices,
     clients,
+    products,
+    stock,
   },
 });
 

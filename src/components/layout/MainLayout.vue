@@ -208,7 +208,9 @@ const userInitials = computed(() => {
         class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white"
       >
         <div>
-          <h4 class="mb-0 fw-bold text-primary">Advanced IT & Research Burundi</h4>
+          <h4 class="mb-0 fw-bold text-primary">
+            {{ store.state.auth.companyName || "Nom de l'entreprise" }}
+          </h4>
         </div>
 
         <div class="d-flex align-items-center gap-3">
@@ -239,8 +241,7 @@ const userInitials = computed(() => {
 </template>
 
 <style scoped>
-
-  aside {
+aside {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
 }
