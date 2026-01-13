@@ -1,5 +1,6 @@
 <template>
   <div class="container-fluid p-0">
+    <CompanyHader />
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h3">Entreprises</h1>
       <button class="btn btn-primary" @click="openModal()">
@@ -33,7 +34,7 @@
     <!-- Table -->
     <div class="card shadow-sm">
       <div class="card-body">
-        <div v-if="loading" class="text-center py-4">
+        <div v-if="loading && companies.length === 0" class="text-center py-4">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Chargement...</span>
           </div>
@@ -358,6 +359,7 @@
 <script setup>
 import { onMounted, ref, computed, reactive } from "vue";
 import { useStore } from "vuex";
+import CompanyHader from "./CompanyHader.vue";
 
 const store = useStore();
 
