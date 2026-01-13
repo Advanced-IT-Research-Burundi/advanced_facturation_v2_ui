@@ -52,7 +52,7 @@ const router = createRouter({
         {
           path: "company",
           name: "company",
-          component: () => import("../views/Company.vue"),
+          component: () => import("../views/companies/Company.vue"),
         },
         {
           path: "users",
