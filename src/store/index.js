@@ -10,6 +10,8 @@ import stock from "./modules/stock";
 import expenses from "./modules/expenses";
 import api from "@/services/api";
 
+
+
 const store = createStore({
   state: {
     data: {
@@ -136,6 +138,7 @@ const store = createStore({
     products,
     stock,
     expenses,
+    users,
   },
 });
 
