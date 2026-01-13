@@ -66,6 +66,16 @@ const router = createRouter({
           component: () => import("../views/Users.vue"),
         },
         {
+          path: "settings/unites",
+          name: "settings.unites",
+          component: () => import("../views/settings/Unites.vue"),
+        },
+        {
+          path: "settings/stocks",
+          name: "settings.stocks",
+          component: () => import("../views/stocks/Stocks.vue"),
+        },
+        {
           path: "profile",
           name: "profile",
           component: () => import("../views/Profile.vue"),

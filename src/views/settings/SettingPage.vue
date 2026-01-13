@@ -1,5 +1,6 @@
 <template>
   <div class="container-fluid p-0">
+    <settings-header></settings-header>
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h3">Configurations</h1>
       <div>
@@ -138,6 +139,7 @@
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue';
 import { useStore } from 'vuex';
+import SettingsHeader from './SettingsHeader.vue';
 
 const store = useStore();
 

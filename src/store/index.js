@@ -10,6 +10,9 @@ import api from "@/services/api";
 
 const store = createStore({
   state: {
+    data: {
+      product_units : [],
+    } ,
     configs: [],
     pagination: {},
     loading: false,
