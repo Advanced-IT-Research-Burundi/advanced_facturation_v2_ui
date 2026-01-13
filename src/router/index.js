@@ -26,7 +26,7 @@ const router = createRouter({
         {
           path: "clients",
           name: "clients",
-          component: () => import("../views/Clients.vue"), // Votre vue dynamique
+          component: () => import("../views/clients/Clients.vue"), // Votre vue dynamique
         },
         {
           path: "stock",

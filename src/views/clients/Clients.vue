@@ -36,7 +36,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading"><td colspan="8" class="text-center py-5 text-danger">Chargement...</td></tr>
+            <tr v-if="loading && filteredClients.length === 0"><td colspan="8" class="text-center py-5 text-danger">Chargement...</td></tr>
             <tr v-else-if="filteredClients.length === 0"><td colspan="8" class="text-center py-5">Aucun client trouvé</td></tr>
             <tr v-for="(client, index) in filteredClients" :key="client.id">
               <td class="ps-3 fw-bold">{{ calculateIndex(index) }}</td>
