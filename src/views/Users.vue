@@ -1,49 +1,65 @@
 <template>
   <div class="container-fluid p-0">
-    <div class="d-flex justify-content-between">
-      <h1 class="h5 mb-4">Gestion des Utilisateurs</h1>
-      <button @click="showModal = true" class="btn btn-primary mt-5">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h5">Gestion des Utilisateurs</h1>
+      <button @click="openCreateModal" class="btn btn-primary">
         Ajouter un utilisateur
       </button>
     </div>
 
-    <div v-if="showModal" class="modal-overlay ">
-      <UsersAdd @close="showModal = false" @refresh="getusers()" />
-    </div>
+    <!-- MODAL CREATE / EDIT -->
+    <UsersAdd
+      v-if="showModal"
+      :user="selectedUser"
+      @close="closeModal"
+      @refresh="getUsers"
+    />
 
-    <div v-if="isLoading || users.length === 0" class="text-center p-4">
+    <!-- LOADING -->
+    <div v-if="isLoading" class="text-center p-4">
       <div class="spinner-border" role="status">
         <span class="visually-hidden">Chargement...</span>
       </div>
     </div>
 
+    <!-- ERROR -->
     <div v-else-if="error" class="alert alert-danger">
       {{ error }}
     </div>
-    <div v-else class="card glass text-center text-muted">
-      <div v-if="!users || users.length === 0" class="p-4">
-        <p>Aucun utilisateur trouvé</p>
+
+    <!-- TABLE -->
+    <div v-else class="card shadow-sm">
+      <div v-if="users.length === 0" class="p-4 text-center text-muted">
+        Aucun utilisateur trouvé
       </div>
 
-      <table v-else class="table table-hover mt-3">
-        <thead>
+      <table v-else class="table table-hover mb-0">
+        <thead class="table-light">
           <tr>
-            <th scope="col">Nom</th>
-            <th scope="col">Email</th>
-            <th scope="col">Company Name</th>
-            <th scope="col">Actions</th>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Entreprise</th>
+            <th style="width: 160px">Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
             <td>{{ user.name }}</td>
             <td>{{ user.email }}</td>
-            <td>{{ user.company?.name }}</td>
+            <td>{{ user.company?.name ?? '-' }}</td>
             <td>
-              <button @click="editUser(user)" class="btn btn-primary btn-sm me-2">
+              <button
+                class="btn btn-sm btn-primary me-2"
+                @click="editUser(user)"
+              >
                 Edit
               </button>
-              <button @click="deleteUser(user)" class="btn btn-danger btn-sm">
+              <button
+                class="btn btn-sm btn-danger"
+                @click="deleteUser(user)"
+              >
                 Delete
               </button>
             </td>
@@ -51,67 +67,78 @@
         </tbody>
       </table>
 
-      <div v-if="totalUsers > 0" class="p-3">
-        <p>Total: {{ totalUsers }} utilisateurs</p>
+      <div class="p-3 text-muted">
+        Total : {{ totalUsers }} utilisateurs
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref, computed, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import UsersAdd from './UsersAdd.vue';
 
-
 const store = useStore();
-const showModal = ref(false);
 
+/* STATE */
+const showModal = ref(false);
+const selectedUser = ref(null);
+
+/* GETTERS */
 const users = computed(() => store.getters['users/allUsers']);
 const totalUsers = computed(() => store.getters['users/totalUsers']);
 const isLoading = computed(() => store.getters['users/isLoading']);
 const error = computed(() => store.state.users.error);
 
-const companies = computed(() => store.getters['companies/allCompanies']);
-
-const companyMap = computed(() => {
-  const map = {};
-  companies.value.forEach(company => {
-    map[company.id] = company.name;
-  });
-  return map;
+/* FETCH */
+onMounted(() => {
+  getUsers();
 });
 
-onMounted( () => {
-  getusers();
-});
-
-async function getusers() {
+async function getUsers() {
   try {
     await store.dispatch('users/fetchUsers');
     await store.dispatch('companies/fetchCompanies');
-  } catch (error) {
-    console.error('Erreur lors du chargement des utilisateurs:', error);
+  } catch (e) {
+    console.error('Erreur chargement users', e);
   }
 }
 
-function editUser(user) {
-  store.state.data.activepage = 'editUser';
-  store.state.data.editUser = user;
+/* MODAL ACTIONS */
+function openCreateModal() {
+  selectedUser.value = null; // CREATE
+  showModal.value = true;
 }
 
+function editUser(user) {
+  selectedUser.value = user; // EDIT
+  showModal.value = true;
+}
+
+function closeModal() {
+  showModal.value = false;
+  selectedUser.value = null;
+}
+
+/* DELETE */
 async function deleteUser(user) {
-  if (confirm(`Voulez-vous vraiment supprimer l'utilisateur ${user.name} ?`)) {
-    try {
-      await store.dispatch('users/deleteUser', user.id);
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression de l\'utilisateur');
-    }
+  if (!confirm(`Voulez-vous supprimer ${user.name} ?`)) return;
+
+  try {
+    await store.dispatch('users/deleteUser', user.id);
+    getUsers();
+  } catch (e) {
+    alert("Erreur lors de la suppression");
+    console.error(e);
   }
 }
 </script>
 
-<style>
-  
+<style scoped>
+.table th,
+.table td {
+  vertical-align: middle;
+}
 </style>
