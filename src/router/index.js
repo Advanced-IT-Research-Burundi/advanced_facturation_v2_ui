@@ -53,7 +53,7 @@ const router = createRouter({
         {
           path: "expenses",
           name: "expenses",
-          component: () => import("../views/Expenses.vue"),
+          component: () => import("../views/depenses/Expenses.vue"),
         },
         {
           path: "company",
