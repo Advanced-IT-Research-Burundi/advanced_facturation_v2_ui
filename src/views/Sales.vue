@@ -1,8 +1,8 @@
 <script setup>
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 
-// Mock Product Data
+// --- DATA POS (Existante) ---
 const products = ref([
   { id: 1, name: 'Souris Sans Fil M100', price: 25000, category: 'Accessoires', stock: 124 },
   { id: 2, name: 'Clavier Mécanique K95', price: 150000, category: 'Périphériques', stock: 12 },
@@ -57,9 +57,10 @@ const cartTotal = computed(() => {
 });
 
 const formatPrice = (price) => {
-  return price.toLocaleString() + ' FBU';
+  return price.toLocaleString(); 
 };
 
+// --- NAVIGATION TABS ---
 const activeTab = ref('POS');
 const invoiceTypes = [
   { id: 'POS', label: 'POS / Vente Directe' },
@@ -67,11 +68,58 @@ const invoiceTypes = [
   { id: 'Caution', label: 'Remboursement Caution' },
   { id: 'Avoir', label: 'Facture d\'Avoir' }
 ];
+
+// --- LOGIQUE FACTURE SERVICE ---
+const serviceItems = ref([
+   
+    { description: '', quantity: 1, price: 0, tvaRate: 18 }
+]);
+
+const serviceForm = reactive({
+    client: '',
+    paymentType: '',
+    currency: 'BIF'
+});
+
+const addServiceRow = () => {
+    serviceItems.value.push({ description: '', quantity: 1, price: 0, tvaRate: 18 });
+};
+
+const removeServiceRow = (index) => {
+    if (serviceItems.value.length > 1) {
+        serviceItems.value.splice(index, 1);
+    } else {
+        
+        serviceItems.value[0] = { description: '', quantity: 1, price: 0, tvaRate: 18 };
+    }
+};
+
+
+const serviceTotals = computed(() => {
+    let totalTva = 0;
+    let totalHt = 0;
+    let totalTtc = 0;
+
+    serviceItems.value.forEach(item => {
+        const qty = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.price) || 0;
+        const rate = parseFloat(item.tvaRate) || 0;
+
+        const rowHt = qty * price;
+        const rowTva = rowHt * (rate / 100);
+        
+        totalHt += rowHt;
+        totalTva += rowTva;
+        totalTtc += (rowHt + rowTva);
+    });
+
+    return { totalTva, totalHt, totalTtc };
+});
+
 </script>
 
 <template>
   <div class="d-flex flex-column overflow-hidden" style="margin: -1.5rem;">
-    <!-- Tabs Header -->
     <div class="bg-white border-bottom px-3 pt-2">
       <ul class="nav nav-tabs border-bottom-0">
         <li class="nav-item" v-for="type in invoiceTypes" :key="type.id">
@@ -84,12 +132,9 @@ const invoiceTypes = [
 
     <div class="row flex-grow-1 g-0 overflow-hidden">
       
-      <!-- Left Side: Content Area -->
-      <div class="d-flex flex-column bg-light border-end" :class="activeTab === 'POS' ? 'col-12 col-lg-8' : 'col-12'">
+      <div class="d-flex flex-column bg-light border-end col-12" :class="activeTab === 'POS' ? 'col-lg-8' : ''">
         
-        <!-- POS View -->
         <template v-if="activeTab === 'POS'">
-          <!-- Search & Filter Header -->
           <div class="p-3 bg-white border-bottom shadow-sm z-1">
             <div class="row g-2">
               <div class="col-md-6">
@@ -114,7 +159,6 @@ const invoiceTypes = [
             </div>
           </div>
 
-          <!-- Scrollable Products Area -->
           <div class="flex-grow-1 overflow-auto p-3">
             <div class="row g-3">
               <div v-for="product in filteredProducts" :key="product.id" class="col-6 col-md-4 col-xl-3">
@@ -126,7 +170,7 @@ const invoiceTypes = [
                     <div class="fw-bold text-dark mb-1 text-truncate" :title="product.name">{{ product.name }}</div>
                     <div class="small text-muted mb-2">{{ product.category }}</div>
                     <div class="mt-auto d-flex justify-content-between align-items-center">
-                      <span class="fw-bold text-primary">{{ formatPrice(product.price) }}</span>
+                      <span class="fw-bold text-primary">{{ formatPrice(product.price) }} FBU</span>
                       <span class="badge bg-light text-secondary border">{{ product.stock }}</span>
                     </div>
                   </div>
@@ -136,10 +180,119 @@ const invoiceTypes = [
           </div>
         </template>
 
-        <!-- Other Views Placeholders -->
-        <div v-else class="d-flex flex-column align-items-center justify-content-center text-muted">
+        <template v-else-if="activeTab === 'Service'">
+            <div class="d-flex flex-column h-100 bg-white p-4 overflow-auto">
+                <h4 class="mb-4">Facturation des Services</h4>
+                
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Description</th>
+                                <th style="width: 120px;">Quantité</th>
+                                <th style="width: 150px;">Prices (HT)</th>
+                                <th style="width: 120px;">TVA %</th>
+                                <th style="width: 120px;">TVA</th>
+                                <th style="width: 150px;">Prix HTVA</th>
+                                <th style="width: 150px;">Prix Total</th>
+                                <th style="width: 60px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(item, index) in serviceItems" :key="index">
+                                <td>{{ index + 1 }}</td>
+                                <td>
+                                    <input type="text" v-model="item.description" class="form-control" placeholder="Description du service...">
+                                </td>
+                                <td>
+                                    <input type="number" v-model="item.quantity" min="1" class="form-control">
+                                </td>
+                                <td>
+                                    <input type="number" v-model="item.price" min="0" class="form-control">
+                                </td>
+                                <td>
+                                    <select v-model="item.tvaRate" class="form-select">
+                                        <option :value="18">18 %</option>
+                                        <option :value="10">10 %</option>
+                                        <option :value="0">0 %</option>
+                                    </select>
+                                </td>
+                                <td class="fw-bold text-muted">
+                                    {{ ((item.quantity * item.price) * (item.tvaRate / 100)).toLocaleString() }}
+                                </td>
+                                <td class="fw-bold text-muted">
+                                    {{ (item.quantity * item.price).toLocaleString() }}
+                                </td>
+                                <td class="fw-bold text-dark">
+                                    {{ ((item.quantity * item.price) * (1 + item.tvaRate / 100)).toLocaleString() }}
+                                </td>
+                                <td>
+                                    <button @click="removeServiceRow(index)" class="btn btn-danger btn-sm">
+                                        <Trash2 :size="16" />
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="bg-light fw-bold">
+                            <tr>
+                                <td colspan="5" class="text-end text-uppercase">Total</td>
+                                <td>{{ serviceTotals.totalTva.toLocaleString() }}</td>
+                                <td>{{ serviceTotals.totalHt.toLocaleString() }}</td>
+                                <td>{{ serviceTotals.totalTtc.toLocaleString() }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-end mb-5">
+                    <button @click="addServiceRow" class="btn btn-primary d-flex align-items-center gap-2">
+                        <Plus :size="18" /> Ajouter
+                    </button>
+                </div>
+
+                <div class="row g-3 border-top pt-4 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small text-uppercase">Numero de Client</label>
+                        <div class="input-group">
+                            <input type="text" v-model="serviceForm.client" class="form-control" placeholder="Recherche...">
+                            <button class="btn btn-info text-white">Search</button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                         <label class="form-label text-muted small text-uppercase">Type de Paiement</label>
+                         <select v-model="serviceForm.paymentType" class="form-select">
+                             <option value="" disabled selected>Choisissez ...</option>
+                             <option value="cash">Espèces</option>
+                             <option value="banque">Virement Bancaire</option>
+                             <option value="mobile">Mobile Money</option>
+                             <option value="cheque">Chèque</option>
+                         </select>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label class="form-label text-muted small text-uppercase">Type de Monnaie</label>
+                         <select v-model="serviceForm.currency" class="form-select">
+                             <option value="BIF">BIF</option>
+                             <option value="USD">USD</option>
+                             <option value="EUR">EUR</option>
+                         </select>
+                    </div>
+
+                    <div class="col-md-3 text-end">
+                        <button class="btn btn-primary px-4 py-2 d-inline-flex align-items-center gap-2">
+                            <CreditCard :size="18"/> Valider
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </template>
+
+        <div v-else class="d-flex flex-column align-items-center justify-content-center text-muted h-100">
           <div class="text-center p-5">
-            <h3 class="fw-light mb-3" v-if="activeTab === 'Service'">Facturation de Services</h3>
             <h3 class="fw-light mb-3" v-if="activeTab === 'Caution'">Remboursement de Caution</h3>
             <h3 class="fw-light mb-3" v-if="activeTab === 'Avoir'">Note de Crédit / Avoir</h3>
             <p>Module en cours de développement...</p>
@@ -148,9 +301,7 @@ const invoiceTypes = [
 
       </div>
 
-      <!-- Right Side: Cart / POS Panel -->
       <div v-if="activeTab === 'POS'" class="col-12 col-lg-4 d-flex flex-column bg-white shadow-lg z-2 h-100">
-        <!-- Cart Header -->
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-primary text-white">
           <div class="d-flex align-items-center gap-2">
             <ShoppingCart :size="20" />
@@ -159,8 +310,7 @@ const invoiceTypes = [
           <span class="badge bg-white text-primary fw-bold fs-6">{{ cart.length }} Articles</span>
         </div>
 
-        <!-- Client Selection -->
-         <div class="p-3 border-bottom bg-light">
+        <div class="p-3 border-bottom bg-light">
            <div class="input-group">
              <span class="input-group-text bg-white border-end-0 text-muted"><User :size="18"/></span>
              <input list="clientsList" class="form-control border-start-0 ps-0" placeholder="Rechercher du client..." />
@@ -174,7 +324,6 @@ const invoiceTypes = [
            </div>
          </div>
 
-        <!-- Cart Items Scroll Area -->
         <div class="flex-grow-1 overflow-auto p-3">
           <div v-if="cart.length === 0" class="text-center text-muted mt-5">
             <ShoppingCart :size="48" class="mb-3 opacity-25" />
@@ -201,15 +350,14 @@ const invoiceTypes = [
           </div>
         </div>
 
-        <!-- Cart Totals & Actions -->
         <div class="p-3 border-top bg-light mt-auto">
           <div class="d-flex justify-content-between mb-1 text-muted small">
             <span>Sous-total</span>
-            <span>{{ formatPrice(cartTotal) }}</span>
+            <span>{{ formatPrice(cartTotal) }} FBU</span>
           </div>
           <div class="d-flex justify-content-between mb-3">
             <span class="fs-6 fw-bold text-dark">Total à Payer</span>
-            <span class="fs-6 fw-bold text-primary">{{ formatPrice(cartTotal) }}</span>
+            <span class="fs-6 fw-bold text-primary">{{ formatPrice(cartTotal) }} FBU</span>
           </div>
           
            <div class="d-grid gap-2">
