@@ -33,7 +33,7 @@ const router = createRouter({
           component: () => import("../views/stocks/StockWelcomPage.vue"),
         },
         {
-          path: "Bon-commande",
+          path: "/products/bon-de-commandes",
           name: "Bon-commande",
           component: () => import("../views/Bon de commande/BonCommande.vue"),
         },
