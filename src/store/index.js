@@ -154,7 +154,6 @@ const store = createStore({
 
     users,
 
-    products,
     stock,
     expenses,
     users,

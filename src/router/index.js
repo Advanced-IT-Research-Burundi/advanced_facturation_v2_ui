@@ -63,17 +63,10 @@ const router = createRouter({
           component: () => import("../views/fournisseurs/FournisseurPage.vue"),
         },
         {
-          path: "proformats",
-          name: "proformats",
-          component: () => import("../views/proformats/ProformatPage.vue"),
-        },
-        // --- NOUVELLE ROUTE AJOUTÉE ICI ---
-        {
           path: "stock/create",
           name: "stock.create",
           component: () => import("../views/ProductsCreate.vue"),
         },
-        // ----------------------------------
         {
           path: "journal",
           name: "journal",

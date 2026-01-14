@@ -1,6 +1,5 @@
 <script setup>
 import {
-  FileText,
   Package,
   BarChart2,
   Users,
@@ -13,8 +12,6 @@ import {
   Wallet,
   Building,
   Home,
-  // FileText,
-  
 } from "lucide-vue-next";
 import { RouterLink, RouterView } from "vue-router";
 import { computed } from "vue";
@@ -94,16 +91,6 @@ const userInitials = computed(() => {
           >
             <Users :size="20" />
             <span class="small" style="font-size: 0.7rem">Clients</span>
-          </RouterLink>
-        </li>
-        <li>
-          <RouterLink
-            to="/proformats"
-            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
-            active-class="active bg-primary text-white"
-          >
-            <FileText :size="20" />
-            <span class="small" style="font-size: 0.7rem">Proformats</span>
           </RouterLink>
         </li>
         <li>
