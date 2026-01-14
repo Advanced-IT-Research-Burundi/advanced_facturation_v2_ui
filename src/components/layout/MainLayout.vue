@@ -39,6 +39,15 @@ const userInitials = computed(() => {
   }
   return ""; // Default initials
 });
+
+const companyName = computed(() => {
+  const company = store.state.auth.company;
+  console.log(store.state.auth);
+  if (company && company.name) {
+    return company.name;
+  }
+  return "Nom de l'entreprise"; // Default company name
+});
 </script>
 
 <template>
@@ -209,7 +218,7 @@ const userInitials = computed(() => {
       >
         <div>
           <h4 class="mb-0 fw-bold text-primary">
-            {{ store.state.auth.companyName || "Nom de l'entreprise" }}
+            {{ companyName || "Nom de l'entreprise" }}
           </h4>
         </div>
 
