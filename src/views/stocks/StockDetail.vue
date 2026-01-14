@@ -133,22 +133,3 @@ onMounted(() => {
   }
 });
 </script>
-
-<style scoped>
-.rounded-4 {
-  border-radius: 1.25rem !important;
-}
-
-.bg-light {
-  background-color: #f8f9fa !important;
-}
-
-.card {
-  border: 1px solid rgba(0,0,0,0.05);
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
-}
-</style>

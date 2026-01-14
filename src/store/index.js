@@ -22,7 +22,7 @@ const store = createStore({
     data: {
       product_units : [],
       warehouses: [],
-      stockItems: [],
+      stockProducts: [],
       categories: [],
       categoriesProducts: [],
       product_units: [],
