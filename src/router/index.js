@@ -68,13 +68,11 @@ const router = createRouter({
           name: "fournisseurs",
           component: () => import("../views/fournisseurs/FournisseurPage.vue"),
         },
-        // --- NOUVELLE ROUTE AJOUTÉE ICI ---
         {
           path: "stock/create",
           name: "stock.create",
           component: () => import("../views/ProductsCreate.vue"),
         },
-        // ----------------------------------
         {
           path: "journal",
           name: "journal",
