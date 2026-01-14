@@ -8,7 +8,9 @@
           {{ isEdit ? 'Modifier Utilisateur' : 'Nouveau Utilisateur' }}
         </h4>
         <button class="btn-close" @click="$emit('close')"></button>
-      </div>
+      </div> 
+      
+      
 
       <!-- ERROR -->
       <div v-if="errorMessage" class="alert alert-danger">
@@ -17,7 +19,6 @@
 
       <!-- FORM -->
       <form @submit.prevent="saveUser">
-
         <!-- NOM & EMAIL -->
         <div class="row g-4 mb-4">
           <div class="col-md-6">
@@ -240,6 +241,10 @@ const saveUser = async () => {
     isSaving.value = false;
   }
 };
+
+
+
+
 
 </script>
 
