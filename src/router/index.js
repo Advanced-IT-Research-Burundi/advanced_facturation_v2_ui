@@ -35,7 +35,12 @@ const router = createRouter({
         {
           path: "/products/bon-de-commandes",
           name: "Bon-commande",
-          component: () => import("../views/Bon de commande/BonCommande.vue"),
+          component: () => import("../views/bon_commande/BonCommande.vue"),
+        },
+        {
+          path: "products/bar-code-generator",
+          name: "barcode",
+          component: () => import("../views/barcode/BarCodepage.vue"),
         },
         {
           path: "stock/:id",
