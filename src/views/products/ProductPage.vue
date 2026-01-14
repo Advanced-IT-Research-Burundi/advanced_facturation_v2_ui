@@ -140,7 +140,7 @@
                 
                       <select class="form-select" v-model="form.item_measurement_unit">
                         <option :value="null">Sélectionner une unité</option>
-                        <option v-for="unit in product_units" :key="unit.id" :value="unit.id">
+                        <option v-for="unit in product_units" :key="unit.name" :value="unit.id">
                           {{ unit.name }}
                         </option>
                       </select>
