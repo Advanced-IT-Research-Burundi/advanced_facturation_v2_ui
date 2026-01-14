@@ -65,6 +65,9 @@
                   </span>
                 </td>
                 <td>
+                  <router-link :to="{ name: 'stock.detail', params: { id: product.id } }" class="btn btn-sm btn-outline-info me-2">
+                    <i class="bi bi-eye"></i>
+                  </router-link>
                   <button class="btn btn-sm btn-outline-primary me-2" @click="openModal(product)">
                     <i class="bi bi-pencil"></i>
                   </button>
