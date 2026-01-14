@@ -36,6 +36,7 @@ const addToCart = (product) => {
   if (existingItem) {
     existingItem.quantity++;
   } else {
+    // On clone le produit pour que le changement de prix dans le panier n'affecte pas la liste globale
     cart.value.push({ ...product, quantity: 1 });
   }
 };
@@ -47,7 +48,7 @@ const removeFromCart = (id) => {
 const updateQuantity = (id, delta) => {
   const item = cart.value.find(item => item.id === id);
   if (item) {
-    const newQty = item.quantity + delta;
+    const newQty = parseInt(item.quantity) + delta; // parseInt pour éviter les erreurs si c'est une string
     if (newQty > 0) item.quantity = newQty;
   }
 };
@@ -71,7 +72,6 @@ const invoiceTypes = [
 
 // --- LOGIQUE FACTURE SERVICE ---
 const serviceItems = ref([
-   
     { description: '', quantity: 1, price: 0, tvaRate: 18 }
 ]);
 
@@ -89,7 +89,6 @@ const removeServiceRow = (index) => {
     if (serviceItems.value.length > 1) {
         serviceItems.value.splice(index, 1);
     } else {
-        
         serviceItems.value[0] = { description: '', quantity: 1, price: 0, tvaRate: 18 };
     }
 };
@@ -332,20 +331,33 @@ const serviceTotals = computed(() => {
           </div>
           
           <div v-else class="d-flex flex-column gap-2">
-            <div v-for="item in cart" :key="item.id" class="cart-item p-2 border rounded-3 d-flex align-items-center gap-3 bg-white">
-              <div class="flex-grow-1 overflow-hidden">
-                <div class="fw-bold text-truncate">{{ item.name }}</div>
-                <div class="small text-muted">{{ formatPrice(item.price) }} x {{ item.quantity }}</div>
+            <div v-for="item in cart" :key="item.id" class="cart-item p-2 border rounded-3 bg-white">
+              
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="fw-bold text-truncate pe-2" :title="item.name">{{ item.name }}</div>
+                <button @click="removeFromCart(item.id)" class="btn btn-sm btn-link text-danger p-0 align-self-start"><Trash2 :size="16"/></button>
               </div>
-              <div class="d-flex align-items-center gap-2">
-                 <button @click="updateQuantity(item.id, -1)" class="btn btn-sm btn-light border px-2 py-1"><Minus :size="14"/></button>
-                 <span class="fw-bold" style="min-width: 20px; text-align: center;">{{ item.quantity }}</span>
-                 <button @click="updateQuantity(item.id, 1)" class="btn btn-sm btn-light border px-2 py-1"><Plus :size="14"/></button>
+
+              <div class="d-flex align-items-center justify-content-between gap-2">
+                  
+                  <div style="flex: 1; min-width: 0;">
+                    <div class="input-group input-group-sm">
+                        <input type="number" v-model="item.price" class="form-control px-1" placeholder="Prix" min="0">
+                        <span class="input-group-text px-1 small text-muted" style="font-size: 0.7rem;">FBU</span>
+                    </div>
+                  </div>
+
+                  <div class="d-flex align-items-center">
+                     <button @click="updateQuantity(item.id, -1)" class="btn btn-sm btn-light border px-1 py-1"><Minus :size="12"/></button>
+                     <input type="number" v-model="item.quantity" class="form-control form-control-sm text-center border-0 p-0 mx-1" style="width: 35px;" min="1">
+                     <button @click="updateQuantity(item.id, 1)" class="btn btn-sm btn-light border px-1 py-1"><Plus :size="12"/></button>
+                  </div>
+
+                  <div class="fw-bold text-end text-primary small" style="min-width: 70px;">
+                    {{ formatPrice(item.price * item.quantity) }}
+                  </div>
               </div>
-              <div class="fw-bold text-end" style="min-width: 80px;">
-                {{ formatPrice(item.price * item.quantity) }}
-              </div>
-              <button @click="removeFromCart(item.id)" class="btn btn-sm btn-link text-danger p-1"><Trash2 :size="16"/></button>
+
             </div>
           </div>
         </div>
@@ -363,7 +375,7 @@ const serviceTotals = computed(() => {
            <div class="d-grid gap-2">
              <div class="row g-2 mb-2">
                <div class="col-6 d-flex align-items-center">
-                 <label class="form-label small text-muted">Devise</label>
+                 <label class="form-label small text-muted mb-0 me-2">Devise</label>
                  <select class="form-select form-select-sm">
                    <option value="FBU">FBU</option>
                    <option value="USD">USD</option>
@@ -371,7 +383,6 @@ const serviceTotals = computed(() => {
                  </select>
                </div>
                <div class="col-6 d-flex align-items-end gap-2">
-                 <label class="form-label small text-muted">Paiement</label>
                  <select class="form-select form-select-sm">
                    <option value="cash">Espèces</option>
                    <option value="card">Carte Bancaire</option>
@@ -421,5 +432,18 @@ const serviceTotals = computed(() => {
 .overflow-auto::-webkit-scrollbar-thumb {
   background-color: rgba(0,0,0,0.2);
   border-radius: 4px;
+}
+
+/* Supprime les flèches pour tous les navigateurs modernes */
+input[type=number] {
+  appearance: textfield; /* Standard */
+  -moz-appearance: textfield; /* Firefox */
+}
+
+/* Pour Chrome, Safari et Edge (Webkit) */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 </style>
