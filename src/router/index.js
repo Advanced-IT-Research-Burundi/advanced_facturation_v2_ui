@@ -11,7 +11,7 @@ const router = createRouter({
     {
       path: "/",
       component: MainLayout,
-      redirect: "/dashboard", // Ajout d'une redirection par défaut
+      redirect: "/dashboard",
       children: [
         {
           path: "dashboard",
@@ -26,13 +26,20 @@ const router = createRouter({
         {
           path: "clients",
           name: "clients",
-          component: () => import("../views/clients/Clients.vue"), // Votre vue dynamique
+          component: () => import("../views/clients/Clients.vue"),
         },
         {
           path: "stock",
           name: "stock",
           component: Stock,
         },
+        // --- NOUVELLE ROUTE AJOUTÉE ICI ---
+        {
+          path: "stock/create",
+          name: "stock.create",
+          component: () => import("../views/ProductsCreate.vue"),
+        },
+        // ----------------------------------
         {
           path: "journal",
           name: "journal",
@@ -46,7 +53,12 @@ const router = createRouter({
         {
           path: "expenses",
           name: "expenses",
-          component: () => import("../views/Expenses.vue"),
+          component: () => import("../views/depenses/Expenses.vue"),
+        },
+        {
+          path: "expenses/categories",
+          name: "expenses.categories",
+          component: () => import("../views/depenses/DepenseCategory.vue"),
         },
         {
           path: "company",
@@ -57,6 +69,16 @@ const router = createRouter({
           path: "users",
           name: "users",
           component: () => import("../views/Users.vue"),
+        },
+        {
+          path: "settings/unites",
+          name: "settings.unites",
+          component: () => import("../views/settings/Unites.vue"),
+        },
+        {
+          path: "settings/stocks",
+          name: "settings.stocks",
+          component: () => import("../views/stocks/Stocks.vue"),
         },
         {
           path: "profile",
