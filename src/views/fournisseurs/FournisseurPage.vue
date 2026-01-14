@@ -178,7 +178,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -194,6 +193,7 @@ const formLoading = ref(false)
 const suppliers = ref([])
 const searchQuery = ref('')
 const dbSearch = ref(null) // for debounce
+const fournisseurs = ref([])
 
 const pagination = ref({
     current_page: 1,

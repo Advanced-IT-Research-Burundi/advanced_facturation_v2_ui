@@ -1,5 +1,5 @@
 <script setup>
-import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User } from 'lucide-vue-next';
+import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User, Eye, Printer, Edit } from 'lucide-vue-next';
 import { ref, computed, reactive } from 'vue';
 
 // --- DATA POS (Existante) ---
@@ -65,13 +65,13 @@ const activeTab = ref('POS');
 const invoiceTypes = [
   { id: 'POS', label: 'POS / Vente Directe' },
   { id: 'Service', label: 'Facture Service' },
+  { id: 'Proforma', label: 'Proforma Service' },
   { id: 'Caution', label: 'Remboursement Caution' },
   { id: 'Avoir', label: 'Facture d\'Avoir' }
 ];
 
 // --- LOGIQUE FACTURE SERVICE ---
 const serviceItems = ref([
-   
     { description: '', quantity: 1, price: 0, tvaRate: 18 }
 ]);
 
@@ -89,11 +89,9 @@ const removeServiceRow = (index) => {
     if (serviceItems.value.length > 1) {
         serviceItems.value.splice(index, 1);
     } else {
-        
         serviceItems.value[0] = { description: '', quantity: 1, price: 0, tvaRate: 18 };
     }
 };
-
 
 const serviceTotals = computed(() => {
     let totalTva = 0;
@@ -116,6 +114,215 @@ const serviceTotals = computed(() => {
     return { totalTva, totalHt, totalTtc };
 });
 
+// --- LOGIQUE PROFORMA SERVICE ---
+const proformas = ref([
+  // Exemples de proformas (sera remplacé par vos données API)
+  {
+    id: 'PRO-2025-001',
+    date: '2025-01-14',
+    client_number: 'CUST-001',
+    client_name: 'Entreprise ABC',
+    currency: 'BIF',
+    payment_method: 'banque',
+    items: [
+      {
+        description: 'Maintenance informatique trimestrielle',
+        quantity: 1,
+        unit_price_ht: 100000,
+        tva_rate: 18,
+        tva_amount: 18000,
+        total_ttc: 118000
+      }
+    ],
+    totals: {
+      total_ht: 100000,
+      total_tva: 18000,
+      total_ttc: 118000
+    },
+    status: 'En attente'
+  },
+  {
+    id: 'PRO-2025-002',
+    date: '2025-01-14',
+    client_number: 'CUST-002',
+    client_name: 'Entreprise DEF',
+    currency: 'BIF',
+    payment_method: 'banque',
+    items: [
+      {
+        description: 'Maintenance informatique trimestrielle',
+        quantity: 1,
+        unit_price_ht: 100000,
+        tva_rate: 18,
+        tva_amount: 18000,
+        total_ttc: 118000
+      }
+    ],
+    totals: {
+      total_ht: 100000,
+      total_tva: 18000,
+      total_ttc: 118000
+    },
+    status: 'En attente'
+  }
+]);
+
+const showProformaForm = ref(false);
+const showProformaDetails = ref(false);
+const selectedProforma = ref(null);
+const searchProforma = ref('');
+
+const proformaForm = reactive({
+  client_number: '',
+  client_name: '',
+  currency: 'BIF',
+  payment_method: '',
+  items: [{ description: '', quantity: 1, unit_price_ht: 0, tva_rate: 18 }]
+});
+
+const filteredProformas = computed(() => {
+  return proformas.value.filter(p => {
+    const search = searchProforma.value.toLowerCase();
+    return p.id.toLowerCase().includes(search) || 
+           p.client_name.toLowerCase().includes(search) ||
+           p.client_number.toLowerCase().includes(search);
+  });
+});
+
+const addProformaItem = () => {
+  proformaForm.items.push({ description: '', quantity: 1, unit_price_ht: 0, tva_rate: 18 });
+};
+
+const removeProformaRow = (index) => {
+  if (proformaForm.items.length > 1) {
+    proformaForm.items.splice(index, 1);
+  }
+};
+
+const proformaTotals = computed(() => {
+  let total_ht = 0;
+  let total_tva = 0;
+  let total_ttc = 0;
+
+  proformaForm.items.forEach(item => {
+    const qty = parseFloat(item.quantity) || 0;
+    const price = parseFloat(item.unit_price_ht) || 0;
+    const rate = parseFloat(item.tva_rate) || 0;
+
+    const ht = qty * price;
+    const tva = ht * (rate / 100);
+    
+    total_ht += ht;
+    total_tva += tva;
+    total_ttc += (ht + tva);
+  });
+
+  return { total_ht, total_tva, total_ttc };
+});
+
+const openProformaForm = () => {
+  showProformaForm.value = true;
+  // Reset form
+  proformaForm.client_number = '';
+  proformaForm.client_name = '';
+  proformaForm.currency = 'BIF';
+  proformaForm.payment_method = '';
+  proformaForm.items = [{ description: '', quantity: 1, unit_price_ht: 0, tva_rate: 18 }];
+};
+
+const closeProformaForm = () => {
+  showProformaForm.value = false;
+};
+
+const saveProforma = () => {
+  // Préparer les données pour l'API
+  const proformaData = {
+    invoice_type: "PROFORMA_SERVICE",
+    client_number: proformaForm.client_number,
+    client_name: proformaForm.client_name,
+    currency: proformaForm.currency,
+    payment_method: proformaForm.payment_method,
+    items: proformaForm.items.map(item => ({
+      description: item.description,
+      quantity: parseFloat(item.quantity) || 0,
+      unit_price_ht: parseFloat(item.unit_price_ht) || 0,
+      tva_rate: parseFloat(item.tva_rate) || 0,
+      tva_amount: (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price_ht) || 0) * ((parseFloat(item.tva_rate) || 0) / 100),
+      total_ttc: (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price_ht) || 0) * (1 + (parseFloat(item.tva_rate) || 0) / 100)
+    })),
+    totals: proformaTotals.value
+  };
+
+  console.log('Données à envoyer à l\'API:', proformaData);
+  
+  // TODO: Envoyer à votre API
+  // fetch('/api/proformas', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify(proformaData)
+  // }).then(response => response.json())
+  //   .then(data => {
+  //     proformas.value.unshift(data);
+  //     closeProformaForm();
+  //   });
+
+  // Pour la démo, ajouter localement
+  const newProforma = {
+    id: `PRO-2025-${String(proformas.value.length + 1).padStart(3, '0')}`,
+    date: new Date().toISOString().split('T')[0],
+    ...proformaData,
+    status: 'En attente'
+  };
+  
+  proformas.value.unshift(newProforma);
+  closeProformaForm();
+  alert('Proforma créé avec succès!');
+};
+
+const viewProforma = (proforma) => {
+  selectedProforma.value = proforma;
+  showProformaDetails.value = true;
+};
+
+const closeProformaDetails = () => {
+  showProformaDetails.value = false;
+  selectedProforma.value = null;
+};
+
+const printProforma = () => {
+  const printContent = document.getElementById('proforma-printable');
+  const originalContent = document.body.innerHTML;
+  
+  document.body.innerHTML = printContent.innerHTML;
+  window.print();
+  document.body.innerHTML = originalContent;
+  window.location.reload(); // Pour restaurer les événements Vue
+};
+
+const voirProforma = () => {
+  // Créer un objet proforma temporaire depuis le formulaire
+  const tempProforma = {
+    id: 'APERÇU',
+    date: new Date().toISOString().split('T')[0],
+    client_number: proformaForm.client_number,
+    client_name: proformaForm.client_name,
+    currency: proformaForm.currency,
+    payment_method: proformaForm.payment_method,
+    items: proformaForm.items.map(item => ({
+      ...item,
+      unit_price_ht: parseFloat(item.unit_price_ht) || 0,
+      quantity: parseFloat(item.quantity) || 0,
+      tva_rate: parseFloat(item.tva_rate) || 0,
+      total_ttc: (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price_ht) || 0) * (1 + (parseFloat(item.tva_rate) || 0) / 100)
+    })),
+    totals: proformaTotals.value,
+    status: 'Aperçu'
+  };
+  
+  selectedProforma.value = tempProforma;
+  showProformaDetails.value = true;
+};
+
 </script>
 
 <template>
@@ -134,6 +341,7 @@ const serviceTotals = computed(() => {
       
       <div class="d-flex flex-column bg-light border-end col-12" :class="activeTab === 'POS' ? 'col-lg-8' : ''">
         
+        <!-- POS TAB -->
         <template v-if="activeTab === 'POS'">
           <div class="p-3 bg-white border-bottom shadow-sm z-1">
             <div class="row g-2">
@@ -180,6 +388,7 @@ const serviceTotals = computed(() => {
           </div>
         </template>
 
+        <!-- SERVICE TAB -->
         <template v-else-if="activeTab === 'Service'">
             <div class="d-flex flex-column h-100 bg-white p-4 overflow-auto">
                 <h4 class="mb-4">Facturation des Services</h4>
@@ -191,7 +400,7 @@ const serviceTotals = computed(() => {
                                 <th style="width: 50px;">#</th>
                                 <th>Description</th>
                                 <th style="width: 120px;">Quantité</th>
-                                <th style="width: 150px;">Prices (HT)</th>
+                                <th style="width: 150px;">Prix HT</th>
                                 <th style="width: 120px;">TVA %</th>
                                 <th style="width: 120px;">TVA</th>
                                 <th style="width: 150px;">Prix HTVA</th>
@@ -254,7 +463,7 @@ const serviceTotals = computed(() => {
 
                 <div class="row g-3 border-top pt-4 align-items-end">
                     <div class="col-md-3">
-                        <label class="form-label text-muted small text-uppercase">Numero de Client</label>
+                        <label class="form-label text-muted small text-uppercase">Numéro de Client</label>
                         <div class="input-group">
                             <input type="text" v-model="serviceForm.client" class="form-control" placeholder="Recherche...">
                             <button class="btn btn-info text-white">Search</button>
@@ -287,10 +496,67 @@ const serviceTotals = computed(() => {
                         </button>
                     </div>
                 </div>
-
             </div>
         </template>
 
+        <!-- PROFORMA SERVICE TAB -->
+        <template v-else-if="activeTab === 'Proforma'">
+          <div class="d-flex flex-column h-100 bg-white p-4 overflow-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h4 class="mb-0">Gestion des Proformas Service</h4>
+              <button @click="openProformaForm" class="btn btn-primary d-flex align-items-center gap-2">
+                <Plus :size="18" /> Nouveau Proforma
+              </button>
+            </div>
+
+            <div class="mb-3">
+              <div class="input-group">
+                <span class="input-group-text bg-light"><Search :size="18"/></span>
+                <input v-model="searchProforma" type="text" class="form-control" placeholder="Rechercher par N°, client...">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="bg-light">
+                  <tr>
+                    <th>N° Proforma</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Montant HT</th>
+                    <th>TVA</th>
+                    <th>Total TTC</th>
+                    <th>Devise</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="proforma in filteredProformas" :key="proforma.id">
+                    <td class="fw-bold">{{ proforma.id }}</td>
+                    <td>{{ proforma.date }}</td>
+                    <td>
+                      <div>{{ proforma.client_name }}</div>
+                      <small class="text-muted">{{ proforma.client_number }}</small>
+                    </td>
+                    <td>{{ formatPrice(proforma.totals.total_ht) }}</td>
+                    <td>{{ formatPrice(proforma.totals.total_tva) }}</td>
+                    <td class="fw-bold">{{ formatPrice(proforma.totals.total_ttc) }}</td>
+                    <td>{{ proforma.currency }}</td>
+                    <td><span class="badge bg-warning">{{ proforma.status }}</span></td>
+                    <td>
+                      <button @click="viewProforma(proforma)" class="btn btn-sm btn-info text-white me-1">
+                        <Eye :size="16" />
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+
+        <!-- AUTRES TABS -->
         <div v-else class="d-flex flex-column align-items-center justify-content-center text-muted h-100">
           <div class="text-center p-5">
             <h3 class="fw-light mb-3" v-if="activeTab === 'Caution'">Remboursement de Caution</h3>
@@ -298,9 +564,9 @@ const serviceTotals = computed(() => {
             <p>Module en cours de développement...</p>
           </div>
         </div>
-
       </div>
 
+      <!-- PANIER POS -->
       <div v-if="activeTab === 'POS'" class="col-12 col-lg-4 d-flex flex-column bg-white shadow-lg z-2 h-100">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-primary text-white">
           <div class="d-flex align-items-center gap-2">
@@ -388,38 +654,198 @@ const serviceTotals = computed(() => {
            </div>
         </div>
       </div>
+    </div>
 
+    <!-- MODAL FORMULAIRE PROFORMA -->
+    <div v-if="showProformaForm" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">Nouveau Proforma Service</h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeProformaForm"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3 mb-4">
+              <div class="col-md-3">
+                <label class="form-label">Numéro Client *</label>
+                <input type="text" v-model="proformaForm.client_number" class="form-control" placeholder="CUST-001">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Nom Client *</label>
+                <input type="text" v-model="proformaForm.client_name" class="form-control" placeholder="Nom du client">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Devise *</label>
+                <select v-model="proformaForm.currency" class="form-select">
+                  <option value="BIF">BIF</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Date *</label>
+                <input type="date" v-model="proformaForm.date" class="form-control">
+              </div>
+            </div>
+
+            <div class="table-responsive mb-4">
+              <table class="table table-bordered align-middle">
+                <thead class="bg-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Qté</th>
+                    <th>Prix HT</th>
+                    <th>TVA %</th>
+                    <th>Total TTC</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, index) in proformaForm.items" :key="index">
+                    <td>{{ index + 1 }}</td>
+                    <td><input v-model="item.description" class="form-control"></td>
+                    <td><input type="number" v-model="item.quantity" class="form-control"></td>
+                    <td><input type="number" v-model="item.unit_price_ht" class="form-control"></td>
+                    <td>
+                      <select v-model="item.tvaRate" class="form-select">
+                        <option :value="18">18%</option>
+                        <option :value="0">0%</option>
+                      </select>
+                    </td>
+                    <td class="fw-bold">
+                      {{ ((item.quantity * item.price) * (1 + item.tvaRate/100)).toLocaleString() }}
+                    </td>
+                    <td>
+                      <button @click="removeProformaRow(index)" class="btn btn-danger btn-sm">
+                        <Trash2 :size="14"/>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="fw-bold bg-light">
+                  <tr>
+                    <td colspan="5" class="text-end">TOTAL</td>
+                    <td>{{ proformaTotals.totalTtc.toLocaleString() }}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <button @click="addProformaRow" class="btn btn-primary mb-4">
+              <Plus :size="16"/> Ajouter ligne
+            </button>
+
+            <!-- FOOTER -->
+            <div class="row g-3 border-top pt-4">
+              <div class="col-md-4">
+                <label class="form-label">Client</label>
+                <input v-model="proformaForm.clientNumber" class="form-control">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">Devise</label>
+                <select v-model="proformaForm.currency" class="form-select">
+                  <option>BIF</option>
+                  <option>USD</option>
+                  <option>EUR</option>
+                </select>
+              </div>
+
+              <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
+                <button class="btn btn-outline-secondary" @click="voirProforma">
+                  👁 Voir
+                </button>
+                <button class="btn btn-primary" @click="imprimerProforma">
+                  🖨 Imprimer A4
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeProformaForm">Annuler</button>
+            <button type="button" class="btn btn-primary" @click="saveProforma">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DÉTAILS/APERÇU PROFORMA -->
+<div v-if="showProformaDetails && selectedProforma" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Aperçu Proforma - {{ selectedProforma.id }}</h5>
+        <button type="button" class="btn-close" @click="closeProformaDetails"></button>
+      </div>
+      <div class="modal-body" id="proforma-printable">
+        <!-- En-tête -->
+        <div class="text-center mb-4 border-bottom pb-3">
+          <h3 class="fw-bold">PROFORMA SERVICE</h3>
+          <p class="mb-1">N° {{ selectedProforma.id }}</p>
+          <p class="text-muted">Date: {{ selectedProforma.date }}</p>
+        </div>
+
+        <!-- Infos Client -->
+        <div class="row mb-4">
+          <div class="col-6">
+            <h6 class="fw-bold">Client:</h6>
+            <p class="mb-0">{{ selectedProforma.client_name }}</p>
+            <p class="text-muted">{{ selectedProforma.client_number }}</p>
+          </div>
+          <div class="col-6 text-end">
+            <p><strong>Devise:</strong> {{ selectedProforma.currency }}</p>
+            <p><strong>Paiement:</strong> {{ selectedProforma.payment_method }}</p>
+          </div>
+        </div>
+
+        <!-- Tableau des articles -->
+        <table class="table table-bordered">
+          <thead class="bg-light">
+            <tr>
+              <th>#</th>
+              <th>Description</th>
+              <th>Qté</th>
+              <th>PU HT</th>
+              <th>TVA</th>
+              <th>Total TTC</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, idx) in selectedProforma.items" :key="idx">
+              <td>{{ idx + 1 }}</td>
+              <td>{{ item.description }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ formatPrice(item.unit_price_ht) }}</td>
+              <td>{{ item.tva_rate }}%</td>
+              <td>{{ formatPrice(item.total_ttc) }}</td>
+            </tr>
+          </tbody>
+          <tfoot class="fw-bold">
+            <tr>
+              <td colspan="5" class="text-end">Total HT</td>
+              <td>{{ formatPrice(selectedProforma.totals.total_ht) }}</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="text-end">TVA</td>
+              <td>{{ formatPrice(selectedProforma.totals.total_tva) }}</td>
+            </tr>
+            <tr class="table-primary">
+              <td colspan="5" class="text-end">TOTAL TTC</td>
+              <td>{{ formatPrice(selectedProforma.totals.total_ttc) }} {{ selectedProforma.currency }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="closeProformaDetails">Fermer</button>
+        <button class="btn btn-primary" @click="printProforma">
+          <Printer :size="16"/> Imprimer
+        </button>
+      </div>
     </div>
   </div>
+</div>
+</div>
 </template>
-
-<style scoped>
-.product-card {
-  transition: all 0.2s ease;
-  user-select: none;
-}
-.product-card:active {
-  transform: scale(0.98);
-}
-.product-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--bs-primary) !important;
-}
-
-.cursor-pointer {
-  cursor: pointer;
-}
-
-/* Custom scrollbar for product grid */
-.overflow-auto::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.overflow-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-.overflow-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(0,0,0,0.2);
-  border-radius: 4px;
-}
-</style>

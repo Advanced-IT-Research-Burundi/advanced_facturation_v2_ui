@@ -62,6 +62,11 @@ const router = createRouter({
           name: "fournisseurs",
           component: () => import("../views/fournisseurs/FournisseurPage.vue"),
         },
+        {
+          path: "proformats",
+          name: "proformats",
+          component: () => import("../views/proformats/ProformatPage.vue"),
+        },
         // --- NOUVELLE ROUTE AJOUTÉE ICI ---
         {
           path: "stock/create",
