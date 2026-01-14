@@ -47,6 +47,7 @@
             <table class="table table-hover mb-0 align-middle">
               <thead class="bg-light">
                 <tr>
+                  <th class="border-bottom-0 py-3 ps-4">ID</th>
                   <th class="border-bottom-0 py-3 ps-4">Nom</th>
                   <th class="border-bottom-0 py-3">Téléphone</th>
                   <th class="border-bottom-0 py-3">NIF</th>
@@ -57,6 +58,7 @@
               </thead>
               <tbody>
                 <tr v-for="supplier in suppliers" :key="supplier.id">
+                  <td class="ps-4 fw-medium">{{ supplier.id }}</td>
                   <td class="ps-4 fw-medium">{{ supplier.name }}</td>
                   <td>{{ supplier.phone_number }}</td>
                   <td>{{ supplier.nif || '-' }}</td>
