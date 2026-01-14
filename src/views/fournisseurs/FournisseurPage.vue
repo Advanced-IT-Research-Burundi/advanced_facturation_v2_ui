@@ -34,7 +34,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="text-center py-5">
+      <div v-if="loading && fournisseurs.length === 0" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Chargement...</span>
         </div>
@@ -71,7 +71,7 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="suppliers.length === 0">
+                <tr v-if="suppliers && suppliers?.length === 0">
                   <td colspan="6" class="text-center py-5 text-muted">
                     Aucun fournisseur trouvé
                   </td>
