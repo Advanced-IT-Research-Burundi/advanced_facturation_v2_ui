@@ -137,7 +137,13 @@
                     </div>
                     <div class="col-md-6">
                       <label class="form-label">Unité de Mesure <span class="text-danger">*</span></label>
-                      <input type="text" class="form-control" v-model="form.item_measurement_unit" required maxlength="255">
+                
+                      <select class="form-select" v-model="form.item_measurement_unit">
+                        <option :value="null">Sélectionner une unité</option>
+                        <option v-for="unit in product_units" :key="unit.id" :value="unit.id">
+                          {{ unit.name }}
+                        </option>
+                      </select>
                     </div>
                     <div class="col-md-6">
                       <label class="form-label">Code Barre</label>
@@ -151,16 +157,13 @@
                         <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                       </select>
                     </div>
-                    <div class="col-md-6">
-                       <label class="form-label">Compagnie (ID) <span class="text-danger">*</span></label>
-                       <input type="number" class="form-control" v-model.number="form.company_id" required>
-                    </div>
+                 
                     <div class="col-md-6">
                        <label class="form-label">Marque</label>
                        <input type="text" class="form-control" v-model="form.marque" maxlength="255">
                     </div>
                      <div class="col-md-6">
-                       <label class="form-label">Type</label>
+                       <label class="form-label">Type / Model</label>
                        <input type="text" class="form-control" v-model="form.type" maxlength="255">
                     </div>
                     <div class="col-md-6">
@@ -225,7 +228,12 @@
                     </div>
                      <div class="col-md-6">
                       <label class="form-label">Unité Produit (ID)</label>
-                      <input type="number" class="form-control" v-model.number="form.product_unit_id">
+                      <select class="form-select" v-model="form.product_unit_id">
+                        <option :value="null">Sélectionner une unité</option>
+                        <option v-for="unit in product_units" :key="unit.id" :value="unit.id">
+                          {{ unit.name }}
+                        </option>
+                      </select>
                     </div>
                      <div class="col-12">
                       <label class="form-label">Image URL/Fichier</label>
@@ -268,8 +276,10 @@ const activeTab = ref('general');
 let modalInstance = null;
 
 onMounted(async () => {
-  const resp = await api.get('/category-products');
+    const resp = await api.get('/category-products');
+  const resp2 = await api.get('/product-units');
   store.state.data.categoriesProducts = resp.data?.data?.data;
+  store.state.data.product_units = resp2.data?.data?.data;
 });
 
 // State
@@ -277,6 +287,7 @@ const products = computed(() => store.getters['products/allProducts']);
 const loading = computed(() => store.getters['products/isLoading']);
 const pagination = computed(() => store.state.products.pagination);
 const categories = computed(() => store.state.data.categoriesProducts);
+const product_units = computed(() => store.state.data.product_units);
 
 const isEditing = ref(false);
 const editId = ref(null);
@@ -287,7 +298,7 @@ const defaultForm = {
   item_measurement_unit: '',
   barcode: '',
   vat_rate: 0,
-  company_id: 1, // Defaulting to 1 as it is required
+  //company_id: 1, // Defaulting to 1 as it is required
   product_unit_id: null,
   product_category_id: null,
   code_product: '',
