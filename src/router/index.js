@@ -32,6 +32,11 @@ const router = createRouter({
           name: "stock",
           component: () => import("../views/stocks/StockWelcomPage.vue"),
         },
+        {
+          path: "products",
+          name: "products",
+          component: () => import("../views/products/ProductPage.vue"),
+        },
         // --- NOUVELLE ROUTE AJOUTÉE ICI ---
         {
           path: "stock/create",
