@@ -8,7 +8,7 @@ import {
   CreditCard,
   User,
 } from "lucide-vue-next";
-import { ref, computed, reactive, onMounted } from "vue";
+import { ref, computed, reactive, onMounted, watch } from "vue"; // Ajout de watch
 import { useStore } from "vuex";
 import ClientsAdd from "./clients/ClientsAdd.vue";
 
@@ -21,6 +21,16 @@ const clientSearchText = ref("");
 const clients = computed(() => store.getters["clients/allClients"]);
 
 onMounted(() => {
+  // --- PERSISTENCE : Chargement du panier ---
+  const savedCart = localStorage.getItem("pos_cart");
+  if (savedCart) {
+    try {
+      cart.value = JSON.parse(savedCart);
+    } catch (e) {
+      console.error("Erreur panier:", e);
+    }
+  }
+
   if (clients.value.length === 0) {
     store.dispatch("clients/fetchClients");
   }
@@ -40,65 +50,27 @@ const handleClientAdded = () => {
 
 // --- DATA POS (Existante) ---
 const products = ref([
-  {
-    id: 1,
-    name: "Souris Sans Fil M100",
-    price: 25000,
-    category: "Accessoires",
-    stock: 124,
-  },
-  {
-    id: 2,
-    name: "Clavier Mécanique K95",
-    price: 150000,
-    category: "Périphériques",
-    stock: 12,
-  },
-  {
-    id: 3,
-    name: 'Moniteur HD 24"',
-    price: 450000,
-    category: "Affichage",
-    stock: 8,
-  },
-  {
-    id: 4,
-    name: "Câble USB-C 2m",
-    price: 15000,
-    category: "Câbles",
-    stock: 500,
-  },
-  {
-    id: 5,
-    name: "SSD Externe 1TB",
-    price: 280000,
-    category: "Stockage",
-    stock: 45,
-  },
-  {
-    id: 6,
-    name: "Chaise Ergonomique",
-    price: 350000,
-    category: "Mobilier",
-    stock: 5,
-  },
-  {
-    id: 7,
-    name: "Casque Audio Pro",
-    price: 85000,
-    category: "Audio",
-    stock: 20,
-  },
-  {
-    id: 8,
-    name: "Webcam 1080p",
-    price: 120000,
-    category: "Périphériques",
-    stock: 15,
-  },
+  { id: 1, name: "Souris Sans Fil M100", price: 25000, category: "Accessoires", stock: 124 },
+  { id: 2, name: "Clavier Mécanique K95", price: 150000, category: "Périphériques", stock: 12 },
+  { id: 3, name: 'Moniteur HD 24"', price: 450000, category: "Affichage", stock: 8 },
+  { id: 4, name: "Câble USB-C 2m", price: 15000, category: "Câbles", stock: 500 },
+  { id: 5, name: "SSD Externe 1TB", price: 280000, category: "Stockage", stock: 45 },
+  { id: 6, name: "Chaise Ergonomique", price: 350000, category: "Mobilier", stock: 5 },
+  { id: 7, name: "Casque Audio Pro", price: 85000, category: "Audio", stock: 20 },
+  { id: 8, name: "Webcam 1080p", price: 120000, category: "Périphériques", stock: 15 },
 ]);
 
 const cart = ref([]);
+
+// --- PERSISTENCE : Sauvegarde automatique ---
+watch(
+  cart,
+  (newCart) => {
+    localStorage.setItem("pos_cart", JSON.stringify(newCart));
+  },
+  { deep: true }
+);
+
 const searchQuery = ref("");
 const selectedCategory = ref("Tous");
 
@@ -629,7 +601,6 @@ const serviceTotals = computed(() => {
 </template>
 
 <style scoped>
-/* Tes styles restent inchangés */
 .product-card {
   transition: all 0.2s ease;
   user-select: none;
