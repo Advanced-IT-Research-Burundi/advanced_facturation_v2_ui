@@ -16,6 +16,7 @@ const fetchStocks = async () => {
 
     const response = await api.get('/stocks');
     store.state.data.stockItems = response.data?.data;
+    console.log(store.state.data);
   
 }
 
