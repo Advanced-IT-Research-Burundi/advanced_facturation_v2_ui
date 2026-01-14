@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import MainLayout from "../components/layout/MainLayout.vue";
 
 import Dashboard from "../views/Dashboard.vue";
-import Stock from "../views/Stock.vue";
 import Reports from "../views/Reports.vue";
 
 const router = createRouter({
@@ -31,7 +30,22 @@ const router = createRouter({
         {
           path: "stock",
           name: "stock",
-          component: Stock,
+          component: () => import("../views/stocks/StockWelcomPage.vue"),
+        },
+        {
+          path: "products",
+          name: "products",
+          component: () => import("../views/products/ProductPage.vue"),
+        },
+        {
+          path: "products/categories",
+          name: "products.categories",
+          component: () => import("../views/products/ProductCategory.vue"),
+        },
+        {
+          path: "fournisseurs",
+          name: "fournisseurs",
+          component: () => import("../views/fournisseurs/FournisseurPage.vue"),
         },
         // --- NOUVELLE ROUTE AJOUTÉE ICI ---
         {
@@ -54,6 +68,11 @@ const router = createRouter({
           path: "expenses",
           name: "expenses",
           component: () => import("../views/depenses/Expenses.vue"),
+        },
+        {
+          path: "expenses/categories",
+          name: "expenses.categories",
+          component: () => import("../views/depenses/DepenseCategory.vue"),
         },
         {
           path: "company",
