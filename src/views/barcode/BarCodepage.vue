@@ -22,6 +22,8 @@ const showDropdown = ref(false);
 const previewBlobUrl = ref(null);
 const codeType = ref("barcode"); // 'barcode' or 'qrcode'
 const labelCount = ref(1);
+const isPrintingAll = ref(false);
+const isPrintingSelected = ref(false);
 
 // Initialize with all products on mount
 onMounted(() => {
@@ -166,19 +168,25 @@ const generatePrintContent = (itemsToPrint) => {
 
 const printSelected = () => {
   if (!selectedProduct.value) return;
-  triggerPrint([{ ...selectedProduct.value, count: labelCount.value }]);
+  isPrintingSelected.value = true;
+  triggerPrint([{ ...selectedProduct.value, count: labelCount.value }], () => {
+    isPrintingSelected.value = false;
+  });
 };
 
 const printAll = () => {
   if (products.value.length === 0) return;
+  isPrintingAll.value = true;
   const allItems = products.value.map((p) => ({
     ...p,
     count: labelCount.value,
   }));
-  triggerPrint(allItems);
+  triggerPrint(allItems, () => {
+    isPrintingAll.value = false;
+  });
 };
 
-const triggerPrint = (items) => {
+const triggerPrint = (items, onComplete) => {
   const iframe = document.createElement("iframe");
   iframe.style.display = "none";
   document.body.appendChild(iframe);
@@ -186,6 +194,11 @@ const triggerPrint = (items) => {
   const doc = iframe.contentWindow.document;
   doc.write(generatePrintContent(items));
   doc.close();
+
+  // Reset printing state after a short delay to allow print dialog to appear
+  setTimeout(() => {
+    if (onComplete) onComplete();
+  }, 2000);
 };
 
 const clearSelection = () => {
@@ -216,9 +229,12 @@ watch(codeType, () => {
       <div class="col-md-6 text-end">
         <button
           @click="printAll"
+          :disabled="isPrintingAll || products.length === 0"
           class="btn btn-dark d-inline-flex align-items-center gap-2 shadow-sm"
         >
-          <Layers :size="18" /> Tout imprimer (Stock)
+          <Loader2 v-if="isPrintingAll" :size="18" class="spin" />
+          <Layers v-else :size="18" />
+          {{ isPrintingAll ? "Préparation..." : "Tout imprimer (Stock)" }}
         </button>
       </div>
     </div>
@@ -332,10 +348,12 @@ watch(codeType, () => {
             <div class="d-flex gap-2 justify-content-end">
               <button
                 @click="printSelected"
-                :disabled="!selectedProduct"
+                :disabled="!selectedProduct || isPrintingSelected"
                 class="btn btn-primary px-4 d-inline-flex align-items-center gap-2"
               >
-                <Printer :size="18" /> Imprimer
+                <Loader2 v-if="isPrintingSelected" :size="18" class="spin" />
+                <Printer v-else :size="18" />
+                {{ isPrintingSelected ? "En cours..." : "Imprimer" }}
               </button>
             </div>
           </div>
