@@ -16,32 +16,33 @@ const getters = {
 };
 
 const actions = {
-  async fetchUsers({ commit }, page = 1) {
-    commit('setLoading', true);
-    commit('setError', null);
+  async fetchUsers({ commit }, { page = 1, search = '' } = {}) {
+  commit('setLoading', true);
+  commit('setError', null);
 
-    try {
-      const response = await apiClient.get(`/users?page=${page}`);
+  try {
+    const response = await apiClient.get('/users', {
+      params: { page, search }
+    });
 
-      console.log('API RESPONSE:', response.data);
-
-      if (response.data.success && response.data.data) {
-        commit('setUsers', response.data.data.data);
-        commit('setPagination', {
-          total: response.data.data.total,
-          currentPage: response.data.data.current_page,
-          lastPage: response.data.data.last_page,
-          perPage: response.data.data.per_page
-        });
-      }
-
-    } catch (error) {
-      console.error('Erreur fetchUsers:', error);
-      commit('setError', error.message);
-    } finally {
-      commit('setLoading', false);
+    if (response.data.success) {
+      commit('setUsers', response.data.data.data);
+      commit('setPagination', {
+        total: response.data.data.total,
+        current_page: response.data.data.current_page,
+        last_page: response.data.data.last_page,
+        per_page: response.data.data.per_page,
+        prev_page_url: response.data.data.prev_page_url,
+        next_page_url: response.data.data.next_page_url,
+      });
     }
-  },
+  } catch (error) {
+    commit('setError', error.message);
+  } finally {
+    commit('setLoading', false);
+  }
+},
+
 
   async fetchCompanies({ commit }) {
     commit('setLoading', true);

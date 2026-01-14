@@ -87,7 +87,14 @@
         <nav>
           <ul class="pagination pagination-sm mb-0">
             <li class="page-item" :class="{ disabled: !pagination.prev_page_url }">
-              <button class="page-link text-danger" @click="changePage(pagination.current_page - 1)">Précédent</button>
+              <button
+  class="page-link text-danger"
+  :disabled="pagination.current_page <= 1"
+  @click="changePage(pagination.current_page - 1)"
+>
+  Précédent
+</button>
+
             </li>
             
             <li class="page-item active">
@@ -95,7 +102,14 @@
             </li>
 
             <li class="page-item" :class="{ disabled: !pagination.next_page_url }">
-              <button class="page-link text-danger" @click="changePage(pagination.current_page + 1)">Suivant</button>
+              <button
+                class="page-link text-danger"
+                :disabled="pagination.current_page >= lastPage"
+                @click="changePage(pagination.current_page + 1)"
+              >
+                Suivant
+              </button>
+
             </li>
           </ul>
         </nav>
@@ -130,7 +144,7 @@ const error = computed(() => store.state.users.error);
 const pagination = computed(() => store.state.users.pagination);
 
 /* PAGINATION */
-const lastPage = computed(() => Math.ceil(totalUsers.value / pagination.value.per_page || 1));
+const lastPage = computed(()=>pagination.value.last_page || 1);
 
 const calculateIndex = (index) => {
   return (pagination.value.current_page - 1) * pagination.value.per_page + (index + 1);

@@ -228,72 +228,34 @@ const debouncedSearch = () => {
     }, 500)
 }
 
-const fetchSuppliers = async (url = '/fournisseurs') => {
-    loading.value = true
-    try {
-        let endpoint = url;
-        
-        // Handle full URL from Laravel pagination
-        if (url.startsWith('http')) {
-             const urlObj = new URL(url);
-             endpoint = '/fournisseurs' + urlObj.search;
-        }
+const fetchSuppliers = async () => {
+  loading.value = true
+  try {
+    const resp = await api.get('/fournisseurs', {
+      params: searchQuery.value ? { search: searchQuery.value } : {}
+    })
 
-        // Search params
-        const params = {}
-        if (searchQuery.value) {
-            params.search = searchQuery.value
-        }
+    // ✅ CAS ACTUEL DE TON API
+    if (resp.data.success && Array.isArray(resp.data.data)) {
+      suppliers.value = resp.data.data
 
-        const resp = await api.get(endpoint, { params })
-        
-        // Check structure based on user request (Laravel paginated response)
-        // Usually: { data: { current_page, data: [], ... } }
-        const result = resp.data.data ? resp.data.data : resp.data
-        
-        // If the API wrapper directly returns the data content in some cases, handle carefuly
-        // But usually resp.data is the axios body.
-        
-        // Let's assume standard structure based on previous prompt:
-        /*
-        {
-          "success": true, // sometimes
-          "data": { ... pagination ... }
-        }
-        */
-       
-        let paginationData = null
-        if (resp.data.success && resp.data.data) {
-             paginationData = resp.data.data
-        } else if (result.current_page) {
-             // Direct pagination object
-             paginationData = result
-        }
-
-        if (paginationData) {
-            suppliers.value = paginationData.data
-            
-            // Store integration
-            if(store.state.data) {
-                 store.state.data.fournisseurs = paginationData.data
-            }
-
-            pagination.value = {
-                current_page: paginationData.current_page,
-                from: paginationData.from,
-                to: paginationData.to,
-                total: paginationData.total,
-                prev_page_url: paginationData.prev_page_url,
-                next_page_url: paginationData.next_page_url
-            }
-        }
-        
-    } catch (error) {
-        console.error("Erreur chargement fournisseurs:", error)
-    } finally {
-        loading.value = false
+      pagination.value = {
+        current_page: 1,
+        from: 1,
+        to: resp.data.data.length,
+        total: resp.data.data.length,
+        prev_page_url: null,
+        next_page_url: null
+      }
     }
+
+  } catch (error) {
+    console.error("Erreur chargement fournisseurs:", error)
+  } finally {
+    loading.value = false
+  }
 }
+
 
 // Modal Actions
 const openCreateModal = () => {
