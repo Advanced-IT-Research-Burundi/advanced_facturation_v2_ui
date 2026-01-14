@@ -20,7 +20,7 @@ const routeListes = [
   { label: 'Liste des stocks', to: '/stock', icon: 'pi pi-home' },
   { label: 'Produits', to: '/products', icon: 'pi pi-box' },
   { label: 'Categories des produits', to: '/products/categories', icon: 'pi pi-tags' },
-  { label: 'Fournisseurs', to: '/products/fournisseurs', icon: 'pi pi-user' },
+  { label: 'Fournisseurs', to: '/fournisseurs', icon: 'pi pi-user' },
   { label: 'Bon de commandes', to: '/products/bon-de-commandes', icon: 'pi pi-file' },
   { label: 'Bar Code Generator', to: '/products/bar-code-generator', icon: 'pi pi-qrcode' },
 ];
