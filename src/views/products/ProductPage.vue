@@ -1,7 +1,7 @@
 <template>
   <div class="container-fluid">
     <StockHeader />
-    
+
     <div class="row mb-4 mt-3">
       <div class="col-md-6">
         <h1>Produits</h1>
@@ -278,6 +278,7 @@ let modalInstance = null;
 onMounted(async () => {
     const resp = await api.get('/category-products');
   const resp2 = await api.get('/product-units');
+  const resp3 = await api.get('/products');
   store.state.data.categoriesProducts = resp.data?.data?.data;
   store.state.data.product_units = resp2.data?.data?.data;
 });

@@ -50,10 +50,10 @@ export default {
       commit("SET_LOADING", true);
       try {
         const response = await api.get(`/products?page=${page}&search=${search}`);
-        if (response.data.success) {
+     
           commit("SET_PRODUCTS", response.data.data.data);
           commit("SET_PAGINATION", response.data.data);
-        }
+        
       } catch (error) {
         console.error("Erreur chargement produits:", error);
         commit("SET_ERROR", error);
@@ -65,12 +65,7 @@ export default {
     async fetchCategories({ commit }) {
       try {
         const response = await api.get('/category-products');
-        if (response.data.success) {
-           // Assuming the API returns a list of categories in a standard format
-           commit("SET_CATEGORIES", response.data.data);
-        } else if (Array.isArray(response.data)) {
-           commit("SET_CATEGORIES", response.data);
-        }
+        commit("SET_CATEGORIES", response.data.data);
       } catch (error) {
         console.error("Erreur chargement categories:", error);
       }
@@ -79,11 +74,8 @@ export default {
     async createProduct({ dispatch }, productData) {
       try {
         const response = await api.post('/products', productData);
-        if (response.data.success) {
-          await dispatch('fetchProducts');
-          return { success: true };
-        }
-        return { success: false, errors: response.data.errors };
+       
+        return { success: true };
       } catch (error) {
         console.error("Erreur creation produit:", error);
         return { success: false, error };
@@ -97,11 +89,7 @@ export default {
         // Note: if sending FormData involves files with PUT, sometimes POST with _method=PUT is needed in Laravel/PHP
         // But assuming standard REST PUT for now unless user specified otherwise.
         
-        if (response.data.success) {
-          await dispatch('fetchProducts');
-          return { success: true };
-        }
-        return { success: false, errors: response.data.errors };
+        return { success: true };
       } catch (error) {
          console.error("Erreur mise a jour produit:", error);
          return { success: false, error };
@@ -111,11 +99,7 @@ export default {
     async deleteProduct({ dispatch }, id) {
       try {
         const response = await api.delete(`/products/${id}`);
-        if (response.data.success) {
-          await dispatch('fetchProducts');
-          return { success: true };
-        }
-        return { success: false };
+        return { success: true };
       } catch (error) {
         console.error("Erreur suppression produit:", error);
         return { success: false, error };
