@@ -5,7 +5,7 @@ import Dashboard from "../views/Dashboard.vue";
 import Reports from "../views/Reports.vue";
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory("/"),
   routes: [
     {
       path: "/",

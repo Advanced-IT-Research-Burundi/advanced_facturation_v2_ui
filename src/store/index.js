@@ -24,6 +24,8 @@ const store = createStore({
       warehouses: [],
       stockItems: [],
       categories: [],
+      categoriesProducts: [],
+      product_units: [],
     } ,
     configs: [],
     pagination: {},
