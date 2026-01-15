@@ -155,7 +155,9 @@ const closeProformaDetails = () => {
 };
 
 const formatPrice = (price) => {
-  return typeof price === "number" ? price.toLocaleString() : "0";
+  if (price === null || price === undefined) return "0";
+  const num = parseFloat(price);
+  return !isNaN(num) ? num.toLocaleString() : "0";
 };
 
 const printProforma = () => {

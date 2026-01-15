@@ -109,8 +109,10 @@ const actions = {
       }
       return { success: false };
     } catch (error) {
-      commit('SET_ERROR', error.message);
-      return { success: false, error };
+      console.error('Error updating proforma:', error);
+      const msg = error.response?.data?.message || 'Erreur lors de la modification';
+      commit('SET_ERROR', msg);
+      return { success: false, message: msg, error };
     } finally {
       commit('SET_LOADING', false);
     }
