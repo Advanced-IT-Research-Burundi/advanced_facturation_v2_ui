@@ -1,6 +1,9 @@
 <script setup>
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User, Eye, Printer, Pencil, Trash } from 'lucide-vue-next';
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, watch, onMounted } from 'vue';
+import { useStore } from 'vuex';
+
+const store = useStore();
 
 // --- DATA POS (Existante) ---
 const products = ref([
@@ -13,7 +16,6 @@ const products = ref([
   { id: 7, name: "Casque Audio Pro", price: 85000, category: "Audio", stock: 20 },
   { id: 8, name: "Webcam 1080p", price: 120000, category: "Périphériques", stock: 15 },
 ]);
-
 const cart = ref([]);
 
 // --- PERSISTENCE : Sauvegarde automatique ---
@@ -74,7 +76,7 @@ const cartTotal = computed(() => {
 });
 
 const formatPrice = (price) => {
-  return price.toLocaleString();
+  return price ? price.toLocaleString() : '0';
 };
 
 // --- NAVIGATION TABS ---
@@ -82,6 +84,7 @@ const activeTab = ref("POS");
 const invoiceTypes = [
   { id: "POS", label: "POS / Vente Directe" },
   { id: "Service", label: "Facture Service" },
+  { id: "Proforma", label: "Proforma Service" },
   { id: "Caution", label: "Remboursement Caution" },
   { id: "Avoir", label: "Facture d'Avoir" },
 ];
@@ -127,58 +130,18 @@ const serviceTotals = computed(() => {
   return { totalTva, totalHt, totalTtc };
 });
 
-// --- LOGIQUE PROFORMA SERVICE ---
-const proformas = ref([
-  // Exemples de proformas (sera remplacé par vos données API)
-  {
-    id: 'PRO-2025-001',
-    date: '2025-01-14',
-    client_number: 'CUST-001',
-    client_name: 'Entreprise ABC',
-    currency: 'BIF',
-    payment_method: 'banque',
-    items: [
-      {
-        description: 'Maintenance informatique trimestrielle',
-        quantity: 1,
-        unit_price_ht: 100000,
-        tva_rate: 18,
-        tva_amount: 18000,
-        total_ttc: 118000
-      }
-    ],
-    totals: {
-      total_ht: 100000,
-      total_tva: 18000,
-      total_ttc: 118000
-    },
-    status: 'En attente'
-  },
-  {
-    id: 'PRO-2025-002',
-    date: '2025-01-14',
-    client_number: 'CUST-002',
-    client_name: 'Entreprise DEF',
-    currency: 'BIF',
-    payment_method: 'banque',
-    items: [
-      {
-        description: 'Maintenance informatique trimestrielle',
-        quantity: 1,
-        unit_price_ht: 100000,
-        tva_rate: 18,
-        tva_amount: 18000,
-        total_ttc: 118000
-      }
-    ],
-    totals: {
-      total_ht: 100000,
-      total_tva: 18000,
-      total_ttc: 118000
-    },
-    status: 'En attente'
-  }
-]);
+// --- LOGIQUE PROFORMA SERVICE (INTEGRATION API) ---
+
+// Charger les données au montage
+onMounted(() => {
+  store.dispatch('proformats/fetchProformas');
+  store.dispatch('clients/fetchClients');
+});
+
+// Données depuis le Store
+const proformas = computed(() => store.getters['proformats/allProformats']);
+const clients = computed(() => store.getters['clients/allClients']);
+const isLoadingProformas = computed(() => store.getters['proformats/isLoading']);
 
 const showProformaForm = ref(false);
 const showProformaDetails = ref(false);
@@ -186,24 +149,26 @@ const selectedProforma = ref(null);
 const searchProforma = ref('');
 
 const proformaForm = reactive({
-  client_number: '',
-  client_name: '',
+  customer_id: '',
+  client_name: '', // For display mostly, but backend uses ID
   currency: 'BIF',
-  payment_method: '',
-  items: [{ description: '', quantity: 1, unit_price_ht: 0, tva_rate: 18 }]
+  payment_method: '', // Backend doesn't specify payment method in payload for creation but maybe useful
+  items: [{ description: '', quantity: 1, price: 0, tvaRate: 18 }] // Changed unit_price_ht to price to match
 });
 
+// Helper pour filtrer
 const filteredProformas = computed(() => {
+  if (!proformas.value) return [];
   return proformas.value.filter(p => {
     const search = searchProforma.value.toLowerCase();
-    return p.id.toLowerCase().includes(search) || 
-           p.client_name.toLowerCase().includes(search) ||
-           p.client_number.toLowerCase().includes(search);
+    const idMatch = p.invoice_number ? p.invoice_number.toLowerCase().includes(search) : false;
+    const clientMatch = p.customer_name ? p.customer_name.toLowerCase().includes(search) : false;
+    return idMatch || clientMatch;
   });
 });
 
 const addProformaItem = () => {
-  proformaForm.items.push({ description: '', quantity: 1, unit_price_ht: 0, tva_rate: 18 });
+  proformaForm.items.push({ description: '', quantity: 1, price: 0, tvaRate: 18 });
 };
 
 const removeProformaRow = (index) => {
@@ -219,8 +184,8 @@ const proformaTotals = computed(() => {
 
   proformaForm.items.forEach(item => {
     const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unit_price_ht) || 0;
-    const rate = parseFloat(item.tva_rate) || 0;
+    const price = parseFloat(item.price) || 0;
+    const rate = parseFloat(item.tvaRate) || 0;
 
     const ht = qty * price;
     const tva = ht * (rate / 100);
@@ -237,68 +202,47 @@ const openProformaForm = () => {
   isEditingProforma.value = false;
   editingProformaId.value = null;
 
-  proformaForm.client_number = '';
+  proformaForm.customer_id = '';
   proformaForm.client_name = '';
   proformaForm.currency = 'BIF';
-  proformaForm.payment_method = '';
-  proformaForm.items = [{ description: '', quantity: 1, unit_price_ht: 0, tva_rate: 18 }];
+  proformaForm.items = [{ description: '', quantity: 1, price: 0, tvaRate: 18 }];
 
   showProformaForm.value = true;
 };
-
 
 const closeProformaForm = () => {
   showProformaForm.value = false;
 };
 
-const saveProforma = () => {
-  const proformaData = {
-    client_number: proformaForm.client_number,
-    client_name: proformaForm.client_name,
-    currency: proformaForm.currency,
-    payment_method: proformaForm.payment_method,
-    items: proformaForm.items.map(item => {
-      const qty = parseFloat(item.quantity) || 0;
-      const price = parseFloat(item.unit_price_ht) || 0;
-      const rate = parseFloat(item.tva_rate) || 0;
-
-      return {
-        description: item.description,
-        quantity: qty,
-        unit_price_ht: price,
-        tva_rate: rate,
-        tva_amount: qty * price * (rate / 100),
-        total_ttc: qty * price * (1 + rate / 100)
-      };
-    }),
-    totals: proformaTotals.value
-  };
-
-  if (isEditingProforma.value) {
-    // 🔄 UPDATE
-    const index = proformas.value.findIndex(p => p.id === editingProformaId.value);
-    if (index !== -1) {
-      proformas.value[index] = {
-        ...proformas.value[index],
-        ...proformaData
-      };
-    }
-    alert('Proforma modifié avec succès');
-  } else {
-    // ➕ CREATE
-    const newProforma = {
-      id: `PRO-2025-${String(proformas.value.length + 1).padStart(3, '0')}`,
-      date: new Date().toISOString().split('T')[0],
-      status: 'En attente',
-      ...proformaData
-    };
-    proformas.value.unshift(newProforma);
-    alert('Proforma créé avec succès');
+const saveProforma = async () => {
+  if(!proformaForm.customer_id) {
+    alert("Veuillez sélectionner un client.");
+    return;
   }
 
-  showProformaForm.value = false;
-};
+  const payload = {
+    customer_id: proformaForm.customer_id,
+    currency: proformaForm.currency,
+    items: proformaForm.items,
+    // payment_method ignored by backend creation usually, but kept if needed locally
+  };
 
+  let result;
+  if (isEditingProforma.value) {
+    result = await store.dispatch('proformats/updateProforma', { id: editingProformaId.value, data: payload });
+    if(result.success) alert('Proforma modifié avec succès');
+  } else {
+    result = await store.dispatch('proformats/createProforma', payload);
+    if(result.success) alert('Proforma créé avec succès');
+  }
+
+  if (result.success) {
+    store.dispatch('proformats/fetchProformas'); // Refresh list
+    closeProformaForm();
+  } else {
+    alert('Erreur: ' + (result.message || 'Une erreur est survenue'));
+  }
+};
 
 const viewProforma = (proforma) => {
   selectedProforma.value = proforma;
@@ -310,6 +254,17 @@ const closeProformaDetails = () => {
   selectedProforma.value = null;
 };
 
+const deleteProforma = async (proforma) => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer cette proforma ?')) {
+    const result = await store.dispatch('proformats/deleteProforma', proforma.id);
+    if (result.success) {
+      alert('Proforma supprimée');
+    } else {
+      alert('Erreur lors de la suppression');
+    }
+  }
+};
+
 const printProforma = () => {
   const printContent = document.getElementById('proforma-printable');
   const originalContent = document.body.innerHTML;
@@ -317,27 +272,29 @@ const printProforma = () => {
   document.body.innerHTML = printContent.innerHTML;
   window.print();
   document.body.innerHTML = originalContent;
-  window.location.reload(); // Pour restaurer les événements Vue
+  window.location.reload(); 
 };
 
+// Simplified view/preview logic for new items not yet saved
 const voirProforma = () => {
-  // Créer un objet proforma temporaire depuis le formulaire
+  // Mock object for preview
+  const client = clients.value.find(c => c.id === proformaForm.customer_id);
   const tempProforma = {
-    id: 'APERÇU',
-    date: new Date().toISOString().split('T')[0],
-    client_number: proformaForm.client_number,
-    client_name: proformaForm.client_name,
-    currency: proformaForm.currency,
-    payment_method: proformaForm.payment_method,
-    items: proformaForm.items.map(item => ({
-      ...item,
-      unit_price_ht: parseFloat(item.unit_price_ht) || 0,
-      quantity: parseFloat(item.quantity) || 0,
-      tva_rate: parseFloat(item.tva_rate) || 0,
-      total_ttc: (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price_ht) || 0) * (1 + (parseFloat(item.tva_rate) || 0) / 100)
+    invoice_number: 'APERÇU',
+    invoice_date: new Date().toISOString().split('T')[0],
+    customer_name: client ? client.customer_name : 'Client Inconnu',
+    invoice_currency: proformaForm.currency,
+    invoice_type: 'FP',
+    invoiceItems: proformaForm.items.map(item => ({
+      item_designation: item.description,
+      item_quantity: item.quantity,
+      item_price: item.price,
+      vat: item.tvaRate,
+      item_total_amount: (item.quantity * item.price) * (1 + item.tvaRate/100)
     })),
-    totals: proformaTotals.value,
-    status: 'Aperçu'
+    invoice_total_amount: proformaTotals.value.total_ttc,
+    invoice_amount_nvat: proformaTotals.value.total_ht,
+    invoice_vat_amount: proformaTotals.value.total_tva
   };
   
   selectedProforma.value = tempProforma;
@@ -345,7 +302,6 @@ const voirProforma = () => {
 };
 
 // pour modifier un proforma
-
 const isEditingProforma = ref(false);
 const editingProformaId = ref(null);
 
@@ -353,23 +309,23 @@ const EditProforma = (proforma) => {
   isEditingProforma.value = true;
   editingProformaId.value = proforma.id;
 
-  proformaForm.client_number = proforma.client_number;
-  proformaForm.client_name = proforma.client_name;
-  proformaForm.currency = proforma.currency;
-  proformaForm.payment_method = proforma.payment_method;
-
-  // Copier les lignes
-  proformaForm.items = proforma.items.map(item => ({
-    description: item.description,
-    quantity: item.quantity,
-    unit_price_ht: item.unit_price_ht,
-    tva_rate: item.tva_rate
-  }));
+  proformaForm.customer_id = proforma.customer_id;
+  proformaForm.currency = proforma.invoice_currency;
+  
+  // Map backend items to frontend form
+  if(proforma.invoice_items) {
+      proformaForm.items = proforma.invoice_items.map(item => ({
+        description: item.item_designation,
+        quantity: item.item_quantity,
+        price: item.item_price,
+        tvaRate: item.vat
+      }));
+  } else {
+      proformaForm.items = [];
+  }
 
   showProformaForm.value = true;
 };
-
-
 </script>
 
 <template>
@@ -450,19 +406,6 @@ const EditProforma = (proforma) => {
                     <div class="mt-auto d-flex justify-content-between align-items-center">
                       <span class="fw-bold text-primary">{{ formatPrice(product.price) }} FBU</span>
                       <span class="badge bg-light text-secondary border">{{ product.stock }}</span>
-                    </div>
-                    <div class="small text-muted mb-2">
-                      {{ product.category }}
-                    </div>
-                    <div
-                      class="mt-auto d-flex justify-content-between align-items-center"
-                    >
-                      <span class="fw-bold text-primary"
-                        >{{ formatPrice(product.price) }} FBU</span
-                      >
-                      <span class="badge bg-light text-secondary border">{{
-                        product.stock
-                      }}</span>
                     </div>
                   </div>
                 </div>
@@ -639,7 +582,13 @@ const EditProforma = (proforma) => {
               </div>
             </div>
 
-            <div class="table-responsive">
+            <div v-if="isLoadingProformas" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+
+            <div v-else class="table-responsive">
               <table class="table table-hover align-middle">
                 <thead class="bg-light">
                   <tr>
@@ -656,17 +605,17 @@ const EditProforma = (proforma) => {
                 </thead>
                 <tbody>
                   <tr v-for="proforma in filteredProformas" :key="proforma.id">
-                    <td class="fw-bold">{{ proforma.id }}</td>
-                    <td>{{ proforma.date }}</td>
+                    <td class="fw-bold">{{ proforma.invoice_number }}</td>
+                    <td>{{ new Date(proforma.invoice_date).toLocaleDateString() }}</td>
                     <td>
-                      <div>{{ proforma.client_name }}</div>
-                      <small class="text-muted">{{ proforma.client_number }}</small>
+                      <div>{{ proforma.customer_name }}</div>
+                      <small class="text-muted">{{ proforma.customer_TIN || 'N/A' }}</small>
                     </td>
-                    <td>{{ formatPrice(proforma.totals.total_ht) }}</td>
-                    <td>{{ formatPrice(proforma.totals.total_tva) }}</td>
-                    <td class="fw-bold">{{ formatPrice(proforma.totals.total_ttc) }}</td>
-                    <td>{{ proforma.currency }}</td>
-                    <td><span class="badge bg-warning">{{ proforma.status }}</span></td>
+                    <td>{{ formatPrice(proforma.invoice_amount_nvat) }}</td>
+                    <td>{{ formatPrice(proforma.invoice_vat_amount) }}</td>
+                    <td class="fw-bold">{{ formatPrice(proforma.invoice_total_amount) }}</td>
+                    <td>{{ proforma.invoice_currency }}</td>
+                    <td><span class="badge bg-warning">{{ proforma.obr_submission_status }}</span></td>
                     <td>
                       <button @click="viewProforma(proforma)" class="btn btn-sm btn-info text-white me-1">
                         <Eye :size="16" />
@@ -819,7 +768,7 @@ const EditProforma = (proforma) => {
       </div>
     </div>
 
-    <!-- MODAL FORMULAIRE PROFORMA -->
+    <!-- MODAL FORMULAIRE PROFORMA (UPDATED) -->
     <div v-if="showProformaForm" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -831,13 +780,14 @@ const EditProforma = (proforma) => {
           </div>
           <div class="modal-body">
             <div class="row g-3 mb-4">
-              <div class="col-md-3">
-                <label class="form-label">Numéro Client *</label>
-                <input type="text" v-model="proformaForm.client_number" class="form-control" placeholder="CUST-001">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">Nom Client *</label>
-                <input type="text" v-model="proformaForm.client_name" class="form-control" placeholder="Nom du client">
+              <div class="col-md-6">
+                <label class="form-label">Client *</label>
+                <select v-model="proformaForm.customer_id" class="form-select">
+                  <option value="" disabled>Sélectionner un client</option>
+                  <option v-for="client in clients" :key="client.id" :value="client.id">
+                    {{ client.customer_name }} ({{ client.customer_TIN }})
+                  </option>
+                </select>
               </div>
               <div class="col-md-3">
                 <label class="form-label">Devise *</label>
@@ -847,8 +797,8 @@ const EditProforma = (proforma) => {
                 </select>
               </div>
               <div class="col-md-3">
-                <label class="form-label">Date *</label>
-                <input type="date" v-model="proformaForm.date" class="form-control">
+                <label class="form-label">Date</label>
+                <input type="text" class="form-control" value="Aujourd'hui" disabled>
               </div>
             </div>
 
@@ -870,15 +820,15 @@ const EditProforma = (proforma) => {
                     <td>{{ index + 1 }}</td>
                     <td><input v-model="item.description" class="form-control"></td>
                     <td><input type="number" v-model="item.quantity" class="form-control"></td>
-                    <td><input type="number" v-model="item.unit_price_ht" class="form-control"></td>
+                    <td><input type="number" v-model="item.price" class="form-control"></td>
                     <td>
-                      <select v-model="item.tva_rate" class="form-select">
+                      <select v-model="item.tvaRate" class="form-select">
                         <option :value="18">18%</option>
                         <option :value="0">0%</option>
                       </select>
                     </td>
                     <td class="fw-bold">
-                      {{ ((item.quantity * item.unit_price_ht) * (1 + item.tva_rate/100)).toLocaleString() }}
+                      {{ ((item.quantity * item.price) * (1 + item.tvaRate/100)).toLocaleString() }}
                     </td>
                     <td>
                       <button @click="removeProformaRow(index)" class="btn btn-danger btn-sm">
@@ -905,121 +855,98 @@ const EditProforma = (proforma) => {
 
             <!-- FOOTER -->
             <div class="row g-3 border-top pt-4">
-              <div class="col-md-4">
-                <label class="form-label">Client</label>
-                <input v-model="proformaForm.clientNumber" class="form-control">
-              </div>
-
-              <div class="col-md-4">
-                <label class="form-label">Devise</label>
-                <select v-model="proformaForm.currency" class="form-select">
-                  <option>BIF</option>
-                  <option>USD</option>
-                  <option>EUR</option>
-                </select>
-              </div>
-
-              <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
-                <button class="btn btn-outline-secondary" @click="voirProforma">
-                  👁 Voir
+               <div class="col-md-12 text-end">
+                <button class="btn btn-outline-secondary me-2" @click="closeProformaForm">Annuler</button>
+                <button
+                  class="btn btn-primary d-inline-flex align-items-center gap-2"
+                  @click="saveProforma"
+                >
+                  <CreditCard :size="18" /> {{ isEditingProforma ? 'Mettre à jour' : 'Enregistrer' }}
                 </button>
-                <!-- <button class="btn btn-warning" @click="EditProforma">
-                  🖨 Modifier
-                </button> -->
-                <!-- <button class="btn btn-primary" @click="printProforma">
-                  🖨 Imprimer A4
-                </button> -->
-              </div>
+               </div>
             </div>
-            <button
-              class="btn btn-sm fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-              :disabled="cart.length === 0"
-              style="background-color: #4b5563; color: white"
-            >
-              <CreditCard :size="24" /> Valider la facture
-            </button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- MODAL DÉTAILS/APERÇU PROFORMA -->
-<div v-if="showProformaDetails && selectedProforma" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Proforma - {{ selectedProforma.id }}</h5>
-        <button type="button" class="btn-close" @click="closeProformaDetails"></button>
-      </div>
-      <div class="modal-body" id="proforma-printable">
-        <!-- En-tête -->
-        <div class="text-center mb-4 border-bottom pb-3">
-          <h3 class="fw-bold">PROFORMA SERVICE</h3>
-          <p class="mb-1">N° {{ selectedProforma.id }}</p>
-          <p class="text-muted">Date: {{ selectedProforma.date }}</p>
-        </div>
-
-        <!-- Infos Client -->
-        <div class="row mb-4">
-          <div class="col-6">
-            <h6 class="fw-bold">Client:</h6>
-            <p class="mb-0">{{ selectedProforma.client_name }}</p>
-            <p class="text-muted">{{ selectedProforma.client_number }}</p>
+    <div v-if="showProformaDetails && selectedProforma" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Proforma - {{ selectedProforma.invoice_number || 'APERÇU' }}</h5>
+            <button type="button" class="btn-close" @click="closeProformaDetails"></button>
           </div>
-          <div class="col-6 text-end">
-            <p><strong>Devise:</strong> {{ selectedProforma.currency }}</p>
-            <p><strong>Paiement:</strong> {{ selectedProforma.payment_method }}</p>
+          <div class="modal-body" id="proforma-printable">
+            <!-- En-tête -->
+            <div class="text-center mb-4 border-bottom pb-3">
+              <h3 class="fw-bold">PROFORMA SERVICE</h3>
+              <p class="mb-1">N° {{ selectedProforma.invoice_number || '---' }}</p>
+              <p class="text-muted">Date: {{ new Date(selectedProforma.invoice_date).toLocaleDateString() }}</p>
+            </div>
+
+            <!-- Infos Client -->
+            <div class="row mb-4">
+              <div class="col-6">
+                <h6 class="fw-bold">Client:</h6>
+                <p class="mb-0">{{ selectedProforma.customer_name }}</p>
+                <p class="text-muted">{{ selectedProforma.customer_TIN }}</p>
+              </div>
+              <div class="col-6 text-end">
+                <p><strong>Devise:</strong> {{ selectedProforma.invoice_currency }}</p>
+                <p><strong>Statut:</strong> {{ selectedProforma.obr_submission_status }}</p>
+              </div>
+            </div>
+
+            <!-- Tableau des articles -->
+            <table class="table table-bordered">
+              <thead class="bg-light">
+                <tr>
+                  <th>#</th>
+                  <th>Description</th>
+                  <th>Qté</th>
+                  <th>PU HT</th>
+                  <th>TVA</th>
+                  <th>Total TTC</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in selectedProforma.invoiceItems || selectedProforma.invoice_items" :key="idx">
+                  <td>{{ idx + 1 }}</td>
+                  <td>{{ item.item_designation }}</td>
+                  <td>{{ item.item_quantity }}</td>
+                  <td>{{ formatPrice(item.item_price) }}</td>
+                  <td>{{ item.vat }}%</td>
+                  <td>{{ formatPrice(item.item_total_amount) }}</td>
+                </tr>
+              </tbody>
+              <tfoot class="fw-bold">
+                <tr>
+                  <td colspan="5" class="text-end">Total HT</td>
+                  <td>{{ formatPrice(selectedProforma.invoice_amount_nvat) }}</td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-end">TVA</td>
+                  <td>{{ formatPrice(selectedProforma.invoice_vat_amount) }}</td>
+                </tr>
+                <tr class="table-primary">
+                  <td colspan="5" class="text-end">TOTAL TTC</td>
+                  <td>{{ formatPrice(selectedProforma.invoice_total_amount) }} {{ selectedProforma.invoice_currency }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeProformaDetails">Fermer</button>
+            <button class="btn btn-primary" @click="printProforma">
+              <Printer :size="16"/> Imprimer
+            </button>
           </div>
         </div>
-
-        <!-- Tableau des articles -->
-        <table class="table table-bordered">
-          <thead class="bg-light">
-            <tr>
-              <th>#</th>
-              <th>Description</th>
-              <th>Qté</th>
-              <th>PU HT</th>
-              <th>TVA</th>
-              <th>Total TTC</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, idx) in selectedProforma.items" :key="idx">
-              <td>{{ idx + 1 }}</td>
-              <td>{{ item.description }}</td>
-              <td>{{ item.quantity }}</td>
-              <td>{{ formatPrice(item.unit_price_ht) }}</td>
-              <td>{{ item.tva_rate }}%</td>
-              <td>{{ formatPrice(item.total_ttc) }}</td>
-            </tr>
-          </tbody>
-          <tfoot class="fw-bold">
-            <tr>
-              <td colspan="5" class="text-end">Total HT</td>
-              <td>{{ formatPrice(selectedProforma.totals.total_ht) }}</td>
-            </tr>
-            <tr>
-              <td colspan="5" class="text-end">TVA</td>
-              <td>{{ formatPrice(selectedProforma.totals.total_tva) }}</td>
-            </tr>
-            <tr class="table-primary">
-              <td colspan="5" class="text-end">TOTAL TTC</td>
-              <td>{{ formatPrice(selectedProforma.totals.total_ttc) }} {{ selectedProforma.currency }}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="closeProformaDetails">Fermer</button>
-        <button class="btn btn-primary" @click="printProforma">
-          <Printer :size="16"/> Imprimer
-        </button>
       </div>
     </div>
   </div>
-</div>
-</div>
 </template>
 
 <style scoped>
