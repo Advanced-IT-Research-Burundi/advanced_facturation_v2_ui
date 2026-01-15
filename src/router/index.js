@@ -20,7 +20,7 @@ const router = createRouter({
         {
           path: "sales",
           name: "sales",
-          component: () => import("../views/Sales.vue"),
+          component: () => import("../views/sales/Sales.vue"),
         },
         {
           path: "clients",
