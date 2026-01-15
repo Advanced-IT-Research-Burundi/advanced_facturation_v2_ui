@@ -21,6 +21,12 @@ const emit = defineEmits([
 const formatPrice = (price) => {
   return typeof price === "number" ? price.toLocaleString() : "0";
 };
+
+const confirmDelete = (proforma) => {
+  if (confirm("Êtes-vous sûr de vouloir supprimer cette proforma ?")) {
+    emit("delete", proforma);
+  }
+};
 </script>
 
 <template>
@@ -67,38 +73,41 @@ const formatPrice = (price) => {
         </thead>
         <tbody>
           <tr v-for="proforma in proformas" :key="proforma.id">
-            <td class="fw-bold">{{ proforma.id }}</td>
-            <td>{{ new Date(proforma.date).toLocaleDateString() }}</td>
+            <td class="fw-bold">{{ proforma.invoice_number }}</td>
+            <td>{{ new Date(proforma.invoice_date).toLocaleDateString() }}</td>
             <td>
-              <div>{{ proforma.client_name }}</div>
-              <small class="text-muted">{{ proforma.client_number }}</small>
+              <div>{{ proforma.customer_name }}</div>
+              <small class="text-muted">{{ proforma.customer_TIN }}</small>
             </td>
-            <td>{{ formatPrice(proforma.totals.total_ht) }}</td>
+            <td>{{ formatPrice(proforma.invoice_amount_nvat) }}</td>
             <td class="fw-bold">
-              {{ formatPrice(proforma.totals.total_ttc) }}
-              {{ proforma.currency }}
+              {{ formatPrice(proforma.invoice_total_amount) }}
+              {{ proforma.invoice_currency }}
             </td>
             <td>
               <span class="badge bg-warning text-dark">{{
-                proforma.status
+                proforma.obr_submission_status
               }}</span>
             </td>
             <td>
               <button
                 @click="$emit('view', proforma)"
                 class="btn btn-sm btn-info text-white me-1"
+                title="Voir"
               >
                 <Eye :size="16" />
               </button>
               <button
                 @click="$emit('edit', proforma)"
                 class="btn btn-sm btn-primary text-white me-1"
+                title="Modifier"
               >
                 <Pencil :size="16" />
               </button>
               <button
-                @click="$emit('delete', proforma)"
+                @click="confirmDelete(proforma)"
                 class="btn btn-sm btn-danger text-white"
+                title="Supprimer"
               >
                 <Trash :size="16" />
               </button>

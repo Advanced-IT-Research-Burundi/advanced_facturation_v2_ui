@@ -66,16 +66,7 @@ const actions = {
     try {
       const response = await proformaService.getProformas(page);
       if (response.data.success) {
-        // The API returns { success: true, data: { ...pagination_fields, data: [...] } }
-        // We need to support the Laravel pagination structure
-        const { data, ...meta } = response.data.data; 
-        
-        // Filter locally if API doesn't filter (fallback)
-        // We only want 'FP' (Proforma) and 'SERVICE' action? The user request implies managing proformas service.
-        // Let's filter just in case the API returns everything.
-        // Note: filtering paginated results on frontend is bad (holes in pages), 
-        // but without backend changes it's the only safety net if the API is truly 'all invoices'.
-        // However, we'll store all and let getters filter or assume backend is fixed.
+        const { data, ...meta } = response.data.data;
         commit('SET_PROFORMATS', data);
         commit('SET_PAGINATION', response.data.data);
       }
@@ -87,13 +78,12 @@ const actions = {
     }
   },
 
-  async createProforma({ commit, dispatch }, proformaData) {
+  async createProforma({ commit }, proformaData) {
     commit('SET_LOADING', true);
     commit('SET_ERROR', null);
     try {
       const response = await proformaService.createProforma(proformaData);
       if (response.data.success) {
-        // The backend returns the full invoice object in response.data.data.invoice
         const newInvoice = response.data.data.invoice;
         commit('ADD_PROFORMAT', newInvoice);
         return { success: true, data: newInvoice };
@@ -102,9 +92,8 @@ const actions = {
     } catch (error) {
        console.error('Error creating proforma:', error);
        const msg = error.response?.data?.message || 'Erreur lors de la création';
-       const details = error.response?.data?.stock_details || null; // In case of stock error (though service shouldn't have stock)
        commit('SET_ERROR', msg);
-       return { success: false, message: msg, details };
+       return { success: false, message: msg };
     } finally {
       commit('SET_LOADING', false);
     }
@@ -115,7 +104,6 @@ const actions = {
     try {
       const response = await proformaService.updateProforma(id, data);
       if (response.data.success) {
-        // Backend returns updated invoice
         commit('UPDATE_PROFORMAT', response.data.data);
         return { success: true };
       }

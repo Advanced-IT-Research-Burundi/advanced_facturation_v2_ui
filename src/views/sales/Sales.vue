@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
+import { useStore } from "vuex";
 import api from "@/services/api";
 
 // Child Components
@@ -12,6 +13,8 @@ import ProformaFormModal from "./ProformaFormModal.vue";
 import FactureAvoir from "./FactureAvoir.vue";
 import Refund from "./Refund.vue";
 
+const store = useStore();
+
 // --- GLOBAL STATE ---
 const activeTab = ref("POS");
 const isSubmitting = ref(false);
@@ -19,8 +22,9 @@ const customers = ref([]);
 const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
 
 // --- PROFORMA STATE ---
-const proformas = ref([]);
-const isLoadingProformas = ref(false);
+// Map state from Vuex
+const proformas = computed(() => store.getters["proformats/allProformats"]);
+const isLoadingProformas = computed(() => store.getters["proformats/isLoading"]);
 const searchProforma = ref("");
 const showProformaForm = ref(false);
 const isEditingProforma = ref(false);
@@ -36,39 +40,8 @@ const fetchCustomers = async () => {
   }
 };
 
-const fetchProformas = async () => {
-  isLoadingProformas.value = true;
-  try {
-    const response = await api.get("/invoices");
-    if (response.data.success) {
-      proformas.value = response.data.data.data
-        .filter((i) => i.invoice_type === "FP")
-        .map((i) => ({
-          id: i.invoice_number,
-          date: i.invoice_date,
-          client_number: i.customer?.customer_TIN || "N/A",
-          client_name: i.customer_name,
-          currency: i.invoice_currency,
-          totals: {
-            total_ht: i.invoice_amount_nvat,
-            total_tva: i.invoice_vat_amount,
-            total_ttc: i.invoice_total_amount,
-          },
-          status: "En attente",
-          items: i.invoice_items.map((item) => ({
-            description: item.item_designation,
-            quantity: item.item_quantity,
-            unit_price_ht: item.item_price,
-            tva_rate: item.vat,
-            total_ttc: item.item_total_amount,
-          })),
-        }));
-    }
-  } catch (e) {
-    console.error("Error fetching proformas", e);
-  } finally {
-    isLoadingProformas.value = false;
-  }
+const fetchProformas = () => {
+  store.dispatch("proformats/fetchProformas");
 };
 
 onMounted(() => {
@@ -111,7 +84,8 @@ const handleInvoiceSubmit = async (payload) => {
         cart.value = [];
         // Optional: refresh POS products if we had a ref
       }
-      fetchProformas();
+      // If we created a standard invoice, maybe refresh proformas/invoices list?
+      // fetchProformas(); // Only if we want to mix lists
     } else {
       alert("Erreur: " + response.data.message);
     }
@@ -120,6 +94,38 @@ const handleInvoiceSubmit = async (payload) => {
   } finally {
     isSubmitting.value = false;
   }
+};
+
+const handleProformaSave = async (payload) => {
+  isSubmitting.value = true;
+  let result;
+  
+  if (payload.id) {
+      // Update
+      result = await store.dispatch("proformats/updateProforma", {
+          id: payload.id, 
+          data: payload.data || payload // payload might be {id, data} or just data depending on emitter
+      });
+  } else {
+      // Create
+      result = await store.dispatch("proformats/createProforma", payload);
+  }
+
+  isSubmitting.value = false;
+  
+  if (result.success) {
+      showProformaForm.value = false;
+      // Alert is optional, maybe just close modal
+  } else {
+      alert(result.message || "Erreur lors de l'enregistrement");
+  }
+};
+
+const handleProformaDelete = async (proforma) => {
+    const result = await store.dispatch("proformats/deleteProforma", proforma.id || proforma.invoice_number); // Check what ID we use
+    if (!result.success) {
+        alert("Erreur lors de la suppression");
+    }
 };
 
 const openNewProforma = () => {
@@ -132,6 +138,33 @@ const handleEditProforma = (data) => {
   isEditingProforma.value = true;
   editingProformaData.value = data;
   showProformaForm.value = true;
+};
+
+// --- VIEW PROFORMA LOGIC ---
+const showProformaDetails = ref(false);
+const selectedProforma = ref(null);
+
+const handleViewProforma = (proforma) => {
+  selectedProforma.value = proforma;
+  showProformaDetails.value = true;
+};
+
+const closeProformaDetails = () => {
+    showProformaDetails.value = false;
+    selectedProforma.value = null;
+};
+
+const formatPrice = (price) => {
+  return typeof price === "number" ? price.toLocaleString() : "0";
+};
+
+const printProforma = () => {
+  const printContent = document.getElementById('proforma-printable');
+  const originalContent = document.body.innerHTML;
+  document.body.innerHTML = printContent.innerHTML;
+  window.print();
+  document.body.innerHTML = originalContent;
+  window.location.reload(); 
 };
 </script>
 
@@ -158,6 +191,8 @@ const handleEditProforma = (data) => {
           v-model:search-text="searchProforma"
           @create="openNewProforma"
           @edit="handleEditProforma"
+          @delete="handleProformaDelete"
+          @view="handleViewProforma"
         />
         <Refund v-else-if="activeTab === 'Caution'" />
         <FactureAvoir v-else-if="activeTab === 'Avoir'" />
@@ -182,9 +217,87 @@ const handleEditProforma = (data) => {
       :is-editing="isEditingProforma"
       :is-submitting="isSubmitting"
       :initial-data="editingProformaData"
+      :customers="customers"
       @close="showProformaForm = false"
-      @save="handleInvoiceSubmit"
+      @save="handleProformaSave"
     />
+
+    <!-- MODAL DÉTAILS/APERÇU PROFORMA -->
+    <div v-if="showProformaDetails && selectedProforma" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Proforma - {{ selectedProforma.invoice_number || 'APERÇU' }}</h5>
+            <button type="button" class="btn-close" @click="closeProformaDetails"></button>
+          </div>
+          <div class="modal-body" id="proforma-printable">
+            <!-- En-tête -->
+            <div class="text-center mb-4 border-bottom pb-3">
+              <h3 class="fw-bold">PROFORMA SERVICE</h3>
+              <p class="mb-1">N° {{ selectedProforma.invoice_number || '---' }}</p>
+              <p class="text-muted">Date: {{ new Date(selectedProforma.invoice_date).toLocaleDateString() }}</p>
+            </div>
+
+            <!-- Infos Client -->
+            <div class="row mb-4">
+              <div class="col-6">
+                <h6 class="fw-bold">Client:</h6>
+                <p class="mb-0">{{ selectedProforma.customer_name }}</p>
+                <p class="text-muted">{{ selectedProforma.customer_TIN }}</p>
+              </div>
+              <div class="col-6 text-end">
+                <p><strong>Devise:</strong> {{ selectedProforma.invoice_currency }}</p>
+                <p><strong>Statut:</strong> {{ selectedProforma.obr_submission_status }}</p>
+              </div>
+            </div>
+
+            <!-- Tableau des articles -->
+            <table class="table table-bordered">
+              <thead class="bg-light">
+                <tr>
+                  <th>#</th>
+                  <th>Description</th>
+                  <th>Qté</th>
+                  <th>PU HT</th>
+                  <th>TVA</th>
+                  <th>Total TTC</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in selectedProforma.invoice_items" :key="idx">
+                  <td>{{ idx + 1 }}</td>
+                  <td>{{ item.item_designation }}</td>
+                  <td>{{ item.item_quantity }}</td>
+                  <td>{{ formatPrice(item.item_price) }}</td>
+                  <td>{{ item.vat }}%</td>
+                  <td>{{ formatPrice(item.item_total_amount) }}</td>
+                </tr>
+              </tbody>
+              <tfoot class="fw-bold">
+                <tr>
+                  <td colspan="5" class="text-end">Total HT</td>
+                  <td>{{ formatPrice(selectedProforma.invoice_amount_nvat) }}</td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-end">TVA</td>
+                  <td>{{ formatPrice(selectedProforma.invoice_vat_amount) }}</td>
+                </tr>
+                <tr class="table-primary">
+                  <td colspan="5" class="text-end">TOTAL TTC</td>
+                  <td>{{ formatPrice(selectedProforma.invoice_total_amount) }} {{ selectedProforma.invoice_currency }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeProformaDetails">Fermer</button>
+            <button class="btn btn-primary" @click="printProforma">
+              Imprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

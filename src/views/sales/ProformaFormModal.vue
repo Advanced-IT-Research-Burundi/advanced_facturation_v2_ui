@@ -1,36 +1,58 @@
 <script setup>
-import { reactive, computed } from "vue";
-import { Plus, Trash2, Loader2, Eye as EyeIcon } from "lucide-vue-next";
+import { reactive, computed, watch } from "vue";
+import { Plus, Trash2, Loader2 } from "lucide-vue-next";
 
 const props = defineProps({
   show: Boolean,
   isEditing: Boolean,
   isSubmitting: Boolean,
   initialData: Object,
+  customers: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(["close", "save", "preview"]);
 
 const form = reactive({
-  client_number: "",
-  client_name: "",
+  customer_id: "",
   currency: "BIF",
-  payment_method: "cash",
   date: new Date().toISOString().split("T")[0],
-  items: [{ description: "", quantity: 1, unit_price_ht: 0, tva_rate: 18 }],
+  items: [{ item_designation: "", item_quantity: 1, item_price: 0, vat: 18 }],
 });
 
 // Sync if editing
-if (props.initialData) {
-  Object.assign(form, JSON.parse(JSON.stringify(props.initialData)));
-}
+watch(
+  () => props.initialData,
+  (newVal) => {
+    if (newVal) {
+      // If editing, map the incoming data to the form structure
+      // Note: we might not have customer_id if it wasn't returned or if we are mapping from a view model.
+      // We'll rely on what's passed.
+      form.customer_id = newVal.customer_id || ""; // Handle mapping in parent if needed
+      form.currency = newVal.currency || "BIF";
+      form.date = newVal.date ? newVal.date.split("T")[0] : new Date().toISOString().split("T")[0];
+      
+      if (newVal.items && newVal.items.length) {
+         form.items = newVal.items.map(i => ({
+             item_designation: i.description || i.item_designation,
+             item_quantity: i.quantity || i.item_quantity,
+             item_price: i.unit_price_ht || i.item_price,
+             vat: i.tva_rate || i.vat
+         }));
+      }
+    }
+  },
+  { immediate: true }
+);
 
 const addItem = () =>
   form.items.push({
-    description: "",
-    quantity: 1,
-    unit_price_ht: 0,
-    tva_rate: 18,
+    item_designation: "",
+    item_quantity: 1,
+    item_price: 0,
+    vat: 18,
   });
 const removeItem = (idx) => form.items.length > 1 && form.items.splice(idx, 1);
 
@@ -38,22 +60,35 @@ const totals = computed(() => {
   let total_ht = 0,
     total_tva = 0;
   form.items.forEach((item) => {
-    const ht = (item.quantity || 0) * (item.unit_price_ht || 0);
+    const ht = (item.item_quantity || 0) * (item.item_price || 0);
     total_ht += ht;
-    total_tva += ht * (item.tva_rate / 100);
+    total_tva += ht * (item.vat / 100);
   });
   return { total_ht, total_tva, total_ttc: total_ht + total_tva };
 });
 
 const save = () => {
-  if (!form.client_number || !form.client_name) {
-    alert("Veuillez remplir les informations client.");
+  if (!form.customer_id) {
+    alert("Veuillez sélectionner un client.");
     return;
   }
-  emit("save", { ...form, totals: totals.value });
+  
+  // Construct payload for API
+  const payload = {
+      invoice_type: 'FP',
+      invoice_action: 'SERVICE',
+      invoice_currency: form.currency,
+      customer_id: form.customer_id,
+      items: form.items
+  };
+  
+  if (props.isEditing && props.initialData?.id) {
+      // pass ID for update
+      emit("save", { id: props.initialData.id, data: payload });
+  } else {
+      emit("save", payload);
+  }
 };
-
-const preview = () => emit("preview", { ...form, totals: totals.value });
 </script>
 
 <template>
@@ -76,31 +111,22 @@ const preview = () => emit("preview", { ...form, totals: totals.value });
         </div>
         <div class="modal-body p-4">
           <div class="row g-3 mb-4">
-            <div class="col-md-3">
-              <label class="form-label small text-muted text-uppercase"
-                >TIN Client</label
-              >
-              <input
-                v-model="form.client_number"
-                type="text"
-                class="form-control"
-              />
-            </div>
             <div class="col-md-6">
               <label class="form-label small text-muted text-uppercase"
-                >Nom Client</label
+                >Client</label
               >
-              <input
-                v-model="form.client_name"
-                type="text"
-                class="form-control"
-              />
+              <select v-model="form.customer_id" class="form-select">
+                  <option value="" disabled>Sélectionner un client</option>
+                  <option v-for="c in customers" :key="c.id" :value="c.id">
+                      {{ c.customer_name }} ({{ c.customer_TIN }})
+                  </option>
+              </select>
             </div>
             <div class="col-md-3">
               <label class="form-label small text-muted text-uppercase"
                 >Date</label
               >
-              <input v-model="form.date" type="date" class="form-control" />
+              <input v-model="form.date" type="date" class="form-control" disabled />
             </div>
           </div>
 
@@ -120,28 +146,30 @@ const preview = () => emit("preview", { ...form, totals: totals.value });
                 <tr v-for="(item, idx) in form.items" :key="idx">
                   <td>
                     <input
-                      v-model="item.description"
+                      v-model="item.item_designation"
                       type="text"
                       class="form-control form-control-sm"
+                      placeholder="Service ou Produit"
                     />
                   </td>
                   <td>
                     <input
-                      v-model.number="item.quantity"
+                      v-model.number="item.item_quantity"
                       type="number"
+                      step="0.01"
                       class="form-control form-control-sm"
                     />
                   </td>
                   <td>
                     <input
-                      v-model.number="item.unit_price_ht"
+                      v-model.number="item.item_price"
                       type="number"
                       class="form-control form-control-sm"
                     />
                   </td>
                   <td>
                     <select
-                      v-model="item.tva_rate"
+                      v-model="item.vat"
                       class="form-select form-select-sm"
                     >
                       <option :value="18">18%</option>
@@ -151,9 +179,9 @@ const preview = () => emit("preview", { ...form, totals: totals.value });
                   <td class="fw-bold">
                     {{
                       (
-                        item.quantity *
-                        item.unit_price_ht *
-                        (1 + item.tva_rate / 100)
+                        item.item_quantity *
+                        item.item_price *
+                        (1 + item.vat / 100)
                       ).toLocaleString()
                     }}
                   </td>
@@ -190,9 +218,6 @@ const preview = () => emit("preview", { ...form, totals: totals.value });
           </div>
           <button @click="$emit('close')" class="btn btn-secondary px-4">
             Annuler
-          </button>
-          <button @click="preview" class="btn btn-outline-info px-4">
-            Aperçu
           </button>
           <button
             @click="save"
