@@ -1,6 +1,6 @@
 <script setup>
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User, Eye, Printer, Pencil, Trash } from 'lucide-vue-next';
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 
 // --- DATA POS (Existante) ---
 const products = ref([
