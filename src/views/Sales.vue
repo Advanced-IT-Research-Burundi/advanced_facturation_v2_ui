@@ -478,12 +478,15 @@ const closeProformaDetails = () => {
 };
 
 const deleteProforma = async (proforma) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer cette proforma ?')) {
-    const result = await store.dispatch('proformats/deleteProforma', proforma.id);
+  if (confirm("Êtes-vous sûr de vouloir supprimer cette proforma ?")) {
+    const result = await store.dispatch(
+      "proformats/deleteProforma",
+      proforma.id
+    );
     if (result.success) {
-      alert('Proforma supprimée');
+      alert("Proforma supprimée");
     } else {
-      alert('Erreur lors de la suppression');
+      alert("Erreur lors de la suppression");
     }
   }
 };
@@ -863,7 +866,9 @@ const EditProforma = (proforma) => {
                 <tbody>
                   <tr v-for="proforma in filteredProformas" :key="proforma.id">
                     <td class="fw-bold">{{ proforma.invoice_number }}</td>
-                    <td>{{ new Date(proforma.invoice_date).toLocaleDateString() }}</td>
+                    <td>
+                      {{ new Date(proforma.invoice_date).toLocaleDateString() }}
+                    </td>
                     <td>
                       <div>{{ proforma.client_name }}</div>
                       <small class="text-muted">{{
