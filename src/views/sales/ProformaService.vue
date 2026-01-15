@@ -19,7 +19,9 @@ const emit = defineEmits([
 ]);
 
 const formatPrice = (price) => {
-  return typeof price === "number" ? price.toLocaleString() : "0";
+  if (price === null || price === undefined) return "0";
+  const num = parseFloat(price);
+  return !isNaN(num) ? num.toLocaleString() : "0";
 };
 
 const confirmDelete = (proforma) => {
@@ -33,12 +35,12 @@ const confirmDelete = (proforma) => {
   <div class="d-flex flex-column h-100 bg-white p-4 overflow-auto">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h4 class="mb-0">Gestion des Proformas Service</h4>
-      <button
+      <!-- <button
         @click="$emit('create')"
         class="btn btn-primary d-flex align-items-center gap-2"
       >
         Nouveau Proforma
-      </button>
+      </button> -->
     </div>
 
     <div class="mb-3">
@@ -66,6 +68,7 @@ const confirmDelete = (proforma) => {
             <th>Date</th>
             <th>Client</th>
             <th>Montant HT</th>
+            <th>TVA</th>
             <th>Total TTC</th>
             <th>Statut</th>
             <th>Actions</th>
@@ -80,6 +83,7 @@ const confirmDelete = (proforma) => {
               <small class="text-muted">{{ proforma.customer_TIN }}</small>
             </td>
             <td>{{ formatPrice(proforma.invoice_amount_nvat) }}</td>
+            <td>{{ formatPrice(proforma.invoice_vat_amount) }}</td>
             <td class="fw-bold">
               {{ formatPrice(proforma.invoice_total_amount) }}
               {{ proforma.invoice_currency }}

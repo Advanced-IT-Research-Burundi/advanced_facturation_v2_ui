@@ -34,8 +34,9 @@ watch(
       form.currency = newVal.currency || "BIF";
       form.date = newVal.date ? newVal.date.split("T")[0] : new Date().toISOString().split("T")[0];
       
-      if (newVal.items && newVal.items.length) {
-         form.items = newVal.items.map(i => ({
+      const itemsSource = newVal.items || newVal.invoice_items;
+      if (itemsSource && itemsSource.length) {
+         form.items = itemsSource.map(i => ({
              item_designation: i.description || i.item_designation,
              item_quantity: i.quantity || i.item_quantity,
              item_price: i.unit_price_ht || i.item_price,
