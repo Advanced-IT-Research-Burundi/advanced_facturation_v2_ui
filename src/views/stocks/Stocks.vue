@@ -15,7 +15,15 @@
     </div>
 
     <!-- Alert Feedback -->
-    <div v-if="error" class="alert alert-danger">{{ error }}</div>
+    <div v-if="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ error }}
+      <button type="button" class="btn-close" @click="error = null"></button>
+    </div>
+    
+    <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ successMessage }}
+      <button type="button" class="btn-close" @click="successMessage = null"></button>
+    </div>
 
     <!-- Table Card -->
     <div class="card shadow-sm">
@@ -29,28 +37,41 @@
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
-                <th style="width: 30%;">Nom</th>
+                <th style="width: 25%;">Nom</th>
                 <th>Emplacement</th>
                 <th>ID Entreprise</th>
-                <th class="text-center" style="width: 120px;">Actions</th>
+                <th class="text-center">Utilisateurs</th>
+                <th class="text-center" style="width: 160px;">Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in warehouses" :key="item.id">
                 <td class="fw-bold text-primary">{{ item.name }}</td>
                 <td class="text-muted">{{ item.location || '-' }}</td>
-                 <td class="text-muted">{{ item.company_id || '-' }}</td>
+                <td class="text-muted">{{ item.company_id || '-' }}</td>
                 <td class="text-center">
-                  <button class="btn btn-sm btn-outline-primary me-1" @click="openEditModal(item)" title="Modifier">
+                  <span class="badge bg-info">{{ item.users_count || 0 }}</span>
+                </td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-success me-1" 
+                          @click="openAssignModal(item)" 
+                          title="Gérer les utilisateurs">
+                    <i class="bi bi-people"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-primary me-1" 
+                          @click="openEditModal(item)" 
+                          title="Modifier">
                     <i class="bi bi-pencil"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(item)" title="Supprimer">
+                  <button class="btn btn-sm btn-outline-danger" 
+                          @click="confirmDelete(item)" 
+                          title="Supprimer">
                     <i class="bi bi-trash"></i>
                   </button>
                 </td>
               </tr>
               <tr v-if="warehouses.length === 0">
-                <td colspan="4" class="text-center py-5 text-muted">
+                <td colspan="5" class="text-center py-5 text-muted">
                   <i class="bi bi-building fs-1 d-block mb-2"></i>
                   Aucun entrepôt trouvé.
                 </td>
@@ -67,7 +88,10 @@
                 <i class="bi bi-chevron-left"></i>
               </button>
             </li>
-            <li class="page-item" :class="{ active: pagination.current_page === page }" v-for="page in getPageRange()" :key="page">
+            <li class="page-item" 
+                :class="{ active: pagination.current_page === page }" 
+                v-for="page in getPageRange()" 
+                :key="page">
               <button class="page-link" @click="changePage(page)">{{ page }}</button>
             </li>
             <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
@@ -102,14 +126,14 @@
 
               <div class="mb-3">
                 <label class="form-label">Emplacement</label>
-                 <input type="text" class="form-control" 
+                <input type="text" class="form-control" 
                        v-model="form.location" 
                        placeholder="Ex: Zone Industrielle">
               </div>
 
-               <div class="mb-3">
+              <div class="mb-3">
                 <label class="form-label">Company ID</label>
-                 <input type="number" class="form-control" 
+                <input type="number" class="form-control" 
                        v-model="form.company_id" 
                        placeholder="Ex: 1">
               </div>
@@ -118,9 +142,90 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="closeModal">Annuler</button>
             <button type="submit" form="warehouseForm" class="btn btn-primary" :disabled="submitting">
-              <span v-if="submitting" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
               {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assign Users Modal -->
+    <div v-if="showAssignModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.5)" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-people me-2"></i>
+              Gérer les utilisateurs - {{ selectedWarehouse?.name }}
+            </h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeAssignModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <!-- Available Users -->
+              <div class="col-md-6">
+                <h6 class="mb-3">
+                  <i class="bi bi-person-plus text-success"></i>
+                  Utilisateurs disponibles
+                </h6>
+                <div v-if="loadingUsers" class="text-center py-3">
+                  <div class="spinner-border spinner-border-sm text-primary"></div>
+                </div>
+                <div v-else-if="availableUsers.length === 0" class="text-center text-muted py-3">
+                  <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                  Aucun utilisateur disponible
+                </div>
+                <div v-else class="list-group" style="max-height: 400px; overflow-y: auto;">
+                  <div v-for="user in availableUsers" 
+                       :key="user.id" 
+                       class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="fw-bold">{{ user.name }}</div>
+                      <small class="text-muted">{{ user.email }}</small>
+                    </div>
+                    <button class="btn btn-sm btn-success" 
+                            @click="assignUser(user.id)"
+                            :disabled="assigningUser">
+                      <i class="bi bi-plus-circle"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Assigned Users -->
+              <div class="col-md-6">
+                <h6 class="mb-3">
+                  <i class="bi bi-person-check text-primary"></i>
+                  Utilisateurs assignés
+                </h6>
+                <div v-if="loadingUsers" class="text-center py-3">
+                  <div class="spinner-border spinner-border-sm text-primary"></div>
+                </div>
+                <div v-else-if="assignedUsers.length === 0" class="text-center text-muted py-3">
+                  <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                  Aucun utilisateur assigné
+                </div>
+                <div v-else class="list-group" style="max-height: 400px; overflow-y: auto;">
+                  <div v-for="user in assignedUsers" 
+                       :key="user.id" 
+                       class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="fw-bold">{{ user.name }}</div>
+                      <small class="text-muted">{{ user.email }}</small>
+                    </div>
+                    <button class="btn btn-sm btn-danger" 
+                            @click="unassignUser(user.id)"
+                            :disabled="unassigningUser">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeAssignModal">Fermer</button>
           </div>
         </div>
       </div>
@@ -136,10 +241,19 @@ import SettingsHeader from '../settings/SettingsHeader.vue';
 
 // Local State
 const showModal = ref(false);
+const showAssignModal = ref(false);
 const submitting = ref(false);
 const isEditing = ref(false);
 const loading = ref(false);
+const loadingUsers = ref(false);
+const assigningUser = ref(false);
+const unassigningUser = ref(false);
 const error = ref(null);
+const successMessage = ref(null);
+const selectedWarehouse = ref(null);
+const availableUsers = ref([]);
+const assignedUsers = ref([]);
+
 const pagination = ref({
     current_page: 1,
     last_page: 1,
@@ -167,10 +281,8 @@ const fetchWarehouses = async (page = 1) => {
     error.value = null;
     try {
         const resp = await api.get('warehouses', { params: { page } });
-        
         if (resp.data.success) {
-            store.state.data.warehouses = resp.data.data.data;
-            // Extract pagination info
+            store.state.data.warehouses = resp.data.data;
             const { data, ...meta } = resp.data.data;
             pagination.value = meta;
         }
@@ -235,14 +347,17 @@ const submitForm = async () => {
         }
 
         if (resp.data.success) {
+            successMessage.value = isEditing.value 
+                ? 'Entrepôt modifié avec succès' 
+                : 'Entrepôt créé avec succès';
             closeModal();
             fetchWarehouses(pagination.value.current_page);
         } else {
-            alert(resp.data.message || "Une erreur est survenue");
+            error.value = resp.data.message || "Une erreur est survenue";
         }
     } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || "Erreur lors de l'enregistrement");
+        error.value = err.response?.data?.message || "Erreur lors de l'enregistrement";
     } finally {
         submitting.value = false;
     }
@@ -253,6 +368,7 @@ const confirmDelete = async (item) => {
         try {
             loading.value = true;
             await api.delete(`warehouses/${item.id}`);
+            successMessage.value = 'Entrepôt supprimé avec succès';
             fetchWarehouses(pagination.value.current_page);
         } catch (err) {
             console.error(err);
@@ -262,11 +378,103 @@ const confirmDelete = async (item) => {
         }
     }
 };
+
+// Assign Modal Logic
+const openAssignModal = async (warehouse) => {
+    selectedWarehouse.value = warehouse;
+    showAssignModal.value = true;
+    await loadUsers(warehouse.id);
+};
+
+const closeAssignModal = () => {
+    showAssignModal.value = false;
+    selectedWarehouse.value = null;
+    availableUsers.value = [];
+    assignedUsers.value = [];
+    fetchWarehouses(pagination.value.current_page);
+};
+
+const loadUsers = async (warehouseId) => {
+    loadingUsers.value = true;
+    try {
+        const [assignedResp, availableResp] = await Promise.all([
+            api.get(`warehouses/${warehouseId}/users`),
+            api.get(`warehouses/${warehouseId}/available-users`)
+        ]);
+
+        if (assignedResp.data.success) {
+            assignedUsers.value = assignedResp.data.data;
+        }
+        if (availableResp.data.success) {
+            availableUsers.value = availableResp.data.data;
+        }
+    } catch (err) {
+        console.error(err);
+        error.value = "Erreur lors du chargement des utilisateurs";
+    } finally {
+        loadingUsers.value = false;
+    }
+};
+
+const assignUser = async (userId) => {
+    assigningUser.value = true;
+    try {
+        const resp = await api.post(`warehouses/${selectedWarehouse.value.id}/assign-user`, {
+            user_id: userId
+        });
+
+        if (resp.data.success) {
+            successMessage.value = 'Utilisateur assigné avec succès';
+            await loadUsers(selectedWarehouse.value.id);
+        } else {
+            error.value = resp.data.message;
+        }
+    } catch (err) {
+        console.error(err);
+        error.value = err.response?.data?.message || "Erreur lors de l'assignation";
+    } finally {
+        assigningUser.value = false;
+    }
+};
+
+const unassignUser = async (userId) => {
+    unassigningUser.value = true;
+    try {
+        const resp = await api.post(`warehouses/${selectedWarehouse.value.id}/unassign-user`, {
+            user_id: userId
+        });
+
+        if (resp.data.success) {
+            successMessage.value = 'Utilisateur désassigné avec succès';
+            await loadUsers(selectedWarehouse.value.id);
+        } else {
+            error.value = resp.data.message;
+        }
+    } catch (err) {
+        console.error(err);
+        error.value = err.response?.data?.message || "Erreur lors de la désassignation";
+    } finally {
+        unassigningUser.value = false;
+    }
+};
 </script>
 
 <style scoped>
 .card {
   border: none;
   border-radius: 12px;
+}
+
+.list-group-item {
+  transition: background-color 0.2s;
+}
+
+.list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+.badge {
+  font-size: 0.875rem;
+  padding: 0.35em 0.65em;
 }
 </style>
