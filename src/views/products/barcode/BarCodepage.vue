@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from "vue";
-import api from "../../services/api";
-import StockHeader from "../stocks/StockHeader.vue";
+import api from "../../../services/api";
+import StockHeader from "../../stocks/StockHeader.vue";
 import { Loader2, Printer } from "lucide-vue-next";
 
 // Child Components
