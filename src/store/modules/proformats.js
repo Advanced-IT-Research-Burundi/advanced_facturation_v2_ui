@@ -1,70 +1,43 @@
-import api from '@/services/api';
+import proformaService from '@/services/proformaService';
 
 const state = {
-  proformats: [
-    {
-      id: 1,
-      amount: 1500000,
-      tax: 270000,
-      total_quantity: 50,
-      total_sacs: 10,
-      amount_tax: 1770000,
-      type_paiement: 'Banque',
-      type_facture: 'Proforma',
-      products: 'Ciment, Fer à béton',
-      client: 'Entreprise Construction ABC',
-      addresse_client: 'Bujumbura, Rohero',
-      date_facturation: '2024-05-10',
-      is_cancelled: false,
-      invoice_signature: 'SIG-2024-001'
-    },
-    {
-      id: 2,
-      amount: 500000,
-      tax: 90000,
-      total_quantity: 20,
-      total_sacs: 0,
-      amount_tax: 590000,
-      type_paiement: 'Cash',
-      type_facture: 'Proforma',
-      products: 'Peinture Blanche',
-      client: 'Client Particulier X',
-      addresse_client: 'Gitega',
-      date_facturation: '2024-05-12',
-      is_cancelled: false,
-      invoice_signature: 'SIG-2024-002'
-    },
-    {
-      id: 3,
-      amount: 0,
-      tax: 0,
-      total_quantity: 0,
-      total_sacs: 0,
-      amount_tax: 0,
-      type_paiement: 'Mobile Money',
-      type_facture: 'Proforma',
-      products: '',
-      client: 'Annulé',
-      addresse_client: '-',
-      date_facturation: '2024-05-14',
-      is_cancelled: true,
-      invoice_signature: null
-    }
-  ],
+  proformats: [], // List of proformas items
+  pagination: {
+    total: 0,
+    current_page: 1,
+    per_page: 15,
+    last_page: 1,
+    from: 0,
+    to: 0
+  },
   loading: false,
   error: null
 };
 
 const getters = {
   allProformats: (state) => state.proformats,
-  getProformatById: (state) => (id) => state.proformats.find(p => p.id === id),
+  // If backend returns ALL invoices, we might need to filter manually here:
+  // but ideally backend handles it. We'll assume the list in state is what we want to show.
+  serviceProformas: (state) => state.proformats.filter(p => p.invoice_type === 'FP'), 
+  
   isLoading: (state) => state.loading,
-  getError: (state) => state.error
+  getError: (state) => state.error,
+  getPagination: (state) => state.pagination
 };
 
 const mutations = {
-  SET_PROFORMATS(state, proformats) {
-    state.proformats = proformats;
+  SET_PROFORMATS(state, data) {
+    state.proformats = data;
+  },
+  SET_PAGINATION(state, meta) {
+    state.pagination = {
+      total: meta.total,
+      current_page: meta.current_page,
+      per_page: meta.per_page,
+      last_page: meta.last_page,
+      from: meta.from,
+      to: meta.to
+    };
   },
   ADD_PROFORMAT(state, proformat) {
     state.proformats.unshift(proformat);
@@ -87,38 +60,66 @@ const mutations = {
 };
 
 const actions = {
-  // Simulate API call with mock data
-  async fetchProformats({ commit }) {
+  async fetchProformas({ commit }, page = 1) {
     commit('SET_LOADING', true);
+    commit('SET_ERROR', null);
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      // In real app: const response = await api.get('/proformats');
-      // commit('SET_PROFORMATS', response.data.data);
-      // For now, we just keep the initial state mock data or "reset" it if needed
-      // But typically fetch would replace state. 
-      // Let's just return what we have in state to simulate "fetching" or do nothing if we want to persist updates in memory
+      const response = await proformaService.getProformas(page);
+      if (response.data.success) {
+        // The API returns { success: true, data: { ...pagination_fields, data: [...] } }
+        // We need to support the Laravel pagination structure
+        const { data, ...meta } = response.data.data; 
+        
+        // Filter locally if API doesn't filter (fallback)
+        // We only want 'FP' (Proforma) and 'SERVICE' action? The user request implies managing proformas service.
+        // Let's filter just in case the API returns everything.
+        // Note: filtering paginated results on frontend is bad (holes in pages), 
+        // but without backend changes it's the only safety net if the API is truly 'all invoices'.
+        // However, we'll store all and let getters filter or assume backend is fixed.
+        commit('SET_PROFORMATS', data);
+        commit('SET_PAGINATION', response.data.data);
+      }
     } catch (error) {
-      commit('SET_ERROR', error.message);
+      console.error('Error fetching proformas:', error);
+      commit('SET_ERROR', error.response?.data?.message || error.message);
     } finally {
       commit('SET_LOADING', false);
     }
   },
 
-  async createProformat({ commit }, proformat) {
+  async createProforma({ commit, dispatch }, proformaData) {
+    commit('SET_LOADING', true);
+    commit('SET_ERROR', null);
+    try {
+      const response = await proformaService.createProforma(proformaData);
+      if (response.data.success) {
+        // The backend returns the full invoice object in response.data.data.invoice
+        const newInvoice = response.data.data.invoice;
+        commit('ADD_PROFORMAT', newInvoice);
+        return { success: true, data: newInvoice };
+      }
+      return { success: false, message: 'Unknown error' };
+    } catch (error) {
+       console.error('Error creating proforma:', error);
+       const msg = error.response?.data?.message || 'Erreur lors de la création';
+       const details = error.response?.data?.stock_details || null; // In case of stock error (though service shouldn't have stock)
+       commit('SET_ERROR', msg);
+       return { success: false, message: msg, details };
+    } finally {
+      commit('SET_LOADING', false);
+    }
+  },
+
+  async updateProforma({ commit }, { id, data }) {
     commit('SET_LOADING', true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      // Simulate ID generation
-      const newProformat = { 
-        ...proformat, 
-        id: Math.floor(Math.random() * 10000),
-        date_facturation: new Date().toISOString().split('T')[0],
-        products: 'Produits divers', // Placeholder
-        is_cancelled: false
-      };
-      commit('ADD_PROFORMAT', newProformat);
-      return { success: true };
+      const response = await proformaService.updateProforma(id, data);
+      if (response.data.success) {
+        // Backend returns updated invoice
+        commit('UPDATE_PROFORMAT', response.data.data);
+        return { success: true };
+      }
+      return { success: false };
     } catch (error) {
       commit('SET_ERROR', error.message);
       return { success: false, error };
@@ -127,26 +128,15 @@ const actions = {
     }
   },
 
-  async updateProformat({ commit }, proformat) {
+  async deleteProforma({ commit }, id) {
     commit('SET_LOADING', true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      commit('UPDATE_PROFORMAT', proformat);
-      return { success: true };
-    } catch (error) {
-      commit('SET_ERROR', error.message);
-      return { success: false, error };
-    } finally {
-      commit('SET_LOADING', false);
-    }
-  },
-
-  async deleteProformat({ commit }, id) {
-    commit('SET_LOADING', true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      commit('DELETE_PROFORMAT', id);
-      return { success: true };
+      const response = await proformaService.deleteProforma(id);
+      if (response.data.success) {
+        commit('DELETE_PROFORMAT', id);
+        return { success: true };
+      }
+      return { success: false };
     } catch (error) {
       commit('SET_ERROR', error.message);
       return { success: false, error };

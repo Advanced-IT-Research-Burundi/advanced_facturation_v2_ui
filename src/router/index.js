@@ -20,7 +20,7 @@ const router = createRouter({
         {
           path: "sales",
           name: "sales",
-          component: () => import("../views/Sales.vue"),
+          component: () => import("../views/sales/Sales.vue"),
         },
         {
           path: "clients",
@@ -40,7 +40,7 @@ const router = createRouter({
         {
           path: "products/bar-code-generator",
           name: "barcode",
-          component: () => import("../views/barcode/BarCodepage.vue"),
+          component: () => import("../views/products/barcode/BarCodepage.vue"),
         },
         {
           path: "stock/:id",
