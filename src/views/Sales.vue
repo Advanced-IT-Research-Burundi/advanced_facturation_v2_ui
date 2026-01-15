@@ -197,6 +197,7 @@ const activeTab = ref("POS");
 const invoiceTypes = [
   { id: "POS", label: "POS / Vente Directe" },
   { id: "Service", label: "Facture Service" },
+  { id: "Proforma", label: "Proforma Service" },
   { id: "Caution", label: "Remboursement Caution" },
   { id: "Avoir", label: "Facture d'Avoir" },
   { id: "Proforma", label: "Proforma Service" },
@@ -296,6 +297,7 @@ const proformaForm = reactive({
   items: [{ description: "", quantity: 1, unit_price_ht: 0, tva_rate: 18 }],
 });
 
+// Helper pour filtrer
 const filteredProformas = computed(() => {
   return proformas.value.filter((p) => {
     const search = searchProforma.value.toLowerCase();
@@ -329,8 +331,8 @@ const proformaTotals = computed(() => {
 
   proformaForm.items.forEach((item) => {
     const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unit_price_ht) || 0;
-    const rate = parseFloat(item.tva_rate) || 0;
+    const price = parseFloat(item.price) || 0;
+    const rate = parseFloat(item.tvaRate) || 0;
 
     const ht = qty * price;
     const tva = ht * (rate / 100);
@@ -475,6 +477,17 @@ const closeProformaDetails = () => {
   selectedProforma.value = null;
 };
 
+const deleteProforma = async (proforma) => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer cette proforma ?')) {
+    const result = await store.dispatch('proformats/deleteProforma', proforma.id);
+    if (result.success) {
+      alert('Proforma supprimée');
+    } else {
+      alert('Erreur lors de la suppression');
+    }
+  }
+};
+
 const printProforma = () => {
   const printContent = document.getElementById("proforma-printable");
   const originalContent = document.body.innerHTML;
@@ -485,6 +498,7 @@ const printProforma = () => {
   window.location.reload();
 };
 
+// Simplified view/preview logic for new items not yet saved
 const voirProforma = () => {
   const tempProforma = {
     id: "APERÇU",
@@ -825,7 +839,13 @@ const EditProforma = (proforma) => {
               </div>
             </div>
 
-            <div class="table-responsive">
+            <div v-if="isLoadingProformas" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+
+            <div v-else class="table-responsive">
               <table class="table table-hover align-middle">
                 <thead class="bg-light">
                   <tr>
@@ -842,8 +862,8 @@ const EditProforma = (proforma) => {
                 </thead>
                 <tbody>
                   <tr v-for="proforma in filteredProformas" :key="proforma.id">
-                    <td class="fw-bold">{{ proforma.id }}</td>
-                    <td>{{ proforma.date }}</td>
+                    <td class="fw-bold">{{ proforma.invoice_number }}</td>
+                    <td>{{ new Date(proforma.invoice_date).toLocaleDateString() }}</td>
                     <td>
                       <div>{{ proforma.client_name }}</div>
                       <small class="text-muted">{{
@@ -1202,7 +1222,7 @@ const EditProforma = (proforma) => {
                       />
                     </td>
                     <td>
-                      <select v-model="item.tva_rate" class="form-select">
+                      <select v-model="item.tvaRate" class="form-select">
                         <option :value="18">18%</option>
                         <option :value="0">0%</option>
                       </select>

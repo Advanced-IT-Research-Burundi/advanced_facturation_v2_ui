@@ -3,15 +3,8 @@ import auth from "./modules/auth";
 import companies from "./modules/companies";
 import invoices from "./modules/invoices";
 import proformats from "./modules/proformats";
-
-
 import clients from "./modules/clients"; 
 import users from "./modules/users";
-
-
-
-
-
 import products from "./modules/products";
 import stock from "./modules/stock";
 import expenses from "./modules/expenses";
@@ -148,12 +141,8 @@ const store = createStore({
     invoices,
     proformats,
     clients,
-
     products,
-
-
     users,
-
     stock,
     expenses,
     users,
