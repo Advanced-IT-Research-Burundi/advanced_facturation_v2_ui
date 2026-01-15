@@ -12,6 +12,9 @@ import {
   Wallet,
   Building,
   Home,
+  Pill,
+  FileText,
+  Layers,
 } from "lucide-vue-next";
 import { RouterLink, RouterView } from "vue-router";
 import { computed } from "vue";
@@ -160,6 +163,38 @@ const companyName = computed(() => {
           >
             <Users :size="20" />
             <span class="small" style="font-size: 0.7rem">Utilisateurs</span>
+          </RouterLink>
+        </li>
+
+        <!-- Section Pharmacie -->
+        <li class="mt-2 pt-2 border-top border-secondary">
+          <RouterLink
+            to="/pharmaceutical"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-success text-white"
+          >
+            <Pill :size="20" />
+            <span class="small" style="font-size: 0.7rem">Pharmacie</span>
+          </RouterLink>
+        </li>
+        <li>
+          <RouterLink
+            to="/lots"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-success text-white"
+          >
+            <Layers :size="20" />
+            <span class="small" style="font-size: 0.7rem">Lots</span>
+          </RouterLink>
+        </li>
+        <li>
+          <RouterLink
+            to="/prescriptions"
+            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
+            active-class="active bg-success text-white"
+          >
+            <FileText :size="20" />
+            <span class="small" style="font-size: 0.7rem">Ordonnances</span>
           </RouterLink>
         </li>
       </ul>

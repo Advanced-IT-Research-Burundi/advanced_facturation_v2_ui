@@ -8,6 +8,7 @@ import users from "./modules/users";
 import products from "./modules/products";
 import stock from "./modules/stock";
 import expenses from "./modules/expenses";
+import pharmaceutical from "./modules/pharmaceutical";
 import api from "@/services/api";
 
 
@@ -145,7 +146,7 @@ const store = createStore({
     users,
     stock,
     expenses,
-    users,
+    pharmaceutical,
   },
 });
 

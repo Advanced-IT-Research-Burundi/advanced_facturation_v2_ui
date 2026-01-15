@@ -37,7 +37,58 @@ const defaultForm = {
   image: "",
   type: "",
   description: "",
+  // Champs pharmaceutiques
+  is_pharmaceutical: false,
+  dci: "",
+  dosage: "",
+  forme_galenique: "",
+  laboratoire: "",
+  numero_amm: "",
+  requires_prescription: false,
+  classe_therapeutique: "",
+  contre_indications: "",
+  posologie_standard: "",
+  delai_alerte_expiration: 90,
+  is_controlled_substance: false,
+  storage_conditions: "",
 };
+
+// Options pour les formes galeniques
+const formesGaleniques = [
+  "Comprime",
+  "Gelule",
+  "Sirop",
+  "Solution injectable",
+  "Pommade",
+  "Creme",
+  "Gel",
+  "Suppositoire",
+  "Collyre",
+  "Spray nasal",
+  "Patch",
+  "Poudre",
+  "Suspension",
+  "Autre",
+];
+
+// Options pour les classes therapeutiques
+const classesTherapeutiques = [
+  "Antibiotiques",
+  "Antiviraux",
+  "Antifongiques",
+  "Analgesiques",
+  "Anti-inflammatoires",
+  "Antihistaminiques",
+  "Antihypertenseurs",
+  "Antidiabetiques",
+  "Antidepresseurs",
+  "Anxiolytiques",
+  "Anticoagulants",
+  "Diuretiques",
+  "Vitamines",
+  "Supplements",
+  "Autre",
+];
 
 watch(
   () => props.initialData,
@@ -115,6 +166,16 @@ const handleFileChange = (e) => {
                 type="button"
               >
                 Détails
+              </button>
+            </li>
+            <li class="nav-item">
+              <button
+                class="nav-link px-4"
+                :class="{ active: activeTab === 'pharma', 'bg-success text-white': form.is_pharmaceutical && activeTab !== 'pharma' }"
+                @click="activeTab = 'pharma'"
+                type="button"
+              >
+                Pharmaceutique
               </button>
             </li>
           </ul>
@@ -323,6 +384,184 @@ const handleFileChange = (e) => {
                       v-model="form.description"
                       rows="3"
                     ></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 4: Pharmaceutical -->
+              <div
+                class="tab-pane fade"
+                :class="{ 'show active text-start': activeTab === 'pharma' }"
+                v-show="activeTab === 'pharma'"
+              >
+                <div class="row g-3">
+                  <!-- Toggle Produit Pharmaceutique -->
+                  <div class="col-12">
+                    <div class="form-check form-switch">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="is_pharmaceutical"
+                        v-model="form.is_pharmaceutical"
+                      />
+                      <label class="form-check-label fw-bold" for="is_pharmaceutical">
+                        Produit Pharmaceutique
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Champs pharmaceutiques (visibles si is_pharmaceutical) -->
+                  <template v-if="form.is_pharmaceutical">
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        DCI (Denomination Commune Internationale)
+                      </label>
+                      <input
+                        type="text"
+                        class="form-control bg-light"
+                        v-model="form.dci"
+                        placeholder="Ex: Paracetamol"
+                      />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Dosage
+                      </label>
+                      <input
+                        type="text"
+                        class="form-control bg-light"
+                        v-model="form.dosage"
+                        placeholder="Ex: 500mg, 10mg/ml"
+                      />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Forme Galenique
+                      </label>
+                      <select class="form-select bg-light" v-model="form.forme_galenique">
+                        <option value="">Selectionner une forme</option>
+                        <option v-for="forme in formesGaleniques" :key="forme" :value="forme">
+                          {{ forme }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Laboratoire / Fabricant
+                      </label>
+                      <input
+                        type="text"
+                        class="form-control bg-light"
+                        v-model="form.laboratoire"
+                        placeholder="Nom du fabricant"
+                      />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Numero AMM
+                      </label>
+                      <input
+                        type="text"
+                        class="form-control bg-light"
+                        v-model="form.numero_amm"
+                        placeholder="Autorisation de mise sur le marche"
+                      />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Classe Therapeutique
+                      </label>
+                      <select class="form-select bg-light" v-model="form.classe_therapeutique">
+                        <option value="">Selectionner une classe</option>
+                        <option v-for="classe in classesTherapeutiques" :key="classe" :value="classe">
+                          {{ classe }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <!-- Options de controle -->
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-3">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="requires_prescription"
+                          v-model="form.requires_prescription"
+                        />
+                        <label class="form-check-label" for="requires_prescription">
+                          Necessite une ordonnance
+                        </label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-3">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="is_controlled_substance"
+                          v-model="form.is_controlled_substance"
+                        />
+                        <label class="form-check-label text-danger" for="is_controlled_substance">
+                          Substance controlee (Stupefiant)
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Delai Alerte Expiration (jours)
+                      </label>
+                      <input
+                        type="number"
+                        class="form-control bg-light"
+                        v-model.number="form.delai_alerte_expiration"
+                        min="1"
+                        max="365"
+                      />
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Conditions de Stockage
+                      </label>
+                      <input
+                        type="text"
+                        class="form-control bg-light"
+                        v-model="form.storage_conditions"
+                        placeholder="Ex: Conserver au frais (2-8C)"
+                      />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Posologie Standard
+                      </label>
+                      <textarea
+                        class="form-control bg-light"
+                        v-model="form.posologie_standard"
+                        rows="2"
+                        placeholder="Ex: Adultes: 1 comprime 3 fois par jour"
+                      ></textarea>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small text-muted text-uppercase fw-bold">
+                        Contre-indications
+                      </label>
+                      <textarea
+                        class="form-control bg-light"
+                        v-model="form.contre_indications"
+                        rows="2"
+                        placeholder="Liste des contre-indications"
+                      ></textarea>
+                    </div>
+                  </template>
+
+                  <!-- Message si non pharmaceutique -->
+                  <div v-else class="col-12">
+                    <div class="alert alert-info">
+                      Activez l'option "Produit Pharmaceutique" pour acceder aux champs specifiques.
+                    </div>
                   </div>
                 </div>
               </div>

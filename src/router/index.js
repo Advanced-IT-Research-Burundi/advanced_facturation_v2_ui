@@ -128,6 +128,22 @@ const router = createRouter({
           name: "settings",
           component: () => import("../views/settings/SettingPage.vue"),
         },
+        // Routes Pharmaceutiques
+        {
+          path: "pharmaceutical",
+          name: "pharmaceutical",
+          component: () => import("../views/pharmaceutical/PharmaceuticalDashboard.vue"),
+        },
+        {
+          path: "lots",
+          name: "lots",
+          component: () => import("../views/lots/LotsPage.vue"),
+        },
+        {
+          path: "prescriptions",
+          name: "prescriptions",
+          component: () => import("../views/prescriptions/PrescriptionsPage.vue"),
+        },
       ],
     },
     {
