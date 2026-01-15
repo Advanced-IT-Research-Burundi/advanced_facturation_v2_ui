@@ -9,6 +9,9 @@
         <h3 class="mb-0 fw-bold text-dark">Détail du Stock</h3>
       </div>
       <div>
+        <RouterLink :to="`/stock/${route.params.id}/movements`" class="btn btn-outline-secondary shadow-sm me-4">
+          <i class="bi bi-box-seam me-2"></i>Gérer les Movements de Stock
+        </RouterLink>
         <RouterLink :to="`/stock/${route.params.id}/products`" class="btn btn-success shadow-sm">
           <i class="bi bi-box-seam me-2"></i>Gérer les produits
         </RouterLink>
