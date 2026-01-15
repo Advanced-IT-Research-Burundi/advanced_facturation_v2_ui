@@ -102,10 +102,12 @@ defineExpose({ reset });
           <tr>
             <th style="width: 50px">#</th>
             <th>Description</th>
-            <th style="width: 120px">Qté</th>
-            <th style="width: 150px">Prix (HT)</th>
+            <th style="width: 120px">Quantité</th>
+            <th style="width: 150px">Prices</th>
             <th style="width: 120px">TVA %</th>
-            <th style="width: 150px">Total TTC</th>
+            <th style="width: 120px">TVA</th>
+            <th style="width: 150px">Prix HTVA</th>
+            <th style="width: 150px">Prix Total</th>
             <th style="width: 60px">Action</th>
           </tr>
         </thead>
@@ -139,10 +141,27 @@ defineExpose({ reset });
             <td>
               <select v-model="item.tvaRate" class="form-select">
                 <option :value="18">18 %</option>
+                <option :value="10">10 %</option>
+                <option :value="4">4 %</option>
                 <option :value="0">0 %</option>
               </select>
             </td>
-            <td class="fw-bold">
+            <!-- TVA Amount -->
+            <td class="fw-bold bg-light">
+              {{
+                (
+                  item.quantity *
+                  item.price *
+                  (item.tvaRate / 100)
+                ).toLocaleString()
+              }}
+            </td>
+            <!-- Prix HTVA -->
+            <td class="fw-bold bg-light">
+              {{ (item.quantity * item.price).toLocaleString() }}
+            </td>
+            <!-- Prix Total -->
+            <td class="fw-bold bg-light">
               {{
                 (
                   item.quantity *
@@ -161,12 +180,12 @@ defineExpose({ reset });
             </td>
           </tr>
         </tbody>
-        <tfoot class="bg-light fw-bold text-end">
+        <tfoot class="bg-light fw-bold">
           <tr>
-            <td colspan="5">TOTAL TTC</td>
-            <td class="text-primary">
-              {{ serviceTotals.totalTtc.toLocaleString() }} BIF
-            </td>
+            <td colspan="5" class="text-start">TOTAL</td>
+            <td>{{ serviceTotals.totalTva.toLocaleString() }}</td>
+            <td>{{ serviceTotals.totalHt.toLocaleString() }}</td>
+            <td>{{ serviceTotals.totalTtc.toLocaleString() }}</td>
             <td></td>
           </tr>
         </tfoot>
