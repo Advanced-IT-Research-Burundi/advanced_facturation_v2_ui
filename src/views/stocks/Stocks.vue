@@ -130,7 +130,13 @@
                        v-model="form.location" 
                        placeholder="Ex: Zone Industrielle">
               </div>
-
+              <div class="mb-3">
+                <label class="form-label">STOCK DE PRODUCTION</label>
+                <select class="form-select" v-model="form.is_production">
+                  <option :value="false">Non</option>
+                  <option :value="true">Oui</option>
+                </select>
+              </div>
               <div class="mb-3">
                 <label class="form-label">Company ID</label>
                 <input type="number" class="form-control" 
@@ -265,7 +271,8 @@ const form = reactive({
     id: null,
     name: '',
     location: '',
-    company_id: ''
+    company_id: '',
+    is_production: false
 });
 
 // Store Access
@@ -316,6 +323,7 @@ const openCreateModal = () => {
     form.name = '';
     form.location = '';
     form.company_id = '';
+    form.is_production = false;
     showModal.value = true;
 };
 
@@ -325,6 +333,7 @@ const openEditModal = (item) => {
     form.name = item.name;
     form.location = item.location || '';
     form.company_id = item.company_id || '';
+    form.is_production = item.is_production || false;
     showModal.value = true;
 };
 
@@ -334,6 +343,7 @@ const closeModal = () => {
     form.name = '';
     form.location = '';
     form.company_id = '';
+    form.is_production = item.is_production || false;
 };
 
 const submitForm = async () => {

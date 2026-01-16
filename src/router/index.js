@@ -92,7 +92,31 @@ const router = createRouter({
           name: "bakery",
           component: () => import("../views/BakeryManagemen.vue"),
         },
-
+        {
+          path: '/bakery/production',
+          name: 'BakeryProduction',
+          component: () => import("../views/BakeryProduction.vue"),
+        },
+        {
+          path: '/bakery/production/record',
+          name: 'ProductionRecord',
+          component: () => import("../views/bakery/ProductionRecord.vue"),
+        },
+        {
+          path: '/bakery/production/transfer',
+          name: 'ProductionTransfer',
+          component: () => import("../views/bakery/ProductionTransfer.vue"),
+        },
+        {
+          path: '/bakery/production/history',
+          name: 'ProductionHistory',
+          component: () => import("../views/bakery/ProductionHistory.vue"),
+        },
+        {
+          path: '/bakery/production/report',
+          name: 'ProductionReport',
+          component: () => import("../views/bakery/ProductionReport.vue") ,
+        },
         {
           path: 'stock/:id/products',
           name: "stock.products",

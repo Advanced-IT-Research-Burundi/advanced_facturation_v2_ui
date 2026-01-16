@@ -50,7 +50,7 @@ const navItems = [
   { to: "/lots", icon: "pi-clone", label: "Lots", roles: ["admin", "manager", "pharmacist"] },
   { to: "/prescriptions", icon: "pi-file", label: "Ordonnances", roles: ["admin", "manager", "pharmacist"] },
 
-  { to: "/bakery", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
+  { to: "/bakery/production", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
   { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },
   { to: "/reports", icon: "pi-chart-bar", label: "Rapports", roles: ["admin", "manager"] },
   { to: "/expenses", icon: "pi-wallet", label: "Dépenses", roles: ["admin", "accountant", "manager"] },
