@@ -23,6 +23,7 @@ const store = createStore({
       categoriesProducts: [],
       product_units: [],
       productsItems : [],
+      productsPOS : [],
     } ,
     configs: [],
     pagination: {},

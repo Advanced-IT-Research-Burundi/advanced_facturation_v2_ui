@@ -2,30 +2,53 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { Search, Loader2 } from "lucide-vue-next";
 import api from "@/services/api";
+import { useStore } from "vuex";
 
 const props = defineProps({
   isLoading: Boolean,
 });
-
+const store = useStore();
 const emit = defineEmits(["add-to-cart"]);
 
-const products = ref([]);
 const isLoadingProducts = ref(false);
 const searchQuery = ref("");
 const selectedCategory = ref("Tous");
+const selectedStock = ref(null);
+
+onMounted(() => {
+  fetchStock();
+  fetchProducts();
+});
+const fetchStock = async () => {
+  try {
+    const response = await api.get("/mes_stock");
+    if (response.data.success) {
+      store.state.data.stocksPOS = response.data.data;
+      selectedStock.value = response.data.data[0].id;
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération des stocks:", error);
+  }
+};
+
 
 const fetchProducts = async (search = "") => {
   isLoadingProducts.value = true;
   try {
-    const response = await api.get("/products", { params: { search } });
+    const response = await api.get("/pos-products", {
+      params: {
+        stock_id: selectedPOSStock.value,
+        search: search
+      }
+    });
     if (response.data.success) {
-      products.value = response.data.data.data.map((p) => ({
+    store.state.data.productsPOS = response.data.data.map((p) => ({
         id: p.id,
-        name: p.item_designation,
-        price: p.price_ttc || p.price || 0,
-        category: p.category_product?.name || "Général",
-        stock: p.quantite || 0,
-        vat_rate: p.vat_rate || 18,
+        name: p.name,
+        price: p.price,
+        category: p.category || "Général",
+        stock: p.stock,
+        vat_rate: p.vat_rate,
         item_code: p.item_code,
       }));
     }
@@ -36,13 +59,17 @@ const fetchProducts = async (search = "") => {
   }
 };
 
-onMounted(() => {
-  fetchProducts();
-});
+
+
 
 watch(searchQuery, (newVal) => {
   fetchProducts(newVal);
 });
+
+const products = computed(() => store.state.data.productsPOS);
+const stocks = computed(() => store.state.data.stocksPOS);
+
+const selectedPOSStock = computed(() => selectedStock.value || store.state.data?.stocksPOS?.[0]?.id);
 
 const categories = computed(() => {
   const cats = new Set(products.value.map((p) => p.category));
@@ -68,6 +95,24 @@ defineExpose({ fetchProducts });
 <template>
   <div class="d-flex flex-column h-100">
     <div class="p-3 bg-white border-bottom shadow-sm z-1">
+      <div class="d-flex justify-content-between">
+      <div>
+        <div v-if=" stocks?.length === 0">
+        <div class="alert alert-info">
+          Aucun stock disponible pour vous
+        </div>
+      </div>
+      <div v-if="stocks?.length > 1" class="">
+        <select v-model="selectedStock" class="form-select">
+          <!-- index 0 est le stock par defaut -->
+          <option v-if="stocks?.length > 1" :value="stocks[0].id" selected>{{ stocks[0].warehouse.name }}</option>
+          <option v-if="stocks?.length > 1" v-for="stock in stocks" :key="stock.id" :value="stock.id" >{{ stock.warehouse.name }}</option>
+        </select>
+      </div>
+      </div>
+      
+    </div>
+
       <div class="row g-2">
         <div class="col-md-6">
           <div class="input-group">
