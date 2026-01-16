@@ -52,6 +52,11 @@ const router = createRouter({
           name: "stock.movements",
           component: () => import("../views/stocks/StockMouvement.vue"),
         },
+        {
+          path: "stock-movements",
+          name: "stock-movements",
+          component: () => import("../views/stocks/StockMouvement.vue"),
+        },
 
         {
           path: 'stock/:id/products',

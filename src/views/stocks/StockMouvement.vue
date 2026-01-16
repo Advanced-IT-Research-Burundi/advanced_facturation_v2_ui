@@ -1,10 +1,16 @@
 <template>
   <div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h3">
-        <i class="bi bi-box-seam me-2"></i>
-        Gestion des Stocks
-      </h1>
+      <div class="d-flex align-items-center">
+        <button class="btn btn-outline-secondary me-3" @click="$router.back()">
+          <i class="bi bi-arrow-left"></i> Retour
+        </button>
+        <h1 class="h3 mb-0">
+          <i class="bi bi-box-seam me-2"></i>
+          Mouvements de Stock
+          <span v-if="warehouse" class="text-primary">- {{ warehouse.name }}</span>
+        </h1>
+      </div>
       <div>
         <button class="btn btn-outline-info me-2" @click="showPendingTransfers">
           <i class="bi bi-hourglass-split"></i>
@@ -30,99 +36,132 @@
       <button type="button" class="btn-close" @click="successMessage = null"></button>
     </div>
 
-    <!-- Sélection entrepôt -->
+    <!-- Produits du stock avec recherche et pagination -->
     <div class="card shadow-sm mb-3">
-      <div class="card-body">
-        <div class="row align-items-center">
-          <div class="col-md-6">
-            <label class="form-label fw-bold">Sélectionner un entrepôt</label>
-            <select class="form-select form-select-lg" v-model="selectedWarehouseId" @change="fetchWarehouseStock">
-              <option value="">-- Choisir un entrepôt --</option>
-              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-                {{ wh.name }} - {{ wh.location }}
-              </option>
-            </select>
-          </div>
-          <div class="col-md-6 text-end" v-if="selectedWarehouseId">
-            <button class="btn btn-success me-2" @click="openEntryModal">
-              <i class="bi bi-plus-circle"></i> Entrée de Stock
-            </button>
-            <button class="btn btn-danger" @click="openExitModal">
-              <i class="bi bi-dash-circle"></i> Sortie de Stock
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stock actuel de l'entrepôt sélectionné -->
-    <div v-if="selectedWarehouseId" class="card shadow-sm">
-      <div class="card-header bg-primary text-white">
+      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
           <i class="bi bi-boxes me-2"></i>
-          Stock Actuel - {{ warehouses.find(w => w.id == selectedWarehouseId)?.name }}
+          Produits du Stock
         </h5>
+        <div class="d-flex align-items-center gap-2">
+          <div class="input-group input-group-sm" style="width: 300px;">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Rechercher un produit..."
+              v-model="searchQuery"
+              @input="debouncedSearch"
+            >
+            <button v-if="searchQuery" class="btn btn-light" @click="clearSearch">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="card-body">
-        <div v-if="loading" class="text-center py-4">
+        <div v-if="loadingProducts" class="text-center py-4">
           <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Chargement des produits...</p>
         </div>
-        <div v-else class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Produit</th>
-                <th>Code</th>
-                <th class="text-end">Quantité Disponible</th>
-                <th class="text-end">Prix Unitaire</th>
-                <th>Devise</th>
-                <th>Dernier Mouvement</th>
-                <th class="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="stock in warehouseStocks" :key="stock.id">
-                <td>
-                  <div class="fw-bold">{{ stock.product?.item_designation }}</div>
-                  <small class="text-muted">{{ stock.product?.category }}</small>
-                </td>
-                <td>{{ stock.product?.item_code }}</td>
-                <td class="text-end">
-                  <span class="badge bg-info fs-6">
-                    {{ stock.quantity }} {{ stock.product?.item_measurement_unit || 'PCE' }}
-                  </span>
-                </td>
-                <td class="text-end">{{ stock.unit_price }}</td>
-                <td>{{ stock.currency }}</td>
-                <td>
-                  <small v-if="stock.last_stock_movement" class="text-muted">
-                    {{ stock.last_stock_movement.item_movement_type }} - 
-                    {{ formatDate(stock.last_stock_movement.created_at) }}
-                  </small>
-                  <small v-else class="text-muted">-</small>
-                </td>
-                <td class="text-center">
-                  <button class="btn btn-sm btn-outline-success me-1" 
-                          @click="quickEntry(stock)"
-                          title="Entrée rapide">
-                    <i class="bi bi-plus-lg"></i>
+        <div v-else>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Produit</th>
+                  <th>Code</th>
+                  <th class="text-end">Quantité Disponible</th>
+                  <th class="text-end">Prix Unitaire</th>
+                  <th>Devise</th>
+                  <th>Dernier Mouvement</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="stock in stockProducts" :key="stock.id"
+                    :class="{'table-active': selectedProduct?.id === stock.id}">
+                  <td>
+                    <div class="fw-bold">{{ stock.product?.item_designation }}</div>
+                    <small class="text-muted">{{ stock.product?.category }}</small>
+                  </td>
+                  <td><code>{{ stock.product?.item_code }}</code></td>
+                  <td class="text-end">
+                    <span class="badge fs-6" :class="stock.quantity > 0 ? 'bg-info' : 'bg-secondary'">
+                      {{ stock.quantity }} {{ stock.product?.item_measurement_unit || 'PCE' }}
+                    </span>
+                  </td>
+                  <td class="text-end">{{ formatNumber(stock.unit_price) }}</td>
+                  <td>{{ stock.currency }}</td>
+                  <td>
+                    <small v-if="stock.last_stock_movement" class="text-muted">
+                      <span class="badge" :class="getMovementBadgeClass(stock.last_stock_movement.item_movement_type)">
+                        {{ stock.last_stock_movement.item_movement_type }}
+                      </span>
+                      {{ formatDate(stock.last_stock_movement.created_at) }}
+                    </small>
+                    <small v-else class="text-muted">-</small>
+                  </td>
+                  <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                      <button class="btn btn-success"
+                              @click="quickEntry(stock)"
+                              title="Entrée de stock">
+                        <i class="bi bi-plus-lg"></i> Entrée
+                      </button>
+                      <button class="btn btn-danger"
+                              @click="quickExit(stock)"
+                              :disabled="stock.quantity <= 0"
+                              title="Sortie de stock">
+                        <i class="bi bi-dash-lg"></i> Sortie
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="stockProducts.length === 0">
+                  <td colspan="7" class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    <span v-if="searchQuery">Aucun produit trouvé pour "{{ searchQuery }}"</span>
+                    <span v-else>Aucun produit dans ce stock</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="pagination.total > 0" class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted">
+              Affichage de {{ pagination.from }} à {{ pagination.to }} sur {{ pagination.total }} produits
+            </div>
+            <nav>
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+                  <button class="page-link" @click="goToPage(1)" :disabled="pagination.current_page === 1">
+                    <i class="bi bi-chevron-double-left"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-danger" 
-                          @click="quickExit(stock)"
-                          :disabled="stock.quantity <= 0"
-                          title="Sortie rapide">
-                    <i class="bi bi-dash-lg"></i>
+                </li>
+                <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+                  <button class="page-link" @click="goToPage(pagination.current_page - 1)" :disabled="pagination.current_page === 1">
+                    <i class="bi bi-chevron-left"></i>
                   </button>
-                </td>
-              </tr>
-              <tr v-if="warehouseStocks.length === 0">
-                <td colspan="7" class="text-center py-5 text-muted">
-                  <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                  Aucun produit en stock dans cet entrepôt
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </li>
+                <li v-for="page in visiblePages" :key="page" class="page-item" :class="{ active: page === pagination.current_page }">
+                  <button class="page-link" @click="goToPage(page)">{{ page }}</button>
+                </li>
+                <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+                  <button class="page-link" @click="goToPage(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </li>
+                <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+                  <button class="page-link" @click="goToPage(pagination.last_page)" :disabled="pagination.current_page === pagination.last_page">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
         </div>
       </div>
     </div>
@@ -144,10 +183,11 @@
                   <label class="form-label">Type d'entrée *</label>
                   <select class="form-select" v-model="entryForm.movement_type" required>
                     <option value="EN">EN - Entrée Normale</option>
-                    <option value="ER">ER - Entrée par Retour</option>
-                    <option value="EI">EI - Entrée par Inventaire</option>
-                    <option value="EAJ">EAJ - Entrée par Ajustement</option>
-                    <option value="EAU">EAU - Entrée Autre</option>
+                    <option value="ER">ER - Entrée Retour</option>
+                    <option value="EI">EI - Entrée Inventaire</option>
+                    <option value="EAJ">EAJ - Entrée Ajustement</option>
+                    <option value="ET">ET - Entrée Transfert</option>
+                    <option value="EAU">EAU - Entrée Autres</option>
                   </select>
                 </div>
                 <div class="col-md-4">
@@ -180,8 +220,8 @@
                       <label class="form-label small">Produit *</label>
                       <select class="form-select" v-model="item.product_id" required>
                         <option value="">Sélectionner...</option>
-                        <option v-for="p in products" :key="p.id" :value="p.id">
-                          {{ p.item_designation }} ({{ p.item_code }})
+                        <option v-for="stock in stockProducts" :key="stock.product_id" :value="stock.product_id">
+                          {{ stock.product?.item_designation }} ({{ stock.product?.item_code }})
                         </option>
                       </select>
                     </div>
@@ -245,12 +285,13 @@
                   <label class="form-label">Type de sortie *</label>
                   <select class="form-select" v-model="exitForm.movement_type" required>
                     <option value="SN">SN - Sortie Normale</option>
-                    <option value="SV">SV - Sortie par Vente</option>
-                    <option value="SP">SP - Sortie par Perte</option>
-                    <option value="SD">SD - Sortie par Détérioration</option>
-                    <option value="SC">SC - Sortie par Consommation</option>
-                    <option value="SAJ">SAJ - Sortie par Ajustement</option>
-                    <option value="SAU">SAU - Sortie Autre</option>
+                    <option value="SP">SP - Sortie Perte</option>
+                    <option value="SV">SV - Sortie Vol</option>
+                    <option value="SD">SD - Sortie Désuétude</option>
+                    <option value="SC">SC - Sortie Casse</option>
+                    <option value="SAJ">SAJ - Sortie Ajustement</option>
+                    <option value="ST">ST - Sortie Transfert</option>
+                    <option value="SAU">SAU - Sortie Autres</option>
                   </select>
                 </div>
                 <div class="col-md-4">
@@ -607,15 +648,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import api from '@/services/api';
 
+const route = useRoute();
+const warehouseId = route.params.id;
+
 const MOUVEMENT_TYPES = {
-  'EN': 'Entrée Normale', 'ER': 'Entrée par Retour', 'EI': 'Entrée par Inventaire',
-  'EAJ': 'Entrée par Ajustement', 'ET': 'Entrée par Transfert', 'EAU': 'Entrée Autre',
-  'SN': 'Sortie Normale', 'SP': 'Sortie par Perte', 'SV': 'Sortie par Vente',
-  'SD': 'Sortie par Détérioration', 'SC': 'Sortie par Consommation',
-  'SAJ': 'Sortie par Ajustement', 'ST': 'Sortie par Transfert', 'SAU': 'Sortie Autre'
+  'EN': 'Entrée Normale', 'ER': 'Entrée Retour', 'EI': 'Entrée Inventaire',
+  'EAJ': 'Entrée Ajustement', 'ET': 'Entrée Transfert', 'EAU': 'Entrée Autres',
+  'SN': 'Sortie Normale', 'SP': 'Sortie Perte', 'SV': 'Sortie Vol',
+  'SD': 'Sortie Désuétude', 'SC': 'Sortie Casse',
+  'SAJ': 'Sortie Ajustement', 'ST': 'Sortie Transfert', 'SAU': 'Sortie Autres'
 };
 
 const CURRENCIES = [
@@ -625,20 +670,35 @@ const CURRENCIES = [
 ];
 
 const loading = ref(false);
+const loadingProducts = ref(false);
 const loadingPending = ref(false);
 const loadingHistory = ref(false);
 const submitting = ref(false);
 const error = ref(null);
 const successMessage = ref(null);
 
+const warehouse = ref(null);
 const warehouses = ref([]);
 const products = ref([]);
 const selectedWarehouseId = ref('');
 const warehouseStocks = ref([]);
+const stockProducts = ref([]);
 const sourceStocks = ref([]);
 const pendingTransfers = ref([]);
 const pendingCount = ref(0);
 const movementsHistory = ref([]);
+const selectedProduct = ref(null);
+
+// Recherche et pagination
+const searchQuery = ref('');
+const pagination = reactive({
+  current_page: 1,
+  last_page: 1,
+  per_page: 15,
+  total: 0,
+  from: 0,
+  to: 0
+});
 
 const showEntryModal = ref(false);
 const showExitModal = ref(false);
@@ -648,6 +708,29 @@ const showRejectModal = ref(false);
 const showHistoryModal = ref(false);
 const selectedTransfer = ref(null);
 const rejectReason = ref('');
+
+// Pages visibles pour la pagination
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = pagination.last_page;
+  const current = pagination.current_page;
+
+  let start = Math.max(1, current - 2);
+  let end = Math.min(total, current + 2);
+
+  if (end - start < 4) {
+    if (start === 1) {
+      end = Math.min(total, start + 4);
+    } else {
+      start = Math.max(1, end - 4);
+    }
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  return pages;
+});
 
 const entryForm = reactive({
   warehouse_id: '',
@@ -685,7 +768,100 @@ onMounted(() => {
   fetchWarehouses();
   fetchProducts();
   fetchPendingCount();
+
+  // Si un ID de stock est dans la route, charger directement ce stock
+  if (warehouseId) {
+    selectedWarehouseId.value = warehouseId;
+    fetchWarehouse();
+    fetchStockProducts();
+  }
 });
+
+// Récupérer les infos de l'entrepôt
+const fetchWarehouse = async () => {
+  try {
+    const resp = await api.get(`/stocks/${warehouseId}`);
+    if (resp.data.success) {
+      warehouse.value = resp.data.data;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+// Charger les produits du stock avec pagination et recherche
+const fetchStockProducts = async (page = 1) => {
+  if (!warehouseId) return;
+  loadingProducts.value = true;
+  try {
+    const params = {
+      page,
+      per_page: pagination.per_page,
+      search: searchQuery.value
+    };
+    const resp = await api.get(`warehouse-stock/${warehouseId}`, { params });
+    if (resp.data.success) {
+      // Gérer les données paginées ou non
+      if (resp.data.data.data) {
+        // Données paginées
+        stockProducts.value = resp.data.data.data;
+        pagination.current_page = resp.data.data.current_page;
+        pagination.last_page = resp.data.data.last_page;
+        pagination.total = resp.data.data.total;
+        pagination.from = resp.data.data.from || 0;
+        pagination.to = resp.data.data.to || 0;
+      } else {
+        // Données non paginées - les filtrer côté client
+        const allProducts = resp.data.data;
+        const filtered = searchQuery.value
+          ? allProducts.filter(p =>
+              p.product?.item_designation?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+              p.product?.item_code?.toLowerCase().includes(searchQuery.value.toLowerCase())
+            )
+          : allProducts;
+
+        pagination.total = filtered.length;
+        pagination.from = filtered.length > 0 ? 1 : 0;
+        pagination.to = filtered.length;
+        pagination.current_page = 1;
+        pagination.last_page = 1;
+        stockProducts.value = filtered;
+      }
+      // Mettre aussi à jour warehouseStocks pour les modales
+      warehouseStocks.value = stockProducts.value;
+    }
+  } catch (err) {
+    error.value = 'Erreur lors du chargement des produits';
+    console.error(err);
+  } finally {
+    loadingProducts.value = false;
+  }
+};
+
+// Debounce pour la recherche
+let debounceTimer = null;
+const debouncedSearch = () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    fetchStockProducts(1);
+  }, 300);
+};
+
+const clearSearch = () => {
+  searchQuery.value = '';
+  fetchStockProducts(1);
+};
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= pagination.last_page) {
+    fetchStockProducts(page);
+  }
+};
+
+const formatNumber = (num) => {
+  if (!num) return '0';
+  return new Intl.NumberFormat('fr-FR').format(num);
+};
 
 const fetchWarehouses = async () => {
   try {
@@ -699,7 +875,7 @@ const fetchWarehouses = async () => {
 const fetchProducts = async () => {
   try {
     const resp = await api.get('products');
-    if (resp.data.success) products.value = resp.data.data;
+    products.value = resp.data.data;
   } catch (err) {
     console.error(err);
   }
@@ -752,7 +928,11 @@ const submitEntry = async () => {
     if (resp.data.success) {
       successMessage.value = 'Entrée de stock enregistrée avec succès';
       closeEntryModal();
-      fetchWarehouseStock();
+      if (warehouseId) {
+        fetchStockProducts(pagination.current_page);
+      } else {
+        fetchWarehouseStock();
+      }
     }
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors de l\'enregistrement';
@@ -794,7 +974,11 @@ const submitExit = async () => {
     if (resp.data.success) {
       successMessage.value = 'Sortie de stock enregistrée avec succès';
       closeExitModal();
-      fetchWarehouseStock();
+      if (warehouseId) {
+        fetchStockProducts(pagination.current_page);
+      } else {
+        fetchWarehouseStock();
+      }
     }
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors de l\'enregistrement';
