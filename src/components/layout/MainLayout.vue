@@ -20,35 +20,41 @@ import { RouterLink, RouterView } from "vue-router";
 import { computed } from "vue";
 import { useStore } from "vuex";
 
-// Add the logout handler
+const store = useStore();
+
+// Logout handler
 const handleLogout = () => {
-  // Clear user session and redirect to login
   localStorage.removeItem("token");
   window.location.href = "/login";
 };
 
-const store = useStore();
-
 // Compute initials from the connected user's name
 const userInitials = computed(() => {
   const user = store.state.auth.user;
-  if (user && user.name) {
-    return user.name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
-  }
-  return ""; // Default initials
+  return user?.name ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase() : "";
 });
 
-const companyName = computed(() => {
-  const company = store.state.auth.company;
-  console.log(store.state.auth);
-  if (company && company.name) {
-    return company.name;
-  }
-  return "Nom de l'entreprise"; // Default company name
+// Company name
+const companyName = computed(() => store.state.auth.company?.name || "Nom de l'entreprise");
+
+// Navigation items
+const navItems = [
+  { to: "/dashboard", icon: "pi-home", label: "Accueil", roles: ["admin", "user", "manager"] },
+  { to: "/sales", icon: "pi-shopping-cart", label: "Vente", roles: ["admin", "cashier", "manager"] },
+  { to: "/clients", icon: "pi-users", label: "Clients", roles: ["admin", "manager", "sales"] },
+  { to: "/stock", icon: "pi-box", label: "Stock", roles: ["admin", "manager", "stock_manager"] },
+  { to: "/bakery", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
+  { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },
+  { to: "/reports", icon: "pi-chart-bar", label: "Rapports", roles: ["admin", "manager"] },
+  { to: "/expenses", icon: "pi-wallet", label: "Dépenses", roles: ["admin", "accountant", "manager"] },
+  { to: "/company", icon: "pi-building", label: "Entreprise", roles: ["admin"] },
+  { to: "/users", icon: "pi-user", label: "Utilisateurs", roles: ["admin"] },
+];
+
+const userRole = computed(() => store.state.auth.user?.role || "user");
+
+const filteredNavItems = computed(() => {
+  return navItems;
 });
 </script>
 
@@ -144,47 +150,7 @@ const companyName = computed(() => {
   </div>
 </template>
 
-<script setup>
-import { RouterLink, RouterView } from "vue-router";
-import { computed } from "vue";
-import { useStore } from "vuex";
 
-const store = useStore();
-
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  window.location.href = "/login";
-};
-
-const userInitials = computed(() => {
-  const user = store.state.auth.user;
-  return user?.name ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase() : "";
-});
-
-const companyName = computed(() => store.state.auth.company?.name || "Nom de l'entreprise");
-
-const navItems = [
-  { to: "/dashboard", icon: "pi-home", label: "Accueil", roles: ["admin", "user", "manager"] },
-  { to: "/sales", icon: "pi-shopping-cart", label: "Vente", roles: ["admin", "cashier", "manager"] },
-  { to: "/clients", icon: "pi-users", label: "Clients", roles: ["admin", "manager", "sales"] },
-  { to: "/stock", icon: "pi-box", label: "Stock", roles: ["admin", "manager", "stock_manager"] },
-  { to: "/bakery", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
-  { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },
-  { to: "/reports", icon: "pi-chart-bar", label: "Rapports", roles: ["admin", "manager"] },
-  { to: "/expenses", icon: "pi-wallet", label: "Dépenses", roles: ["admin", "accountant", "manager"] },
-  { to: "/company", icon: "pi-building", label: "Entreprise", roles: ["admin"] },
-  { to: "/users", icon: "pi-user", label: "Utilisateurs", roles: ["admin"] },
-];
-
-const userRole = computed(() => store.state.auth.user?.role || "user");
-
-// const filteredNavItems = computed(() => {
-//   return navItems.filter(item => item.roles.includes(userRole.value));
-// });
-const filteredNavItems = computed(() => {
-  return navItems;
-});
-</script>
 
 <style scoped>
 .sidebar {
