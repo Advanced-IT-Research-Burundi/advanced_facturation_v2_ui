@@ -8,12 +8,13 @@ const props = defineProps({
   isLoading: Boolean,
 });
 const store = useStore();
-const emit = defineEmits(["add-to-cart"]);
+const emit = defineEmits(["add-to-cart", "stock-changed"]);
 
 const isLoadingProducts = ref(false);
 const searchQuery = ref("");
 const selectedCategory = ref("Tous");
 const selectedStock = ref(null);
+let searchTimeout = null;
 
 onMounted(() => {
   fetchStock();
@@ -25,11 +26,24 @@ const fetchStock = async () => {
     if (response.data.success) {
       store.state.data.stocksPOS = response.data.data;
       selectedStock.value = response.data.data[0].id;
+      // Emit the warehouse_id when stock is loaded
+      const warehouseId = response.data.data[0]?.warehouse_id || response.data.data[0]?.warehouse?.id;
+      emit("stock-changed", warehouseId);
     }
   } catch (error) {
     console.error("Erreur lors de la récupération des stocks:", error);
   }
 };
+
+// Watch for stock selection changes
+watch(selectedStock, (newStockId) => {
+  const stock = stocks.value?.find(s => s.id === newStockId);
+  if (stock) {
+    const warehouseId = stock.warehouse_id || stock.warehouse?.id;
+    emit("stock-changed", warehouseId);
+    fetchProducts();
+  }
+});
 
 
 const fetchProducts = async (search = "") => {
@@ -62,17 +76,24 @@ const fetchProducts = async (search = "") => {
 
 
 
+// Debounce search to avoid too many API calls
 watch(searchQuery, (newVal) => {
-  fetchProducts(newVal);
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  searchTimeout = setTimeout(() => {
+    fetchProducts(newVal);
+  }, 300); // 300ms debounce
 });
 
-const products = computed(() => store.state.data.productsPOS);
-const stocks = computed(() => store.state.data.stocksPOS);
+const products = computed(() => store.state.data?.productsPOS || []);
+const stocks = computed(() => store.state.data?.stocksPOS || []);
 
 const selectedPOSStock = computed(() => selectedStock.value || store.state.data?.stocksPOS?.[0]?.id);
 
 const categories = computed(() => {
-  const cats = new Set(products.value.map((p) => p.category));
+  if (!products.value || products.value.length === 0) return ["Tous"];
+  const cats = new Set(products.value.map((p) => p.category).filter(Boolean));
   return ["Tous", ...cats];
 });
 

@@ -1,9 +1,13 @@
 <script setup>
 import { ref, reactive, computed } from "vue";
-import { Plus, Trash2, CreditCard, Loader2 } from "lucide-vue-next";
+import { Plus, Trash2, CreditCard, Loader2, User, Search } from "lucide-vue-next";
 
 const props = defineProps({
   isSubmitting: Boolean,
+  customers: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits(["submit"]);
@@ -13,10 +17,34 @@ const serviceItems = ref([
 ]);
 
 const serviceForm = reactive({
-  client: "",
-  paymentType: "",
+  paymentType: "cash",
   currency: "BIF",
 });
+
+// Client search state
+const selectedClient = ref(null);
+const clientSearchText = ref("");
+
+const filteredCustomers = computed(() => {
+  if (!clientSearchText.value) return [];
+  return props.customers.filter(
+    (c) =>
+      c.customer_name
+        .toLowerCase()
+        .includes(clientSearchText.value.toLowerCase()) ||
+      c.customer_TIN?.includes(clientSearchText.value)
+  );
+});
+
+const selectCustomer = (customer) => {
+  selectedClient.value = customer;
+  clientSearchText.value = customer.customer_name;
+};
+
+const clearClient = () => {
+  selectedClient.value = null;
+  clientSearchText.value = "";
+};
 
 const addServiceRow = () => {
   serviceItems.value.push({
@@ -58,9 +86,11 @@ const serviceTotals = computed(() => {
 });
 
 const validateAndSubmit = () => {
-  if (serviceItems.value.length === 0 || !serviceItems.value[0].description)
+  if (serviceItems.value.length === 0 || !serviceItems.value[0].description) {
+    alert("Veuillez ajouter au moins un service.");
     return;
-  if (!serviceForm.client) {
+  }
+  if (!selectedClient.value) {
     alert("Veuillez sélectionner un client.");
     return;
   }
@@ -69,6 +99,8 @@ const validateAndSubmit = () => {
     invoice_type: "FN",
     invoice_action: "SERVICE",
     invoice_currency: serviceForm.currency,
+    payment_type: serviceForm.paymentType,
+    customer_id: selectedClient.value.id,
     items: serviceItems.value.map((item) => ({
       item_designation: item.description,
       item_quantity: parseFloat(item.quantity),
@@ -77,7 +109,6 @@ const validateAndSubmit = () => {
       item_ct: 0,
       item_tl: 0,
     })),
-    client_identifier: serviceForm.client,
   };
 
   emit("submit", payload);
@@ -87,10 +118,11 @@ const reset = () => {
   serviceItems.value = [
     { description: "", quantity: 1, price: 0, tvaRate: 18 },
   ];
-  serviceForm.client = "";
+  selectedClient.value = null;
+  clientSearchText.value = "";
 };
 
-defineExpose({ reset });
+defineExpose({ reset, clearClient });
 </script>
 
 <template>
@@ -196,20 +228,65 @@ defineExpose({ reset });
       class="d-flex justify-content-between align-items-end mt-auto pt-4 border-top"
     >
       <div class="d-flex gap-3 flex-grow-1 pe-4">
-        <div class="flex-grow-1">
-          <label class="form-label small text-muted">Client (Nom ou TIN)</label>
-          <input
-            v-model="serviceForm.client"
-            type="text"
-            class="form-control"
-            placeholder="Recherche client..."
-          />
+        <!-- Client Search -->
+        <div class="flex-grow-1 position-relative">
+          <label class="form-label small text-muted">Client</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0">
+              <User :size="18" :class="{ 'text-success': selectedClient }" />
+            </span>
+            <input
+              v-model="clientSearchText"
+              type="text"
+              class="form-control border-start-0 ps-0"
+              placeholder="Rechercher un client..."
+            />
+          </div>
+          <!-- Dropdown résultats -->
+          <div
+            v-if="clientSearchText && !selectedClient && filteredCustomers.length"
+            class="position-absolute bg-white border rounded shadow-sm w-100 mt-1 z-3 overflow-auto"
+            style="max-height: 200px"
+          >
+            <div
+              v-for="customer in filteredCustomers"
+              :key="customer.id"
+              @click="selectCustomer(customer)"
+              class="p-2 cursor-pointer hover-bg-light border-bottom"
+            >
+              <div class="fw-bold">{{ customer.customer_name }}</div>
+              <small class="text-muted">TIN: {{ customer.customer_TIN || "N/A" }}</small>
+            </div>
+          </div>
+          <!-- Client sélectionné -->
+          <div
+            v-if="selectedClient"
+            class="mt-1 d-flex justify-content-between align-items-center"
+          >
+            <small class="text-success fw-bold">
+              <User :size="14" class="me-1" />
+              {{ selectedClient.customer_name }} ({{ selectedClient.customer_TIN || 'N/A' }})
+            </small>
+            <button @click="clearClient" class="btn btn-sm text-danger p-0">
+              <Trash2 :size="14" />
+            </button>
+          </div>
         </div>
-        <div style="width: 180px">
+        <!-- Devise -->
+        <div style="width: 120px">
+          <label class="form-label small text-muted">Devise</label>
+          <select v-model="serviceForm.currency" class="form-select">
+            <option value="BIF">BIF</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+        <!-- Paiement -->
+        <div style="width: 150px">
           <label class="form-label small text-muted">Paiement</label>
           <select v-model="serviceForm.paymentType" class="form-select">
             <option value="cash">Espèces</option>
             <option value="banque">Banque</option>
+            <option value="mobile">Mobile Money</option>
           </select>
         </div>
       </div>
@@ -220,13 +297,26 @@ defineExpose({ reset });
         <button
           @click="validateAndSubmit"
           class="btn btn-primary px-4"
-          :disabled="isSubmitting"
+          :disabled="isSubmitting || !selectedClient"
         >
           <Loader2 v-if="isSubmitting" :size="18" class="animate-spin me-2" />
           <CreditCard v-else :size="18" class="me-2" />
-          Valider
+          Valider Facture
         </button>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.z-3 {
+  z-index: 1030;
+}
+.hover-bg-light:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+</style>

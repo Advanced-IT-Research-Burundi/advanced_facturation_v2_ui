@@ -13,6 +13,8 @@ import ProformaFormModal from "./ProformaFormModal.vue";
 import FactureAvoir from "./FactureAvoir.vue";
 import Refund from "./Refund.vue";
 import ProformaDetailsModal from "./ProformaDetailsModal.vue";
+import InvoicePrintModal from "./InvoicePrintModal.vue";
+import InvoicesList from "./InvoicesList.vue";
 
 const store = useStore();
 
@@ -21,6 +23,29 @@ const activeTab = ref("POS");
 const isSubmitting = ref(false);
 const customers = ref([]);
 const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
+const selectedWarehouseId = ref(null);
+
+// --- PRINT MODAL STATE ---
+const showPrintModal = ref(false);
+const invoiceToPrint = ref(null);
+const currentCompany = ref(null);
+
+// Handle warehouse change from POS
+const handleStockChanged = (warehouseId) => {
+  selectedWarehouseId.value = warehouseId;
+};
+
+// Fetch company info for printing
+const fetchCompany = async () => {
+  try {
+    const response = await api.get("/companies");
+    if (response.data.success && response.data.data.data?.length > 0) {
+      currentCompany.value = response.data.data.data[0];
+    }
+  } catch (e) {
+    console.error("Error fetching company", e);
+  }
+};
 
 // --- PROFORMA STATE ---
 // Map state from Vuex
@@ -48,6 +73,7 @@ const fetchProformas = () => {
 onMounted(() => {
   fetchCustomers();
   fetchProformas();
+  fetchCompany();
 });
 
 // --- CART LOGIC ---
@@ -80,21 +106,42 @@ const handleInvoiceSubmit = async (payload) => {
   try {
     const response = await api.post("/invoices", payload);
     if (response.data.success) {
-      alert("Succès !");
+      const createdInvoice = response.data.data?.invoice || response.data.data;
+
+      // Show print modal with created invoice
+      invoiceToPrint.value = createdInvoice;
+      showPrintModal.value = true;
+
       if (payload.invoice_action === "POS") {
         cart.value = [];
-        // Optional: refresh POS products if we had a ref
       }
-      // If we created a standard invoice, maybe refresh proformas/invoices list?
-      // fetchProformas(); // Only if we want to mix lists
     } else {
       alert("Erreur: " + response.data.message);
     }
   } catch (e) {
+    console.error("Erreur lors de la soumission:", e);
     alert("Erreur lors de la soumission.");
   } finally {
     isSubmitting.value = false;
   }
+};
+
+// Handle view invoice from list
+const handleViewInvoice = (invoice) => {
+  invoiceToPrint.value = invoice;
+  showPrintModal.value = true;
+};
+
+// Handle print invoice from list
+const handlePrintInvoice = (invoice) => {
+  invoiceToPrint.value = invoice;
+  showPrintModal.value = true;
+};
+
+// Close print modal
+const closePrintModal = () => {
+  showPrintModal.value = false;
+  invoiceToPrint.value = null;
 };
 
 const handleProformaSave = async (payload) => {
@@ -168,10 +215,11 @@ const closeProformaDetails = () => {
         class="d-flex flex-column bg-light border-end overflow-hidden"
         :class="activeTab === 'POS' ? 'col-12 col-lg-8' : 'col-12'"
       >
-        <POS v-if="activeTab === 'POS'" @add-to-cart="addToCart" />
+        <POS v-if="activeTab === 'POS'" @add-to-cart="addToCart" @stock-changed="handleStockChanged" />
         <InvoiceService
           v-else-if="activeTab === 'Service'"
           :is-submitting="isSubmitting"
+          :customers="customers"
           @submit="handleInvoiceSubmit"
         />
         <ProformaService
@@ -184,8 +232,23 @@ const closeProformaDetails = () => {
           @delete="handleProformaDelete"
           @view="handleViewProforma"
         />
-        <Refund v-else-if="activeTab === 'Caution'" />
-        <FactureAvoir v-else-if="activeTab === 'Avoir'" />
+        <Refund
+          v-else-if="activeTab === 'Caution'"
+          :is-submitting="isSubmitting"
+          :customers="customers"
+          @submit="handleInvoiceSubmit"
+        />
+        <FactureAvoir
+          v-else-if="activeTab === 'Avoir'"
+          :is-submitting="isSubmitting"
+          :customers="customers"
+          @submit="handleInvoiceSubmit"
+        />
+        <InvoicesList
+          v-else-if="activeTab === 'Factures'"
+          @view="handleViewInvoice"
+          @print="handlePrintInvoice"
+        />
       </div>
 
       <!-- Right Panel (Cart - only for POS) -->
@@ -194,6 +257,7 @@ const closeProformaDetails = () => {
         :cart="cart"
         :customers="customers"
         :is-submitting="isSubmitting"
+        :warehouse-id="selectedWarehouseId"
         @remove-from-cart="removeFromCart"
         @update-quantity="updateQuantity"
         @invoice-submitted="handleInvoiceSubmit"
@@ -217,6 +281,14 @@ const closeProformaDetails = () => {
       :show="showProformaDetails"
       :proforma="selectedProforma"
       @close="closeProformaDetails"
+    />
+
+    <!-- MODAL IMPRESSION FACTURE -->
+    <InvoicePrintModal
+      :show="showPrintModal"
+      :invoice="invoiceToPrint"
+      :company="currentCompany"
+      @close="closePrintModal"
     />
   </div>
 </template>
