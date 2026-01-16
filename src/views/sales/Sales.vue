@@ -15,6 +15,7 @@ import Refund from "./Refund.vue";
 import ProformaDetailsModal from "./ProformaDetailsModal.vue";
 import InvoicePrintModal from "./InvoicePrintModal.vue";
 import InvoicesList from "./InvoicesList.vue";
+import Reports from "./Reports.vue";
 
 const store = useStore();
 
@@ -249,6 +250,7 @@ const closeProformaDetails = () => {
           @view="handleViewInvoice"
           @print="handlePrintInvoice"
         />
+        <Reports v-else-if="activeTab === 'Rapports'" />
       </div>
 
       <!-- Right Panel (Cart - only for POS) -->
