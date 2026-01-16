@@ -57,7 +57,31 @@ const router = createRouter({
           name: "stock-movements",
           component: () => import("../views/stocks/StockMouvement.vue"),
         },
-
+        {
+          path: '/warehouses/:id/bulk-entry',
+          name: 'WarehouseBulkEntry',
+          component: () => import('@/views/warehouses/BulkEntry.vue')
+        },
+        {
+          path: '/warehouses/:id/bulk-exit',
+          name: 'WarehouseBulkExit',
+          component: () => import('@/views/warehouses/BulkExit.vue')
+        },
+        {
+          path: '/warehouses/:id/create-transfer',
+          name: 'WarehouseCreateTransfer',
+          component: () => import('@/views/warehouses/CreateTransfer.vue')
+        },
+        {
+          path: '/warehouses/:id/pending-transfers',
+          name: 'WarehousePendingTransfers',
+          component: () => import('@/views/warehouses/PendingTransfers.vue')
+        },
+        {
+          path: '/warehouses/:id/history',
+          name: 'WarehouseHistory',
+          component: () => import('@/views/warehouses/History.vue')
+        },
         {
           path: 'stock/:id/products',
           name: "stock.products",
@@ -67,6 +91,12 @@ const router = createRouter({
           path: "bakery",
           name: "bakery",
           component: () => import("../views/BakeryManagemen.vue"),
+        },
+
+        {
+          path: 'stock/:id/products',
+          name: "stock.products",
+          component: () => import("../views/stocks/StockProducts.vue"),
         },
         {
           path: "products",
