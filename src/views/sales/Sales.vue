@@ -12,6 +12,7 @@ import ProformaService from "./ProformaService.vue";
 import ProformaFormModal from "./ProformaFormModal.vue";
 import FactureAvoir from "./FactureAvoir.vue";
 import Refund from "./Refund.vue";
+import ProformaDetailsModal from "./ProformaDetailsModal.vue";
 
 const store = useStore();
 
@@ -154,20 +155,7 @@ const closeProformaDetails = () => {
     selectedProforma.value = null;
 };
 
-const formatPrice = (price) => {
-  if (price === null || price === undefined) return "0";
-  const num = parseFloat(price);
-  return !isNaN(num) ? num.toLocaleString() : "0";
-};
 
-const printProforma = () => {
-  const printContent = document.getElementById('proforma-printable');
-  const originalContent = document.body.innerHTML;
-  document.body.innerHTML = printContent.innerHTML;
-  window.print();
-  document.body.innerHTML = originalContent;
-  window.location.reload(); 
-};
 </script>
 
 <template>
@@ -225,81 +213,11 @@ const printProforma = () => {
     />
 
     <!-- MODAL DÉTAILS/APERÇU PROFORMA -->
-    <div v-if="showProformaDetails && selectedProforma" class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Proforma - {{ selectedProforma.invoice_number || 'APERÇU' }}</h5>
-            <button type="button" class="btn-close" @click="closeProformaDetails"></button>
-          </div>
-          <div class="modal-body" id="proforma-printable">
-            <!-- En-tête -->
-            <div class="text-center mb-4 border-bottom pb-3">
-              <h3 class="fw-bold">PROFORMA SERVICE</h3>
-              <p class="mb-1">N° {{ selectedProforma.invoice_number || '---' }}</p>
-              <p class="text-muted">Date: {{ new Date(selectedProforma.invoice_date).toLocaleDateString() }}</p>
-            </div>
-
-            <!-- Infos Client -->
-            <div class="row mb-4">
-              <div class="col-6">
-                <h6 class="fw-bold">Client:</h6>
-                <p class="mb-0">{{ selectedProforma.customer_name }}</p>
-                <p class="text-muted">{{ selectedProforma.customer_TIN }}</p>
-              </div>
-              <div class="col-6 text-end">
-                <p><strong>Devise:</strong> {{ selectedProforma.invoice_currency }}</p>
-                <p><strong>Statut:</strong> {{ selectedProforma.obr_submission_status }}</p>
-              </div>
-            </div>
-
-            <!-- Tableau des articles -->
-            <table class="table table-bordered">
-              <thead class="bg-light">
-                <tr>
-                  <th>#</th>
-                  <th>Description</th>
-                  <th>Qté</th>
-                  <th>PU HT</th>
-                  <th>TVA</th>
-                  <th>Total TTC</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, idx) in selectedProforma.invoice_items" :key="idx">
-                  <td>{{ idx + 1 }}</td>
-                  <td>{{ item.item_designation }}</td>
-                  <td>{{ item.item_quantity }}</td>
-                  <td>{{ formatPrice(item.item_price) }}</td>
-                  <td>{{ item.vat }}%</td>
-                  <td>{{ formatPrice(item.item_total_amount) }}</td>
-                </tr>
-              </tbody>
-              <tfoot class="fw-bold">
-                <tr>
-                  <td colspan="5" class="text-end">Total HT</td>
-                  <td>{{ formatPrice(selectedProforma.invoice_amount_nvat) }}</td>
-                </tr>
-                <tr>
-                  <td colspan="5" class="text-end">TVA</td>
-                  <td>{{ formatPrice(selectedProforma.invoice_vat_amount) }}</td>
-                </tr>
-                <tr class="table-primary">
-                  <td colspan="5" class="text-end">TOTAL TTC</td>
-                  <td>{{ formatPrice(selectedProforma.invoice_total_amount) }} {{ selectedProforma.invoice_currency }}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" @click="closeProformaDetails">Fermer</button>
-            <button class="btn btn-primary" @click="printProforma">
-              Imprimer
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ProformaDetailsModal
+      :show="showProformaDetails"
+      :proforma="selectedProforma"
+      @close="closeProformaDetails"
+    />
   </div>
 </template>
 
