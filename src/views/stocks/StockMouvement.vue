@@ -36,8 +36,12 @@
       <button type="button" class="btn-close" @click="error = null"></button>
     </div>
     <div v-if="successMessage" class="alert alert-success alert-dismissible fade show">
-      {{ successMessage }}
-      <button type="button" class="btn-close" @click="successMessage = null"></button>
+      <i class="bi bi-check-circle me-2"></i>{{ successMessage }}
+      <button class="btn-close" @click="successMessage = null"></button>
+    </div>
+    <div v-if="error" class="alert alert-danger alert-dismissible fade show">
+      <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+      <button class="btn-close" @click="error = null"></button>
     </div>
 
     <!-- Ligne 6: Tableau des produits -->
