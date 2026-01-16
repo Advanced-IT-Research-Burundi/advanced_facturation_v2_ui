@@ -114,6 +114,47 @@ const handleSave = () => {
 const handleFileChange = (e) => {
   form.value.image = e.target.files[0];
 };
+
+const isCalculating = ref(false);
+
+watch(
+  () => form.value.price,
+  (newVal) => {
+    if (isCalculating.value) return;
+    isCalculating.value = true;
+    const price = parseFloat(newVal) || 0;
+    const vat = parseFloat(form.value.vat_rate) || 0;
+    form.value.price_ttc = parseFloat((price * (1 + vat / 100)).toFixed(2));
+    isCalculating.value = false;
+  }
+);
+
+watch(
+  () => form.value.vat_rate,
+  (newVal) => {
+    if (isCalculating.value) return;
+    isCalculating.value = true;
+    const price = parseFloat(form.value.price) || 0;
+    const vat = parseFloat(newVal) || 0;
+    form.value.price_ttc = parseFloat((price * (1 + vat / 100)).toFixed(2));
+    isCalculating.value = false;
+  }
+);
+
+watch(
+  () => form.value.price_ttc,
+  (newVal) => {
+    if (isCalculating.value) return;
+    isCalculating.value = true;
+    const ttc = parseFloat(newVal) || 0;
+    const vat = parseFloat(form.value.vat_rate) || 0;
+    const divisor = 1 + vat / 100;
+    if (divisor !== 0) {
+      form.value.price = parseFloat((ttc / divisor).toFixed(2));
+    }
+    isCalculating.value = false;
+  }
+);
 </script>
 
 <template>

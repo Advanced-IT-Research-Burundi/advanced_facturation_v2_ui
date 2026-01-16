@@ -17,10 +17,7 @@ const getCategoryName = (id) => {
 };
 
 const formatPrice = (price) => {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "BIF",
-  }).format(price || 0);
+  return new Intl.NumberFormat("fr-FR").format(price || 0);
 };
 
 const isLowStock = (product) => {
@@ -46,22 +43,28 @@ const totalPages = computed(() => {
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
+              <th>#</th>
               <th class="ps-4">Code</th>
               <th>Désignation</th>
               <th>Catégorie</th>
               <th>Marque</th>
-              <th>Prix</th>
+              <th>TVA</th>
+              <th>Prix HT</th>
+              <th>Prix TTC</th>
               <th>Quantité</th>
               <th class="text-end pe-4">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="product in products" :key="product.id">
+            <tr v-for="(product, index) in products" :key="product.id">
+              <td>{{ index + 1 }}</td>
               <td class="ps-4 font-monospace small">{{ product.item_code }}</td>
               <td>{{ product.item_designation }}</td>
               <td>{{ getCategoryName(product.product_category_id) }}</td>
               <td>{{ product.marque || "-" }}</td>
+              <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td>
               <td class="fw-bold">{{ formatPrice(product.price) }}</td>
+              <td class="fw-bold">{{ formatPrice(product.price_ttc) }}</td>
               <td>
                 <span
                   :class="{
