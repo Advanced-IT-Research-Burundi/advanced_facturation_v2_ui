@@ -14,6 +14,7 @@ const invoiceTypes = [
   { id: "Proforma", label: "Proforma Service" },
   { id: "Caution", label: "Remboursement Caution" },
   { id: "Avoir", label: "Facture d'Avoir" },
+  { id: "Factures", label: "Historique" },
 ];
 </script>
 
