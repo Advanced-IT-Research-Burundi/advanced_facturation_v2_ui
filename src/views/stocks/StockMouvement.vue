@@ -1,40 +1,6 @@
 <template>
-  <!-- Ligne 1: Conteneur principal -->
   <div class="container-fluid p-0">
-    <!-- Ligne 2: En-tête avec navigation -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <!-- Ligne 3: Bouton retour et titre -->
-      <div class="d-flex align-items-center">
-        <button class="btn btn-outline-secondary me-3" @click="$router.back()">
-          <i class="bi bi-arrow-left"></i> Retour
-        </button>
-        <h1 class="h3 mb-0">
-          <i class="bi bi-box-seam me-2"></i>
-          Mouvements de Stock
-          <span v-if="warehouse" class="text-primary">- {{ warehouse.name }}</span>
-        </h1>
-      </div>
-      <!-- Ligne 4: Boutons d'action -->
-      <div>
-        <button class="btn btn-outline-info me-2" @click="handleShowPendingTransfers">
-          <i class="bi bi-hourglass-split"></i>
-          Transferts en attente
-          <span v-if="pendingCount > 0" class="badge bg-danger ms-1">{{ pendingCount }}</span>
-        </button>
-        <button class="btn btn-outline-success me-2" @click="modals.openTransferModal()">
-          <i class="bi bi-arrow-left-right"></i> Créer Transfert
-        </button>
-        <button class="btn btn-outline-primary" @click="handleShowHistory">
-          <i class="bi bi-clock-history"></i> Historique
-        </button>
-      </div>
-    </div>
-
-    <!-- Ligne 5: Alertes -->
-    <div v-if="error" class="alert alert-danger alert-dismissible fade show">
-      {{ error }}
-      <button type="button" class="btn-close" @click="error = null"></button>
-    </div>
+    <!-- Messages -->
     <div v-if="successMessage" class="alert alert-success alert-dismissible fade show">
       <i class="bi bi-check-circle me-2"></i>{{ successMessage }}
       <button class="btn-close" @click="successMessage = null"></button>
@@ -44,266 +10,361 @@
       <button class="btn-close" @click="error = null"></button>
     </div>
 
-    <!-- Ligne 6: Tableau des produits -->
-    <StockProductsTable
-      :stock-products="stockProducts"
-      :loading="loadingProducts"
-      :search-query="searchQuery"
-      :pagination="pagination"
-      :visible-pages="visiblePages"
-      :selected-product="selectedProduct"
-      @search="handleSearch"
-      @clear-search="clearSearch"
-      @quick-entry="handleQuickEntry"
-      @quick-exit="handleQuickExit"
-      @go-to-page="goToPage"
-    />
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="h3">
+          <i class="bi bi-box-seam me-2"></i>
+          {{ warehouse?.name }}
+        </h1>
+        <small class="text-muted">{{ warehouse?.location }}</small>
+      </div>
+      <div>
+        <router-link :to="`/warehouses/${warehouseId}/bulk-entry`" class="btn btn-outline-success me-2">
+          <i class="bi bi-box-arrow-in-down"></i> Entrée Multiple
+        </router-link>
+        <router-link :to="`/warehouses/${warehouseId}/bulk-exit`" class="btn btn-outline-danger me-2">
+          <i class="bi bi-box-arrow-right"></i> Sortie Multiple
+        </router-link>
+        <router-link :to="`/warehouses/${warehouseId}/history`" class="btn btn-outline-warning me-2">
+          <i class="bi bi-clock-history"></i> Historique
+        </router-link>
+        <router-link v-if="pendingCount > 0" :to="`/warehouses/${warehouseId}/pending-transfers`" class="btn btn-outline-info me-2">
+          <i class="bi bi-hourglass-split"></i> Transferts
+          <span class="badge bg-danger ms-1">{{ pendingCount }}</span>
+        </router-link>
+        <router-link :to="`/warehouses/${warehouseId}/create-transfer`" class="btn btn-outline-success">
+          <i class="bi bi-arrow-left-right"></i> Créer Transfert
+        </router-link>
+      </div>
+    </div>
 
-    <!-- Ligne 7: Modal d'entrée -->
-    <EntryModal
-      :show="modals.showEntryModal.value"
-      :form="modals.entryForm"
-      :stock-products="stockProducts"
-      :submitting="submitting"
-      @close="modals.closeEntryModal()"
-      @submit="handleSubmitEntry"
-      @add-item="modals.addEntryItem()"
-      @remove-item="modals.removeEntryItem"
-    />
+    <!-- Stock actuel -->
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-boxes me-2"></i>Stock Actuel
+        </h5>
+      </div>
+      <div class="card-body">
+        <div v-if="loading" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+        <div v-else class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Code</th>
+                <th>Produit</th>
+                <th class="text-end">Quantité</th>
+                <th class="text-end">Prix Unitaire</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="stock in stocks" :key="stock.id">
+                <td><code>{{ stock.product?.item_code }}</code></td>
+                <td>
+                  <div class="fw-bold">{{ stock.product?.item_designation }}</div>
+                </td>
+                <td class="text-end">
+                  <span class="badge bg-info fs-6">
+                    {{ stock.quantity }} {{ stock.product?.item_measurement_unit }}
+                  </span>
+                </td>
+                <td class="text-end">{{ stock.unit_price }} {{ stock.currency }}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-success me-1" 
+                          @click="openQuickEntry(stock)" title="Entrée">
+                    <i class="bi bi-plus-lg"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" 
+                          @click="openQuickExit(stock)" title="Sortie">
+                    <i class="bi bi-dash-lg"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="stocks.length === 0">
+                <td colspan="5" class="text-center py-5 text-muted">
+                  <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                  Aucun produit en stock
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-    <!-- Ligne 8: Modal de sortie -->
-    <ExitModal
-      :show="modals.showExitModal.value"
-      :form="modals.exitForm"
-      :warehouse-stocks="warehouseStocks"
-      :submitting="submitting"
-      @close="modals.closeExitModal()"
-      @submit="handleSubmitExit"
-      @add-item="modals.addExitItem()"
-      @remove-item="modals.removeExitItem"
-      @update-stock="(item) => modals.updateExitStock(item, warehouseStocks)"
-    />
+    <!-- Modal Entrée Rapide -->
+    <div v-if="showQuickEntryModal" class="modal show d-block" style="background: rgba(0,0,0,0.5)" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-plus-circle me-2"></i>Entrée Rapide
+            </h5>
+            <button class="btn-close btn-close-white" @click="closeQuickEntry"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
+              <small>{{ selectedStock?.product?.item_code }}</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Type d'entrée *</label>
+              <select class="form-select" v-model="quickEntryForm.movement_type" required>
+                <option value="EN">EN - Entrée Normale</option>
+                <option value="ER">ER - Entrée par Retour</option>
+                <option value="EI">EI - Entrée par Inventaire</option>
+                <option value="EAJ">EAJ - Entrée par Ajustement</option>
+                <option value="EAU">EAU - Entrée Autre</option>
+              </select>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Quantité *</label>
+                <input type="number" step="0.01" class="form-control" 
+                       v-model="quickEntryForm.quantity" required min="0.01">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Prix Unitaire *</label>
+                <input type="number" step="0.01" class="form-control" 
+                       v-model="quickEntryForm.unit_price" required min="0">
+              </div>
+            </div>
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <label class="form-label">Devise *</label>
+                <select class="form-select" v-model="quickEntryForm.currency" required>
+                  <option value="BIF">BIF</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Date d'expiration</label>
+                <input type="date" class="form-control" v-model="quickEntryForm.date_expiration">
+              </div>
+            </div>
+            <!-- <div class="mt-3">
+              <label class="form-label">Référence facture</label>
+              <input type="text" class="form-control" v-model="quickEntryForm.invoice_ref" 
+                     placeholder="Ex: FAC-2024-001">
+            </div> -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeQuickEntry">Annuler</button>
+            <button @click="submitQuickEntry" class="btn btn-success" :disabled="submitting">
+              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <!-- Ligne 9: Modal de transfert -->
-    <TransferModal
-      :show="modals.showTransferModal.value"
-      :form="modals.transferForm"
-      :warehouses="warehouses"
-      :source-stocks="sourceStocks"
-      :submitting="submitting"
-      @close="modals.closeTransferModal()"
-      @submit="handleSubmitTransfer"
-      @add-item="modals.addTransferItem()"
-      @remove-item="modals.removeTransferItem"
-      @update-stock="(item) => modals.updateTransferStock(item, sourceStocks)"
-      @load-source-stock="handleLoadSourceStock"
-    />
-
-    <!-- Ligne 10: Modal d'historique -->
-    <HistoryModal
-      :show="modals.showHistoryModal.value"
-      :movements="movementsHistory"
-      :filters="modals.historyFilters"
-      :loading="loadingHistory"
-      :warehouse-name="currentWarehouseName"
-      @close="modals.closeHistoryModal()"
-      @filter-change="handleFetchHistory"
-    />
-
-    <!-- Ligne 11: Modal des transferts en attente -->
-    <PendingTransfersModal
-      :show="modals.showPendingModal.value"
-      :transfers="pendingTransfers"
-      :loading="loadingPending"
-      @close="modals.closePendingModal()"
-      @approve="handleApproveTransfer"
-      @reject="modals.openRejectModal"
-    />
-
-    <!-- Ligne 12: Modal de rejet -->
-    <RejectModal
-      :show="modals.showRejectModal.value"
-      :transfer="modals.selectedTransfer.value"
-      :reason="modals.rejectReason.value"
-      :submitting="submitting"
-      @close="modals.closeRejectModal()"
-      @submit="handleSubmitReject"
-      @update:reason="modals.rejectReason.value = $event"
-    />
+    <!-- Modal Sortie Rapide -->
+    <div v-if="showQuickExitModal" class="modal show d-block" style="background: rgba(0,0,0,0.5)" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-dash-circle me-2"></i>Sortie Rapide
+            </h5>
+            <button class="btn-close btn-close-white" @click="closeQuickExit"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning">
+              <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
+              <small>Stock disponible: {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Type de sortie *</label>
+              <select class="form-select" v-model="quickExitForm.movement_type" required>
+                <option value="SN">SN - Sortie Normale</option>
+                <option value="SV">SV - Sortie par Vente</option>
+                <option value="SP">SP - Sortie par Perte</option>
+                <option value="SD">SD - Sortie par Détérioration</option>
+                <option value="SC">SC - Sortie par Consommation</option>
+                <option value="SAJ">SAJ - Sortie par Ajustement</option>
+                <option value="SAU">SAU - Sortie Autre</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Quantité *</label>
+              <input type="number" step="0.01" class="form-control" 
+                     v-model="quickExitForm.quantity" required min="0.01" 
+                     :max="selectedStock?.quantity">
+            </div>
+            <!-- <div class="mb-3">
+              <label class="form-label">Référence facture</label>
+              <input type="text" class="form-control" v-model="quickExitForm.invoice_ref"
+                     placeholder="Ex: FAC-2024-001">
+            </div> -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeQuickExit">Annuler</button>
+            <button @click="submitQuickExit" class="btn btn-danger" :disabled="submitting">
+              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-// Ligne 13: Imports Vue
-import { onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import api from '@/services/api';
 
-// Ligne 14: Import des composables
-import { useStockMovement } from './composables/useStockMovement';
-import { useStockModals } from './composables/useStockModals';
-
-// Ligne 15: Import des composants
-import StockProductsTable from './components/StockProductsTable.vue';
-import EntryModal from './components/EntryModal.vue';
-import ExitModal from './components/ExitModal.vue';
-import TransferModal from './components/TransferModal.vue';
-import HistoryModal from './components/HistoryModal.vue';
-import PendingTransfersModal from './components/PendingTransfersModal.vue';
-import RejectModal from './components/RejectModal.vue';
-
-// Ligne 16: Récupération de l'ID de l'entrepôt
 const route = useRoute();
 const warehouseId = route.params.id;
 
-// Ligne 17: Utilisation du composable principal
-const {
-  // États
-  loadingProducts,
-  loadingPending,
-  loadingHistory,
-  submitting,
-  error,
-  successMessage,
-  // Données
-  warehouse,
-  warehouses,
-  warehouseStocks,
-  stockProducts,
-  sourceStocks,
-  pendingTransfers,
-  pendingCount,
-  movementsHistory,
-  selectedProduct,
-  // Pagination
-  searchQuery,
-  pagination,
-  visiblePages,
-  // Méthodes
-  fetchWarehouse,
-  fetchWarehouses,
-  fetchProducts,
-  fetchStockProducts,
-  loadSourceStock,
-  fetchPendingCount,
-  fetchPendingTransfers,
-  fetchMovementsHistory,
-  submitEntry,
-  submitExit,
-  submitTransfer,
-  approveTransfer,
-  rejectTransfer,
-  debouncedSearch,
-  clearSearch,
-  goToPage
-} = useStockMovement(warehouseId);
+const loading = ref(false);
+const submitting = ref(false);
+const error = ref(null);
+const successMessage = ref(null);
 
-// Ligne 18: Utilisation du composable des modales
-const modals = useStockModals();
+const warehouse = ref(null);
+const stocks = ref([]);
+const pendingCount = ref(0);
 
-// Ligne 19: Nom de l'entrepôt courant pour l'historique
-const currentWarehouseName = computed(() => {
-  const id = modals.historyFilters.warehouse_id;
-  return warehouses.value.find(w => w.id == id)?.name || '';
+const showQuickEntryModal = ref(false);
+const showQuickExitModal = ref(false);
+
+const selectedStock = ref(null);
+
+const quickEntryForm = ref({
+  product_id: '',
+  quantity: '',
+  unit_price: '',
+  currency: 'BIF',
+  date_expiration: '',
+  movement_type: 'EN',
+  invoice_ref: ''
 });
 
-// Ligne 20: Gestionnaires d'événements
-const handleSearch = (value) => {
-  searchQuery.value = value;
-  debouncedSearch();
-};
+const quickExitForm = ref({
+  product_id: '',
+  quantity: '',
+  movement_type: 'SN',
+  invoice_ref: ''
+});
 
-const handleQuickEntry = (stock) => {
-  modals.quickEntry(stock, warehouseId);
-};
-
-const handleQuickExit = (stock) => {
-  modals.quickExit(stock, warehouseId);
-};
-
-const handleSubmitEntry = async () => {
-  const success = await submitEntry(modals.entryForm);
-  if (success) {
-    modals.closeEntryModal();
-    fetchStockProducts(pagination.current_page);
-  }
-};
-
-const handleSubmitExit = async () => {
-  const success = await submitExit(modals.exitForm);
-  if (success) {
-    modals.closeExitModal();
-    fetchStockProducts(pagination.current_page);
-  }
-};
-
-const handleLoadSourceStock = () => {
-  loadSourceStock(modals.transferForm.source_warehouse_id);
-};
-
-const handleSubmitTransfer = async () => {
-  const success = await submitTransfer(modals.transferForm);
-  if (success) {
-    modals.closeTransferModal();
-    fetchPendingCount();
-  }
-};
-
-const handleShowPendingTransfers = async () => {
-  modals.openPendingModal();
-  await fetchPendingTransfers();
-};
-
-const handleApproveTransfer = async (transferId) => {
-  if (!confirm('Approuver ce transfert ?')) return;
-  const success = await approveTransfer(transferId);
-  if (success) {
-    await fetchPendingTransfers();
-    fetchPendingCount();
-    if (warehouseId) fetchStockProducts(pagination.current_page);
-  }
-};
-
-const handleSubmitReject = async () => {
-  const success = await rejectTransfer(
-    modals.selectedTransfer.value.id,
-    modals.rejectReason.value
-  );
-  if (success) {
-    modals.closeRejectModal();
-    await fetchPendingTransfers();
-    fetchPendingCount();
-  }
-};
-
-const handleShowHistory = () => {
-  modals.openHistoryModal(warehouseId);
-  handleFetchHistory();
-};
-
-const handleFetchHistory = () => {
-  fetchMovementsHistory(modals.historyFilters);
-};
-
-// Ligne 21: Initialisation au montage
 onMounted(() => {
-  fetchWarehouses();
-  fetchProducts();
-  fetchPendingCount();
-
-  if (warehouseId) {
-    fetchWarehouse();
-    fetchStockProducts();
-  }
+  fetchDashboard();
 });
+
+const fetchDashboard = async () => {
+  loading.value = true;
+  try {
+    const resp = await api.get(`warehouses/${warehouseId}/dashboard`);
+    if (resp.data.success) {
+      warehouse.value = resp.data.data.warehouse;
+      stocks.value = resp.data.data.stocks;
+      pendingCount.value = resp.data.data.pending_count;
+    }
+  } catch (err) {
+    error.value = 'Erreur lors du chargement';
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Entrée Rapide
+const openQuickEntry = (stock) => {
+  selectedStock.value = stock;
+  quickEntryForm.value = {
+    product_id: stock.product_id,
+    quantity: '',
+    unit_price: stock.unit_price,
+    currency: stock.currency,
+    date_expiration: '',
+    movement_type: 'EN',
+    invoice_ref: ''
+  };
+  showQuickEntryModal.value = true;
+};
+
+const closeQuickEntry = () => {
+  showQuickEntryModal.value = false;
+  quickEntryForm.value = {
+    product_id: '',
+    quantity: '',
+    unit_price: '',
+    currency: 'BIF',
+    date_expiration: '',
+    movement_type: 'EN',
+    invoice_ref: ''
+  };
+};
+
+const submitQuickEntry = async () => {
+  submitting.value = true;
+  try {
+    const resp = await api.post(`warehouses/${warehouseId}/quick-entry`, quickEntryForm.value);
+    if (resp.data.success) {
+      successMessage.value = resp.data.message;
+      closeQuickEntry();
+      fetchDashboard();
+      setTimeout(() => successMessage.value = null, 3000);
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Erreur';
+    setTimeout(() => error.value = null, 5000);
+  } finally {
+    submitting.value = false;
+  }
+};
+
+// Sortie Rapide
+const openQuickExit = (stock) => {
+  selectedStock.value = stock;
+  quickExitForm.value = {
+    product_id: stock.product_id,
+    quantity: '',
+    movement_type: 'SN',
+    invoice_ref: ''
+  };
+  showQuickExitModal.value = true;
+};
+
+const closeQuickExit = () => {
+  showQuickExitModal.value = false;
+  quickExitForm.value = {
+    product_id: '',
+    quantity: '',
+    movement_type: 'SN',
+    invoice_ref: ''
+  };
+};
+
+const submitQuickExit = async () => {
+  submitting.value = true;
+  try {
+    const resp = await api.post(`warehouses/${warehouseId}/quick-exit`, quickExitForm.value);
+    if (resp.data.success) {
+      successMessage.value = resp.data.message;
+      closeQuickExit();
+      fetchDashboard();
+      setTimeout(() => successMessage.value = null, 3000);
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Erreur';
+    setTimeout(() => error.value = null, 5000);
+  } finally {
+    submitting.value = false;
+  }
+};
 </script>
 
 <style scoped>
-/* Ligne 22: Styles */
-.card {
-  border: none;
-  border-radius: 12px;
-}
-.modal {
-  overflow-y: auto;
+.card { 
+  border: none; 
+  border-radius: 12px; 
 }
 </style>
