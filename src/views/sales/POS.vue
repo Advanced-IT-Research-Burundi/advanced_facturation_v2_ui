@@ -25,7 +25,7 @@ const fetchStock = async () => {
     const response = await api.get("/mes_stock");
     if (response.data.success) {
       store.state.data.stocksPOS = response.data.data;
-      selectedStock.value = response.data.data[0].id;
+      selectedStock.value = response.data.data[0].warehouse_id;
       // Emit the warehouse_id when stock is loaded
       const warehouseId = response.data.data[0]?.warehouse_id || response.data.data[0]?.warehouse?.id;
       emit("stock-changed", warehouseId);
@@ -37,7 +37,7 @@ const fetchStock = async () => {
 
 // Watch for stock selection changes
 watch(selectedStock, (newStockId) => {
-  const stock = stocks.value?.find(s => s.id === newStockId);
+  const stock = stocks.value?.find(s => s.warehouse_id === newStockId);
   if (stock) {
     const warehouseId = stock.warehouse_id || stock.warehouse?.id;
     emit("stock-changed", warehouseId);
@@ -89,7 +89,7 @@ watch(searchQuery, (newVal) => {
 const products = computed(() => store.state.data?.productsPOS || []);
 const stocks = computed(() => store.state.data?.stocksPOS || []);
 
-const selectedPOSStock = computed(() => selectedStock.value || store.state.data?.stocksPOS?.[0]?.id);
+const selectedPOSStock = computed(() => selectedStock.value || store.state.data?.stocksPOS?.[0]?.warehouse_id);
 
 const categories = computed(() => {
   if (!products.value || products.value.length === 0) return ["Tous"];
