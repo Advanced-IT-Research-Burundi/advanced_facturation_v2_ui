@@ -8,6 +8,7 @@ import {
   Minus,
   CreditCard,
   Loader2,
+  Percent,
 } from "lucide-vue-next";
 import api from "@/services/api";
 
@@ -21,6 +22,10 @@ const props = defineProps({
     required: true,
   },
   isSubmitting: Boolean,
+  warehouseId: {
+    type: Number,
+    default: null,
+  },
 });
 
 const emit = defineEmits([
@@ -31,6 +36,8 @@ const emit = defineEmits([
 
 const selectedClient = ref(null);
 const clientSearchText = ref("");
+const selectedCurrency = ref("BIF");
+const selectedPaymentType = ref("cash");
 
 const filteredCustomers = computed(() => {
   if (!clientSearchText.value) return [];
@@ -48,15 +55,43 @@ const selectCustomer = (customer) => {
   clientSearchText.value = customer.customer_name;
 };
 
-const cartTotal = computed(() => {
+// Calcul du total HT (Hors Taxes)
+const cartTotalHT = computed(() => {
   return props.cart.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
 });
 
+// Calcul du total TVA
+const cartTotalTVA = computed(() => {
+  return props.cart.reduce((total, item) => {
+    const lineHT = item.price * item.quantity;
+    const vatRate = item.vat_rate || 18;
+    return total + (lineHT * vatRate) / 100;
+  }, 0);
+});
+
+// Calcul du total TTC (Toutes Taxes Comprises)
+const cartTotalTTC = computed(() => {
+  return cartTotalHT.value + cartTotalTVA.value;
+});
+
+// Calculer TVA par ligne
+const getItemVAT = (item) => {
+  const lineHT = item.price * item.quantity;
+  const vatRate = item.vat_rate || 18;
+  return (lineHT * vatRate) / 100;
+};
+
+// Calculer TTC par ligne
+const getItemTTC = (item) => {
+  const lineHT = item.price * item.quantity;
+  return lineHT + getItemVAT(item);
+};
+
 const formatPrice = (price) => {
-  return typeof price === "number" ? price.toLocaleString() : "0";
+  return typeof price === "number" ? price.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : "0";
 };
 
 const submitInvoice = async () => {
@@ -70,14 +105,16 @@ const submitInvoice = async () => {
     const payload = {
       invoice_type: "FN",
       invoice_action: "POS",
-      invoice_currency: "BIF",
+      invoice_currency: selectedCurrency.value,
+      payment_type: selectedPaymentType.value,
       customer_id: selectedClient.value.id,
+      warehouse_id: props.warehouseId,
       items: props.cart.map((item) => ({
         product_id: item.id,
         item_designation: item.name,
         item_quantity: item.quantity,
         item_price: item.price,
-        vat: item.vat_rate,
+        vat: item.vat_rate || 18,
         item_ct: 0,
         item_tl: 0,
       })),
@@ -170,8 +207,13 @@ defineExpose({ clearClient });
           class="cart-item p-2 border rounded-3 bg-white"
         >
           <div class="d-flex justify-content-between align-items-start mb-2">
-            <div class="fw-bold text-truncate pe-2" :title="item.name">
-              {{ item.name }}
+            <div>
+              <div class="fw-bold text-truncate pe-2" :title="item.name">
+                {{ item.name }}
+              </div>
+              <span class="badge bg-info text-white small">
+                TVA {{ item.vat_rate || 18 }}%
+              </span>
             </div>
             <button
               @click="$emit('remove-from-cart', item.id)"
@@ -203,23 +245,30 @@ defineExpose({ clearClient });
                   <Plus :size="14" />
                 </button>
               </div>
-              <div class="input-group input-group-sm" style="width: 140px">
+              <div class="input-group input-group-sm" style="width: 130px">
                 <input
                   type="number"
                   v-model.number="item.price"
                   class="form-control text-end pe-1 fw-bold text-primary"
                   placeholder="Prix"
                 />
-                <span class="input-group-text px-1 small">FBU</span>
+                <span class="input-group-text px-1 small">{{ selectedCurrency }}</span>
               </div>
             </div>
-            <div
-              class="d-flex justify-content-between align-items-center border-top pt-1 mt-1"
-            >
-              <span class="text-muted small">Total ligne</span>
-              <span class="fw-bold text-dark"
-                >{{ formatPrice(item.price * item.quantity) }} FBU</span
-              >
+            <!-- Détails TVA par ligne -->
+            <div class="border-top pt-1 mt-1 small">
+              <div class="d-flex justify-content-between text-muted">
+                <span>HT:</span>
+                <span>{{ formatPrice(item.price * item.quantity) }}</span>
+              </div>
+              <div class="d-flex justify-content-between text-info">
+                <span>TVA ({{ item.vat_rate || 18 }}%):</span>
+                <span>{{ formatPrice(getItemVAT(item)) }}</span>
+              </div>
+              <div class="d-flex justify-content-between fw-bold text-dark">
+                <span>TTC:</span>
+                <span>{{ formatPrice(getItemTTC(item)) }} {{ selectedCurrency }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -227,23 +276,30 @@ defineExpose({ clearClient });
     </div>
 
     <div class="p-3 border-top bg-light mt-auto">
-      <div class="d-flex justify-content-between mb-1 text-muted small">
-        <span>Sous-total</span>
-        <span>{{ formatPrice(cartTotal) }} FBU</span>
-      </div>
-      <div class="d-flex justify-content-between mb-3">
-        <span class="fs-6 fw-bold text-dark">Total à Payer</span>
-        <span class="fs-6 fw-bold text-primary"
-          >{{ formatPrice(cartTotal) }} FBU</span
-        >
+      <!-- Récapitulatif TVA -->
+      <div class="mb-3 p-2 bg-white rounded border">
+        <div class="d-flex justify-content-between mb-1 text-muted small">
+          <span>Total Hors Taxes (HT)</span>
+          <span>{{ formatPrice(cartTotalHT) }} {{ selectedCurrency }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 text-info small">
+          <span>Total TVA</span>
+          <span>{{ formatPrice(cartTotalTVA) }} {{ selectedCurrency }}</span>
+        </div>
+        <div class="d-flex justify-content-between pt-1 border-top">
+          <span class="fs-6 fw-bold text-dark">Total TTC</span>
+          <span class="fs-6 fw-bold text-primary"
+            >{{ formatPrice(cartTotalTTC) }} {{ selectedCurrency }}</span
+          >
+        </div>
       </div>
 
       <div class="d-grid gap-2">
         <div class="row g-2 mb-2">
           <div class="col-6 d-flex align-items-center">
             <label class="form-label small text-muted pe-1 mb-0">Devise</label>
-            <select class="form-select form-select-sm">
-              <option value="FBU">FBU</option>
+            <select v-model="selectedCurrency" class="form-select form-select-sm">
+              <option value="BIF">BIF</option>
               <option value="USD">USD</option>
             </select>
           </div>
@@ -251,18 +307,18 @@ defineExpose({ clearClient });
             <label class="form-label small text-muted pe-1 mb-0"
               >Paiement</label
             >
-            <select class="form-select form-select-sm">
+            <select v-model="selectedPaymentType" class="form-select form-select-sm">
               <option value="cash">Espèces</option>
               <option value="mobile">Mobile</option>
+              <option value="banque">Banque</option>
             </select>
           </div>
         </div>
 
         <button
           @click="submitInvoice"
-          class="btn btn-sm fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+          class="btn btn-primary fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-sm"
           :disabled="cart.length === 0 || isSubmitting || !selectedClient"
-          style="background-color: #4b5563; color: white"
         >
           <Loader2 v-if="isSubmitting" :size="20" class="animate-spin" />
           <CreditCard v-else :size="24" />
@@ -280,5 +336,12 @@ defineExpose({ clearClient });
 .hover-bg-light:hover {
   background-color: #f8f9fa;
   cursor: pointer;
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
