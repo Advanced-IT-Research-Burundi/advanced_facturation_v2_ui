@@ -20,6 +20,9 @@
         <small class="text-muted">{{ warehouse?.location }}</small>
       </div>
       <div>
+        <router-link :to="`/stock`" class="btn btn-outline-secondary me-2">
+          <i class="bi bi-arrow-left"></i> Retour aux Stocks
+        </router-link>
         <router-link :to="`/warehouses/${warehouseId}/bulk-entry`" class="btn btn-outline-success me-2">
           <i class="bi bi-box-arrow-in-down"></i> Entrée Multiple
         </router-link>

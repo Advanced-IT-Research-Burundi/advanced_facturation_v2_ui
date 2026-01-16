@@ -43,6 +43,13 @@ const navItems = [
   { to: "/sales", icon: "pi-shopping-cart", label: "Vente", roles: ["admin", "cashier", "manager"] },
   { to: "/clients", icon: "pi-users", label: "Clients", roles: ["admin", "manager", "sales"] },
   { to: "/stock", icon: "pi-box", label: "Stock", roles: ["admin", "manager", "stock_manager"] },
+
+  /* ===== Section Pharmacie ===== */
+
+  { to: "/pharmaceutical", icon: "pi-heart", label: "Pharmacie", roles: ["admin", "manager", "pharmacist"] },
+  { to: "/lots", icon: "pi-clone", label: "Lots", roles: ["admin", "manager", "pharmacist"] },
+  { to: "/prescriptions", icon: "pi-file", label: "Ordonnances", roles: ["admin", "manager", "pharmacist"] },
+
   { to: "/bakery", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
   { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },
   { to: "/reports", icon: "pi-chart-bar", label: "Rapports", roles: ["admin", "manager"] },
@@ -78,37 +85,6 @@ const filteredNavItems = computed(() => {
           </RouterLink>
         </li>
 
-        <!-- Section Pharmacie -->
-        <li class="mt-2 pt-2 border-top border-secondary">
-          <RouterLink
-            to="/pharmaceutical"
-            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
-            active-class="active bg-success text-white"
-          >
-            <Pill :size="20" />
-            <span class="small" style="font-size: 0.7rem">Pharmacie</span>
-          </RouterLink>
-        </li>
-        <li>
-          <RouterLink
-            to="/lots"
-            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
-            active-class="active bg-success text-white"
-          >
-            <Layers :size="20" />
-            <span class="small" style="font-size: 0.7rem">Lots</span>
-          </RouterLink>
-        </li>
-        <li>
-          <RouterLink
-            to="/prescriptions"
-            class="nav-link text-white-50 d-flex flex-column align-items-center justify-content-center gap-1 p-2"
-            active-class="active bg-success text-white"
-          >
-            <FileText :size="20" />
-            <span class="small" style="font-size: 0.7rem">Ordonnances</span>
-          </RouterLink>
-        </li>
       </ul>
 
       <!-- User Dropdown -->

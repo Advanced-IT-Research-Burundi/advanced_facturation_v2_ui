@@ -23,7 +23,7 @@ const fetchStocks = async () => {
 const stockItems = computed(() => store.state.data.stockItems);
 
 const navigateToStock = (id) => {
-  router.push(`/stock/${id}`);
+  router.push(`/stock/${id}/movements`);
 }
 </script>
 
