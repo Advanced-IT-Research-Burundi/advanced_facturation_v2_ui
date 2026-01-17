@@ -16,6 +16,7 @@ import ProformaDetailsModal from "./ProformaDetailsModal.vue";
 import InvoicePrintModal from "./InvoicePrintModal.vue";
 import InvoicesList from "./InvoicesList.vue";
 import Reports from "./Reports.vue";
+import PaymentModal from "./PaymentModal.vue";
 
 const store = useStore();
 
@@ -31,12 +32,51 @@ const showPrintModal = ref(false);
 const invoiceToPrint = ref(null);
 const currentCompany = ref(null);
 
+// --- PAYMENT MODAL STATE ---
+const showPaymentModal = ref(false);
+const invoiceToPay = ref(null);
+
 // Handle warehouse change from POS
 const handleStockChanged = (warehouseId) => {
   selectedWarehouseId.value = warehouseId;
 };
 
-// Fetch company info for printing
+// ... (other functions)
+
+// Handle view invoice from list
+const handleViewInvoice = (invoice) => {
+  invoiceToPrint.value = invoice;
+  showPrintModal.value = true;
+};
+
+// Handle print invoice from list
+const handlePrintInvoice = (invoice) => {
+  invoiceToPrint.value = invoice;
+  showPrintModal.value = true;
+};
+
+// Close print modal
+const closePrintModal = () => {
+    showPrintModal.value = false;
+    invoiceToPrint.value = null;
+};
+
+// Handle pay invoice
+const handlePayInvoice = (invoice) => {
+    invoiceToPay.value = invoice;
+    showPaymentModal.value = true;
+};
+
+const closePaymentModal = () => {
+    showPaymentModal.value = false;
+    invoiceToPay.value = null;
+};
+
+const handlePaymentAdded = () => {
+    // Optionally trigger invoice list refresh via a global event bus or similar if desired.
+    // For now we assume the user will manually refresh the list if needed.
+};
+
 const fetchCompany = async () => {
   try {
     const response = await api.get("/companies");
@@ -127,23 +167,7 @@ const handleInvoiceSubmit = async (payload) => {
   }
 };
 
-// Handle view invoice from list
-const handleViewInvoice = (invoice) => {
-  invoiceToPrint.value = invoice;
-  showPrintModal.value = true;
-};
 
-// Handle print invoice from list
-const handlePrintInvoice = (invoice) => {
-  invoiceToPrint.value = invoice;
-  showPrintModal.value = true;
-};
-
-// Close print modal
-const closePrintModal = () => {
-  showPrintModal.value = false;
-  invoiceToPrint.value = null;
-};
 
 const handleProformaSave = async (payload) => {
   isSubmitting.value = true;
@@ -249,6 +273,7 @@ const closeProformaDetails = () => {
           v-else-if="activeTab === 'Factures'"
           @view="handleViewInvoice"
           @print="handlePrintInvoice"
+          @pay="handlePayInvoice"
         />
         <Reports v-else-if="activeTab === 'Rapports'" />
       </div>
@@ -291,6 +316,14 @@ const closeProformaDetails = () => {
       :invoice="invoiceToPrint"
       :company="currentCompany"
       @close="closePrintModal"
+    />
+
+    <!-- MODAL PAIEMENT -->
+    <PaymentModal
+      :show="showPaymentModal"
+      :invoice="invoiceToPay"
+      @close="closePaymentModal"
+      @payment-added="handlePaymentAdded"
     />
   </div>
 </template>

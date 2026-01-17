@@ -11,10 +11,11 @@ import {
   XCircle,
   Clock,
   Filter,
+  DollarSign,
 } from "lucide-vue-next";
 import api from "@/services/api";
 
-const emit = defineEmits(["view", "print"]);
+
 
 const isLoading = ref(false);
 const invoices = ref([]);
@@ -126,6 +127,26 @@ const getStatusIcon = (status) => {
   }
 };
 
+const emit = defineEmits(["view", "print", "pay"]);
+
+const getPaymentStatusBadge = (status) => {
+  const classes = {
+    paid: "bg-success",
+    partial: "bg-warning text-dark",
+    unpaid: "bg-danger",
+  };
+  return classes[status] || "bg-secondary";
+};
+
+const getPaymentStatusLabel = (status) => {
+  const labels = {
+    paid: "Payé",
+    partial: "Partiel",
+    unpaid: "Impayé",
+  };
+  return labels[status] || status || "Impayé";
+};
+
 const changePage = (page) => {
   if (page >= 1 && page <= pagination.value.lastPage) {
     fetchInvoices(page);
@@ -195,7 +216,7 @@ const changePage = (page) => {
         <p>Aucune facture trouvée</p>
       </div>
 
-      <table v-else class="table table-hover mb-0">
+     <table v-else class="table table-hover mb-0">
         <thead class="bg-light sticky-top">
           <tr>
             <th>N° Facture</th>
@@ -203,6 +224,7 @@ const changePage = (page) => {
             <th>Client</th>
             <th>Type</th>
             <th class="text-end">Montant TTC</th>
+            <th class="text-center">Paiement</th>
             <th class="text-center">OBR</th>
             <th class="text-center">Actions</th>
           </tr>
@@ -227,6 +249,15 @@ const changePage = (page) => {
               <small class="text-muted">{{ invoice.invoice_currency }}</small>
             </td>
             <td class="text-center">
+                <span class="badge" :class="getPaymentStatusBadge(invoice.payment_status)">
+                    {{ getPaymentStatusLabel(invoice.payment_status) }}
+                </span>
+                <div v-if="invoice.payment_status === 'partial'" class="progress mt-1" style="height: 4px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                        :style="{ width: ((invoice.total_paid / invoice.invoice_total_amount) * 100) + '%' }"></div>
+                </div>
+            </td>
+            <td class="text-center">
               <component
                 :is="getStatusIcon(invoice.obr_submission_status).icon"
                 :size="18"
@@ -249,6 +280,14 @@ const changePage = (page) => {
                   title="Imprimer"
                 >
                   <Printer :size="14" />
+                </button>
+                <button
+                  v-if="invoice.payment_status !== 'paid'"
+                  @click="$emit('pay', invoice)"
+                  class="btn btn-outline-success"
+                  title="Payer"
+                >
+                  <DollarSign :size="14" />
                 </button>
               </div>
             </td>
