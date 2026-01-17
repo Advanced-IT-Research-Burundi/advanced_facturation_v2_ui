@@ -89,7 +89,7 @@
                     <div class="fw-bold text-dark">{{ expense.name }}</div>
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark border" v-if="expense.category_name">{{ expense.category_name }}</span>
+                    <span class="badge bg-light text-dark border" v-if="expense.depense_category">{{ expense.depense_category.name }}</span>
                     <span class="text-muted small" v-else>-</span>
                 </td>
                 <td>
