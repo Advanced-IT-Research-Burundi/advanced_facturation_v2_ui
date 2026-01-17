@@ -39,7 +39,7 @@ const fetchDashboardData = async () => {
   try {
     loading.value = true;
 
-    const [statsRes, salesRes, productsRes, customersRes, stockRes, invoicesRes] = await Promise.all([
+    const results = await Promise.allSettled([
       api.get('/analytics/dashboard-stats'),
       api.get('/analytics/sales-chart', { params: { period: salesPeriod.value } }),
       api.get('/analytics/top-products', { params: { limit: 5 } }),
@@ -48,12 +48,33 @@ const fetchDashboardData = async () => {
       api.get('/dashboard'),
     ]);
 
-    if (statsRes.data.success) stats.value = statsRes.data.data;
-    if (salesRes.data.success) salesChart.value = salesRes.data.data;
-    if (productsRes.data.success) topProducts.value = productsRes.data.data.products;
-    if (customersRes.data.success) topCustomers.value = customersRes.data.data.customers;
-    if (stockRes.data.success) lowStockAlerts.value = stockRes.data.data.alerts.slice(0, 5);
-    if (invoicesRes.data.success) recentInvoices.value = invoicesRes.data.data.recent_invoices;
+    const [statsRes, salesRes, productsRes, customersRes, stockRes, invoicesRes] = results;
+
+    if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
+      stats.value = statsRes.value.data.data;
+    } else {
+      console.error('Stats request failed:', statsRes.reason || statsRes.value?.data);
+    }
+
+    if (salesRes.status === 'fulfilled' && salesRes.value.data.success) {
+      salesChart.value = salesRes.value.data.data;
+    }
+
+    if (productsRes.status === 'fulfilled' && productsRes.value.data.success) {
+      topProducts.value = productsRes.value.data.data.products;
+    }
+
+    if (customersRes.status === 'fulfilled' && customersRes.value.data.success) {
+      topCustomers.value = customersRes.value.data.data.customers;
+    }
+
+    if (stockRes.status === 'fulfilled' && stockRes.value.data.success) {
+      lowStockAlerts.value = stockRes.value.data.data.alerts.slice(0, 5);
+    }
+
+    if (invoicesRes.status === 'fulfilled' && invoicesRes.value.data.success) {
+      recentInvoices.value = invoicesRes.value.data.data.recent_invoices;
+    }
 
     // Render charts after data is loaded
     setTimeout(() => {
