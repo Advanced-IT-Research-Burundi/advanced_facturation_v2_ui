@@ -208,6 +208,22 @@ const router = createRouter({
           name: "prescriptions",
           component: () => import("../views/prescriptions/PrescriptionsPage.vue"),
         },
+        // Routes Gestion Financière
+        {
+          path: "cash-register",
+          name: "cash-register",
+          component: () => import("../views/finance/CashRegister.vue"),
+        },
+        {
+          path: "reminders",
+          name: "reminders",
+          component: () => import("../views/finance/Reminders.vue"),
+        },
+        {
+          path: "currencies",
+          name: "currencies",
+          component: () => import("../views/finance/Currencies.vue"),
+        },
       ],
     },
     {
