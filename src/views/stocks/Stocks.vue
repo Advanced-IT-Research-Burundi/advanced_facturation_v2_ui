@@ -137,12 +137,12 @@
                   <option :value="true">Oui</option>
                 </select>
               </div>
-              <div class="mb-3">
+              <!-- <div class="mb-3">
                 <label class="form-label">Company ID</label>
                 <input type="number" class="form-control" 
                        v-model="form.company_id" 
                        placeholder="Ex: 1">
-              </div>
+              </div> -->
             </form>
           </div>
           <div class="modal-footer">
@@ -343,7 +343,7 @@ const closeModal = () => {
     form.name = '';
     form.location = '';
     form.company_id = '';
-    form.is_production = item.is_production || false;
+    form.is_production = false;
 };
 
 const submitForm = async () => {

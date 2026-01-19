@@ -152,7 +152,13 @@
                       </span>
                     </td>
                     <td class="text-center">
-                      <button class="btn btn-sm btn-primary" @click="openQuickTransfer(stock)" title="Transférer">
+                      <!-- <button class="btn btn-sm btn-success" @click="openQuickEntry(stock)" title="Entrée">
+                        <i class="bi bi-plus-circle"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger ms-1" @click="openQuickExit(stock)" title="Sortie">
+                        <i class="bi bi-dash-circle"></i>
+                      </button> -->
+                      <button class="btn btn-sm btn-primary ms-1" @click="openQuickTransfer(stock)" title="Transférer">
                         <i class="bi bi-arrow-right"></i>
                       </button>
                       <button class="btn btn-sm btn-warning ms-1" @click="markAsRaw(stock)" title="Retour matière">
