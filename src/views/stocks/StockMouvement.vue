@@ -36,9 +36,12 @@
           <i class="bi bi-hourglass-split"></i> Transferts
           <span class="badge bg-danger ms-1">{{ pendingCount }}</span>
         </router-link>
-        <router-link :to="`/warehouses/${warehouseId}/create-transfer`" class="btn btn-outline-success">
+        <router-link :to="`/warehouses/${warehouseId}/create-transfer`" class="btn btn-outline-success me-2">
           <i class="bi bi-arrow-left-right"></i> Créer Transfert
         </router-link>
+         <RouterLink :to="`/stock/${route.params.id}/products`" class="btn btn-success shadow-sm">
+          <i class="bi bi-box-seam me-2"></i>Gérer les produits
+        </RouterLink>
       </div>
     </div>
 
