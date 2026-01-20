@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { useStore } from "vuex";
 import api from "@/services/api";
 import PrescriptionFormModal from "./PrescriptionFormModal.vue";
+import PharmaceHeader from "../pharmaceutical/PharmaceHeader.vue";
 
 const store = useStore();
 
@@ -146,6 +147,8 @@ const totalPages = computed(() => Math.ceil(pagination.value.total / pagination.
 </script>
 
 <template>
+  <div>
+      <PharmaceHeader />
   <div class="container-fluid py-4">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -293,4 +296,6 @@ const totalPages = computed(() => Math.ceil(pagination.value.total / pagination.
       @save="handleSave"
     />
   </div>
+  </div>
+   
 </template>

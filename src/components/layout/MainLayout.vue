@@ -47,8 +47,8 @@ const navItems = [
   /* ===== Section Pharmacie ===== */
 
   { to: "/pharmaceutical", icon: "pi-heart", label: "Pharmacie", roles: ["admin", "manager", "pharmacist"] },
-  { to: "/lots", icon: "pi-clone", label: "Lots", roles: ["admin", "manager", "pharmacist"] },
-  { to: "/prescriptions", icon: "pi-file", label: "Ordonnances", roles: ["admin", "manager", "pharmacist"] },
+  // { to: "/lots", icon: "pi-clone", label: "Lots", roles: ["admin", "manager", "pharmacist"] },
+  // { to: "/prescriptions", icon: "pi-file", label: "Ordonnances", roles: ["admin", "manager", "pharmacist"] },
 
   { to: "/bakery/production", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
   { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },

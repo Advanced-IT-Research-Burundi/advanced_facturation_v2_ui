@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useStore } from "vuex";
 import { useRouter } from "vue-router";
+import PharmaceHeader from "./PharmaceHeader.vue";
 
 const store = useStore();
 const router = useRouter();
@@ -51,6 +52,8 @@ const generateAlerts = async () => {
 </script>
 
 <template>
+<div>
+  <PharmaceHeader />
   <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="mb-0">Dashboard Pharmaceutique</h2>
@@ -265,5 +268,6 @@ const generateAlerts = async () => {
         </div>
       </div>
     </template>
+  </div>
   </div>
 </template>
