@@ -3,8 +3,10 @@ import apiClient from "@/services/api";
 const state = {
   users: [],
   companies: [],
+  roles: [],
   pagination: {},
   loading: false,
+  loadingRoles: false,
   error: null,
 };
 
@@ -13,36 +15,37 @@ const getters = {
   totalUsers: (state) => state.pagination.total || 0,
   isLoading: (state) => state.loading,
   allCompanies: (state) => state.companies,
+  allRoles: (state) => state.roles,
+  isLoadingRoles: (state) => state.loadingRoles,
 };
 
 const actions = {
   async fetchUsers({ commit }, { page = 1, search = '' } = {}) {
-  commit('setLoading', true);
-  commit('setError', null);
+    commit('setLoading', true);
+    commit('setError', null);
 
-  try {
-    const response = await apiClient.get('/users', {
-      params: { page, search }
-    });
-
-    if (response.data.success) {
-      commit('setUsers', response.data.data.data);
-      commit('setPagination', {
-        total: response.data.data.total,
-        current_page: response.data.data.current_page,
-        last_page: response.data.data.last_page,
-        per_page: response.data.data.per_page,
-        prev_page_url: response.data.data.prev_page_url,
-        next_page_url: response.data.data.next_page_url,
+    try {
+      const response = await apiClient.get('/users', {
+        params: { page, search }
       });
-    }
-  } catch (error) {
-    commit('setError', error.message);
-  } finally {
-    commit('setLoading', false);
-  }
-},
 
+      if (response.data.success) {
+        commit('setUsers', response.data.data.data);
+        commit('setPagination', {
+          total: response.data.data.total,
+          current_page: response.data.data.current_page,
+          last_page: response.data.data.last_page,
+          per_page: response.data.data.per_page,
+          prev_page_url: response.data.data.prev_page_url,
+          next_page_url: response.data.data.next_page_url,
+        });
+      }
+    } catch (error) {
+      commit('setError', error.message);
+    } finally {
+      commit('setLoading', false);
+    }
+  },
 
   async fetchCompanies({ commit }) {
     commit('setLoading', true);
@@ -62,6 +65,25 @@ const actions = {
     }
   },
 
+  async fetchRoles({ commit }) {
+    commit('setLoadingRoles', true);
+    commit('setError', null);
+
+    try {
+      const response = await apiClient.get('/get-roles/all');
+
+      if (response.data.success || response.data.data) {
+        commit('setRoles', response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Erreur fetchRoles:', error);
+      commit('setError', error.message);
+      throw error;
+    } finally {
+      commit('setLoadingRoles', false);
+    }
+  },
+
   async addUser({ dispatch, commit }, userData) {
     commit('setLoading', true);
     commit('setError', null);
@@ -69,7 +91,6 @@ const actions = {
     try {
       const response = await apiClient.post('/users', userData);
       
-     
       if (response.data.success) {
         await dispatch('fetchUsers');
         return response.data;
@@ -110,7 +131,6 @@ const actions = {
     try {
       const response = await apiClient.delete(`/users/${userId}`);
       
-      // Correction: success est un boolean
       if (response.data.success) {
         await dispatch('fetchUsers');
         return response.data;
@@ -129,8 +149,10 @@ const mutations = {
   setUsers: (state, users) => (state.users = users),
   setPagination: (state, pagination) => (state.pagination = pagination),
   setLoading: (state, status) => (state.loading = status),
+  setLoadingRoles: (state, status) => (state.loadingRoles = status),
   setError: (state, error) => (state.error = error),
   setCompanies: (state, companies) => (state.companies = companies),
+  setRoles: (state, roles) => (state.roles = roles),
 };
 
 export default {

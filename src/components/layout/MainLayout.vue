@@ -31,37 +31,51 @@ const handleLogout = () => {
 // Compute initials from the connected user's name
 const userInitials = computed(() => {
   const user = store.state.auth.user;
+  console.log("User initials",user);
   return user?.name ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase() : "";
 });
 
 // Company name
 const companyName = computed(() => store.state.auth.company?.name || "Nom de l'entreprise");
 
+const currentUser = computed(() => store.state.auth.user);
+
+const userPermissions = computed(() => {
+  if (!currentUser.value || !currentUser.value.roles) {
+    return [];
+  }
+  
+  const permissions = new Set();
+  
+  currentUser.value.roles.forEach(role => {
+    if (role.permissions && Array.isArray(role.permissions)) {
+      role.permissions.forEach(permission => permissions.add(permission));
+    }
+  });
+  
+  return Array.from(permissions);
+});
+
 // Navigation items
 const navItems = [
-  { to: "/dashboard", icon: "pi-home", label: "Accueil", roles: ["admin", "user", "manager"] },
-  { to: "/sales", icon: "pi-shopping-cart", label: "Vente", roles: ["admin", "cashier", "manager"] },
-  { to: "/clients", icon: "pi-users", label: "Clients", roles: ["admin", "manager", "sales"] },
-  { to: "/stock", icon: "pi-box", label: "Stock", roles: ["admin", "manager", "stock_manager"] },
-
-  /* ===== Section Pharmacie ===== */
-
-  { to: "/pharmaceutical", icon: "pi-heart", label: "Pharmacie", roles: ["admin", "manager", "pharmacist"] },
-  // { to: "/lots", icon: "pi-clone", label: "Lots", roles: ["admin", "manager", "pharmacist"] },
-  // { to: "/prescriptions", icon: "pi-file", label: "Ordonnances", roles: ["admin", "manager", "pharmacist"] },
-
-  { to: "/bakery/production", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
-  { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },
-  { to: "/reports", icon: "pi-chart-bar", label: "Rapports", roles: ["admin", "manager"] },
-  { to: "/expenses", icon: "pi-wallet", label: "Dépenses", roles: ["admin", "accountant", "manager"] },
-  { to: "/company", icon: "pi-building", label: "Entreprise", roles: ["admin"] },
-  { to: "/users", icon: "pi-user", label: "Utilisateurs", roles: ["admin"] },
+  { to: "/dashboard", icon: "pi-home", label: "Accueil", permission: "dashboard" },
+  { to: "/sales", icon: "pi-shopping-cart", label: "Vente", permission: "sales" },
+  { to: "/clients", icon: "pi-users", label: "Clients", permission: "clients" },
+  { to: "/stock", icon: "pi-box", label: "Stock", permission: "stock" },
+  { to: "/pharmaceutical", icon: "pi-heart", label: "Pharmacie", permission: "pharmaceutical" },
+  { to: "/bakery/production", icon: "pi-sun", label: "Boulange", permission: "bakery" },
+  { to: "/journal", icon: "pi-book", label: "Journal", permission: "journal" },
+  { to: "/reports", icon: "pi-chart-bar", label: "Rapports", permission: "reports" },
+  { to: "/expenses", icon: "pi-wallet", label: "Dépenses", permission: "expenses" },
+  { to: "/company", icon: "pi-building", label: "Entreprise", permission: "company" },
+  { to: "/users", icon: "pi-user", label: "Utilisateurs", permission: "users" },
 ];
 
-const userRole = computed(() => store.state.auth.user?.role || "user");
-
 const filteredNavItems = computed(() => {
-  return navItems;
+  return navItems.filter(item => {
+    if (!item.permission) return true;
+    return userPermissions.value.includes(item.permission);
+  });
 });
 </script>
 

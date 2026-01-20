@@ -12,14 +12,8 @@
     <div class="card shadow-sm mb-4">
       <div class="card-body">
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-5">
             <input type="text" class="form-control" placeholder="Rechercher..." v-model="searchQuery" @input="handleSearch">
-          </div>
-          <div class="col-md-3">
-            <select class="form-select" v-model="roleFilter" @change="handleFilterChange">
-              <option value="">Tous les rôles</option>
-              <option v-for="role in availableRoles" :key="role.value" :value="role.value">{{ role.label }}</option>
-            </select>
           </div>
           <div class="col-md-3">
             <select class="form-select" v-model="companyFilter" @change="handleFilterChange">
@@ -29,7 +23,7 @@
           </div>
           <div class="col-md-2">
             <button v-if="hasActiveFilters" @click="clearFilters" class="btn btn-outline-secondary w-100">
-              <i class="bi bi-x-circle"></i>
+              <i class="bi bi-x-circle"></i> Effacer
             </button>
           </div>
         </div>
@@ -40,8 +34,8 @@
     <UsersAdd v-if="showModal" :user="selectedUser" @close="closeModal" @refresh="fetchUsers" />
 
     <!-- LOADING -->
-    <div v-if="isLoading && users.length === 0" class="text-center p-5">
-      <div class="spinner-border text-primary" role="status"></div>
+    <div v-if="isLoading" class="text-center p-5">
+      <div class="spinner-border text-primary"></div>
     </div>
 
     <!-- ERROR -->
@@ -64,7 +58,7 @@
               <th>#</th>
               <th>Utilisateur</th>
               <th>Email</th>
-              <th>Rôle</th>
+              <th>Rôles</th>
               <th>Entreprise</th>
               <th>Actions</th>
             </tr>
@@ -82,7 +76,9 @@
               </td>
               <td>{{ user.email }}</td>
               <td>
-                <span :class="`badge ${getRoleBadgeClass(user.role)}`">{{ getRoleLabel(user.role) }}</span>
+                <span v-for="role in user.roles" :key="role.id" :class="`badge ${getRoleBadgeClass(role.name)} me-1`">
+                  {{ role.label }}
+                </span>
               </td>
               <td>
                 <span v-if="user.company" class="badge bg-light text-dark">{{ user.company.name }}</span>
@@ -136,7 +132,6 @@ const showModal = ref(false);
 const selectedUser = ref(null);
 const searchQuery = ref('');
 const searchTimeout = ref(null);
-const roleFilter = ref('');
 const companyFilter = ref('');
 
 const users = computed(() => store.getters['users/allUsers']);
@@ -146,28 +141,18 @@ const error = computed(() => store.state.users.error);
 const pagination = computed(() => store.state.users.pagination);
 const companies = computed(() => store.getters['companies/allCompanies']);
 const lastPage = computed(() => pagination.value.last_page || 1);
-const hasActiveFilters = computed(() => roleFilter.value || companyFilter.value);
+const hasActiveFilters = computed(() => companyFilter.value);
 
 const filteredUsers = computed(() => {
   let filtered = users.value;
-  if (roleFilter.value) filtered = filtered.filter(u => u.role === roleFilter.value);
-  if (companyFilter.value) filtered = filtered.filter(u => u.company_id === parseInt(companyFilter.value));
+  if (companyFilter.value) {
+    filtered = filtered.filter(u => u.company_id === parseInt(companyFilter.value));
+  }
   return filtered;
 });
 
-const availableRoles = [
-  { value: 'admin', label: 'Administrateur' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'user', label: 'Utilisateur' },
-  { value: 'cashier', label: 'Caissier' },
-  { value: 'sales', label: 'Commercial' },
-  { value: 'stock_manager', label: 'Gestionnaire Stock' },
-  { value: 'pharmacist', label: 'Pharmacien' },
-  { value: 'baker', label: 'Boulanger' },
-  { value: 'accountant', label: 'Comptable' }
-];
-
 const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
 const getAvatarColor = (name) => {
   const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1'];
   return colors[name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length];
@@ -180,15 +165,6 @@ const getRoleBadgeClass = (role) => {
     pharmacist: 'bg-primary', baker: 'bg-warning text-dark', accountant: 'bg-info'
   };
   return classes[role] || 'bg-secondary';
-};
-
-const getRoleLabel = (role) => {
-  const labels = {
-    admin: 'Admin', manager: 'Manager', user: 'Utilisateur',
-    cashier: 'Caissier', sales: 'Commercial', stock_manager: 'Stock',
-    pharmacist: 'Pharmacien', baker: 'Boulanger', accountant: 'Comptable'
-  };
-  return labels[role] || role;
 };
 
 const calculateIndex = (index) => (pagination.value.current_page - 1) * pagination.value.per_page + index + 1;
@@ -229,7 +205,6 @@ const closeModal = () => {
 const handleFilterChange = () => fetchUsers(1, searchQuery.value);
 
 const clearFilters = () => {
-  roleFilter.value = '';
   companyFilter.value = '';
   fetchUsers(1, searchQuery.value);
 };
@@ -303,26 +278,9 @@ onMounted(() => fetchUsers(1));
   font-weight: bold;
   font-size: 12px;
 }
-
-.table th, .table td {
-  vertical-align: middle;
-  padding: 12px;
-}
-
-.table-hover tbody tr:hover {
-  background-color: rgba(0, 123, 255, 0.05);
-}
-
-.badge {
-  font-size: 0.75rem;
-  padding: 0.375rem 0.75rem;
-}
-
-.card {
-  transition: box-shadow 0.2s;
-}
-
-.card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-}
+.table th, .table td { vertical-align: middle; padding: 12px; }
+.table-hover tbody tr:hover { background-color: rgba(0, 123, 255, 0.05); }
+.badge { font-size: 0.75rem; padding: 0.375rem 0.75rem; }
+.card { transition: box-shadow 0.2s; }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
 </style>
