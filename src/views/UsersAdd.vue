@@ -93,7 +93,7 @@
           {{ passwordError }}
         </div>
 
-        <!-- COMPANY -->
+        <!-- COMPANY & ROLE -->
         <div class="row g-4 mb-4">
           <div class="col-md-6">
             <label class="form-label text-muted small fw-bold text-uppercase">Entreprise</label>
@@ -110,6 +110,29 @@
                 {{ company.name }}
               </option>
             </select>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label text-muted small fw-bold text-uppercase">Rôle</label>
+            <select
+              v-model="form.role"
+              class="form-select border-success-subtle"
+              required
+              title="Sélectionnez le rôle approprié pour cet utilisateur"
+            >
+              <option
+                v-for="role in availableRoles"
+                :key="role.value"
+                :value="role.value"
+                :title="role.description"
+              >
+                {{ role.label }}
+              </option>
+            </select>
+            <div class="form-text text-muted small">
+              <i class="bi bi-info-circle me-1"></i>
+              Le rôle détermine les permissions et accès de l'utilisateur
+            </div>
           </div>
         </div>
 
@@ -156,7 +179,50 @@ const form = reactive({
   email: '',
   password: '',
   password_confirmation: '',
-  company_id: null
+  company_id: null,
+  role: 'user' // Default role
+});
+
+// Navigation items with roles (same as MainLayout.vue)
+const navItems = [
+  { to: "/dashboard", icon: "pi-home", label: "Accueil", roles: ["admin", "user", "manager"] },
+  { to: "/sales", icon: "pi-shopping-cart", label: "Vente", roles: ["admin", "cashier", "manager"] },
+  { to: "/clients", icon: "pi-users", label: "Clients", roles: ["admin", "manager", "sales"] },
+  { to: "/stock", icon: "pi-box", label: "Stock", roles: ["admin", "manager", "stock_manager"] },
+  { to: "/pharmaceutical", icon: "pi-heart", label: "Pharmacie", roles: ["admin", "manager", "pharmacist"] },
+  { to: "/bakery/production", icon: "pi-sun", label: "Boulange", roles: ["admin", "baker", "manager"] },
+  { to: "/journal", icon: "pi-book", label: "Journal", roles: ["admin", "accountant", "manager"] },
+  { to: "/reports", icon: "pi-chart-bar", label: "Rapports", roles: ["admin", "manager"] },
+  { to: "/expenses", icon: "pi-wallet", label: "Dépenses", roles: ["admin", "accountant", "manager"] },
+  { to: "/company", icon: "pi-building", label: "Entreprise", roles: ["admin"] },
+  { to: "/users", icon: "pi-user", label: "Utilisateurs", roles: ["admin"] },
+];
+
+// Extract unique roles from navItems with descriptions
+const availableRoles = computed(() => {
+  const rolesSet = new Set();
+  navItems.forEach(item => {
+    item.roles.forEach(role => rolesSet.add(role));
+  });
+  
+  // Role descriptions for better UX
+  const roleDescriptions = {
+    admin: 'Administrateur - Accès complet à toutes les fonctionnalités',
+    user: 'Utilisateur standard - Accès limité aux fonctionnalités de base',
+    manager: 'Manager - Gestion des opérations et supervision',
+    cashier: 'Caissier - Gestion des ventes et transactions',
+    sales: 'Commercial - Gestion des clients et ventes',
+    stock_manager: 'Gestionnaire de stock - Gestion des inventaires',
+    pharmacist: 'Pharmacien - Gestion des produits pharmaceutiques',
+    baker: 'Boulanger - Gestion de la production boulangère',
+    accountant: 'Comptable - Gestion financière et comptabilité'
+  };
+  
+  return Array.from(rolesSet).sort().map(role => ({
+    value: role,
+    label: role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' '),
+    description: roleDescriptions[role] || `${role.charAt(0).toUpperCase() + role.slice(1)} - Rôle personnalisé`
+  }));
 });
 
 /* PRE-FILL FORM IN EDIT MODE */
@@ -167,6 +233,7 @@ watch(
       form.name = user.name;
       form.email = user.email;
       form.company_id = user.company_id;
+      form.role = user.role || 'user';
       editUserId.value = user.id; // Stocker l'ID séparément
       form.password = '';       
       form.password_confirmation = '';
@@ -177,6 +244,7 @@ watch(
       form.password = '';   
       form.password_confirmation = '';
       form.company_id = null;
+      form.role = 'user';
       editUserId.value = null;
     }
   },
@@ -210,7 +278,8 @@ const saveUser = async () => {
     const userData = {
       name: form.name,
       email: form.email,
-      company_id: form.company_id
+      company_id: form.company_id,
+      role: form.role
     };
 
     // Inclure les mots de passe seulement s'ils sont remplis

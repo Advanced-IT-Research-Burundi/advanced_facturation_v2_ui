@@ -1,230 +1,328 @@
 <template>
   <div class="container-fluid p-0">
-
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h5">Gestion des Utilisateurs</h1>
+      <h1 class="h5 mb-0">Gestion des Utilisateurs</h1>
       <button @click="openCreateModal" class="btn btn-primary">
-        Ajouter un utilisateur
+        <i class="bi bi-plus-circle me-2"></i>Ajouter
       </button>
     </div>
 
-    <!-- SEARCH -->
+    <!-- SEARCH & FILTERS -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <div class="row">
+        <div class="row g-3">
           <div class="col-md-4">
-            <div class="input-group">
-              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-              <input 
-                type="text" 
-                class="form-control border-start-0 ps-0" 
-                placeholder="Rechercher par nom, email..." 
-                v-model="searchQuery"
-                @input="handleSearch"
-              >
-            </div>
+            <input type="text" class="form-control" placeholder="Rechercher..." v-model="searchQuery" @input="handleSearch">
+          </div>
+          <div class="col-md-3">
+            <select class="form-select" v-model="roleFilter" @change="handleFilterChange">
+              <option value="">Tous les rôles</option>
+              <option v-for="role in availableRoles" :key="role.value" :value="role.value">{{ role.label }}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select class="form-select" v-model="companyFilter" @change="handleFilterChange">
+              <option value="">Toutes les entreprises</option>
+              <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button v-if="hasActiveFilters" @click="clearFilters" class="btn btn-outline-secondary w-100">
+              <i class="bi bi-x-circle"></i>
+            </button>
           </div>
         </div>
       </div>
-    </div>  
+    </div>
 
-    <!-- MODAL CREATE / EDIT -->
-    <UsersAdd
-      v-if="showModal"
-      :user="selectedUser"
-      @close="closeModal"
-      @refresh="fetchUsers"
-    />
+    <!-- MODAL -->
+    <UsersAdd v-if="showModal" :user="selectedUser" @close="closeModal" @refresh="fetchUsers" />
 
     <!-- LOADING -->
-    <div v-if="isLoading" class="text-center p-4">
-      <div class="spinner-border" role="status">
-        <span class="visually-hidden">Chargement...</span>
-      </div>
+    <div v-if="isLoading && users.length === 0" class="text-center p-5">
+      <div class="spinner-border text-primary" role="status"></div>
     </div>
 
     <!-- ERROR -->
-    <div v-else-if="error" class="alert alert-danger">
-      {{ error }}
-    </div>
+    <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
     <!-- TABLE -->
     <div v-else class="card shadow-sm">
-      <div v-if="users.length === 0" class="p-4 text-center text-muted">
-        Aucun utilisateur trouvé
+      <div v-if="filteredUsers.length === 0" class="p-5 text-center">
+        <i class="bi bi-people display-1 text-muted"></i>
+        <h5 class="text-muted mt-3">Aucun utilisateur trouvé</h5>
+        <button @click="openCreateModal" class="btn btn-primary mt-3">
+          <i class="bi bi-plus-circle me-2"></i>Ajouter un utilisateur
+        </button>
       </div>
 
-      <table v-else class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Nom</th>
-            <th>Email</th>
-            <th>Entreprise</th>
-            <th style="width: 160px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(user, index) in users" :key="user.id">
-            <td>{{ index + 1 }}</td>
-            <td>{{ user.name }}</td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.company?.name ?? '-' }}</td>
-            <td>
-              <button class="btn btn-sm btn-primary me-2" @click="editUser(user)">Edit</button>
-              <button class="btn btn-sm btn-danger" @click="deleteUser(user)">Delete</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Utilisateur</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Entreprise</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(user, index) in filteredUsers" :key="user.id">
+              <td>{{ calculateIndex(index) }}</td>
+              <td>
+                <div class="d-flex align-items-center">
+                  <div class="avatar-circle me-2" :style="{ backgroundColor: getAvatarColor(user.name) }">
+                    {{ getInitials(user.name) }}
+                  </div>
+                  <strong>{{ user.name }}</strong>
+                </div>
+              </td>
+              <td>{{ user.email }}</td>
+              <td>
+                <span :class="`badge ${getRoleBadgeClass(user.role)}`">{{ getRoleLabel(user.role) }}</span>
+              </td>
+              <td>
+                <span v-if="user.company" class="badge bg-light text-dark">{{ user.company.name }}</span>
+                <span v-else class="text-muted">-</span>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-primary" @click="editUser(user)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-outline-danger" @click="confirmDelete(user)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- PAGINATION -->
-      <div class="d-flex justify-content-between align-items-center p-3 border-top">
+      <div v-if="filteredUsers.length > 0" class="d-flex justify-content-between align-items-center p-3 border-top">
         <div class="small text-muted">
-          Page <strong>{{ pagination.current_page }}</strong> sur <strong>{{ lastPage }}</strong>
+          {{ pagination.from || 0 }} à {{ pagination.to || 0 }} sur {{ totalUsers }}
         </div>
         <nav>
           <ul class="pagination pagination-sm mb-0">
-            <li class="page-item" :class="{ disabled: !pagination.prev_page_url }">
-              <button
-  class="page-link text-danger"
-  :disabled="pagination.current_page <= 1"
-  @click="changePage(pagination.current_page - 1)"
->
-  Précédent
-</button>
-
+            <li class="page-item" :class="{ disabled: pagination.current_page <= 1 }">
+              <button class="page-link" @click="changePage(pagination.current_page - 1)">Précédent</button>
             </li>
-            
             <li class="page-item active">
-              <button class="page-link bg-danger border-danger text-white">{{ pagination.current_page }}</button>
+              <button class="page-link">{{ pagination.current_page }}</button>
             </li>
-
-            <li class="page-item" :class="{ disabled: !pagination.next_page_url }">
-              <button
-                class="page-link text-danger"
-                :disabled="pagination.current_page >= lastPage"
-                @click="changePage(pagination.current_page + 1)"
-              >
-                Suivant
-              </button>
-
+            <li class="page-item" :class="{ disabled: pagination.current_page >= lastPage }">
+              <button class="page-link" @click="changePage(pagination.current_page + 1)">Suivant</button>
             </li>
           </ul>
         </nav>
       </div>
-
-      <div class="p-3 text-muted">
-        Total : {{ totalUsers }} utilisateurs
-      </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import UsersAdd from './UsersAdd.vue';
 
 const store = useStore();
-
-/* STATE */
 const showModal = ref(false);
 const selectedUser = ref(null);
 const searchQuery = ref('');
 const searchTimeout = ref(null);
+const roleFilter = ref('');
+const companyFilter = ref('');
 
-/* GETTERS */
 const users = computed(() => store.getters['users/allUsers']);
 const totalUsers = computed(() => store.getters['users/totalUsers']);
 const isLoading = computed(() => store.getters['users/isLoading']);
 const error = computed(() => store.state.users.error);
 const pagination = computed(() => store.state.users.pagination);
+const companies = computed(() => store.getters['companies/allCompanies']);
+const lastPage = computed(() => pagination.value.last_page || 1);
+const hasActiveFilters = computed(() => roleFilter.value || companyFilter.value);
 
-/* PAGINATION */
-const lastPage = computed(()=>pagination.value.last_page || 1);
+const filteredUsers = computed(() => {
+  let filtered = users.value;
+  if (roleFilter.value) filtered = filtered.filter(u => u.role === roleFilter.value);
+  if (companyFilter.value) filtered = filtered.filter(u => u.company_id === parseInt(companyFilter.value));
+  return filtered;
+});
 
-const calculateIndex = (index) => {
-  return (pagination.value.current_page - 1) * pagination.value.per_page + (index + 1);
+const availableRoles = [
+  { value: 'admin', label: 'Administrateur' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'user', label: 'Utilisateur' },
+  { value: 'cashier', label: 'Caissier' },
+  { value: 'sales', label: 'Commercial' },
+  { value: 'stock_manager', label: 'Gestionnaire Stock' },
+  { value: 'pharmacist', label: 'Pharmacien' },
+  { value: 'baker', label: 'Boulanger' },
+  { value: 'accountant', label: 'Comptable' }
+];
+
+const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+const getAvatarColor = (name) => {
+  const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1'];
+  return colors[name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length];
 };
 
-/* FETCH USERS */
+const getRoleBadgeClass = (role) => {
+  const classes = {
+    admin: 'bg-danger', manager: 'bg-warning text-dark', user: 'bg-secondary',
+    cashier: 'bg-success', sales: 'bg-info', stock_manager: 'bg-primary',
+    pharmacist: 'bg-primary', baker: 'bg-warning text-dark', accountant: 'bg-info'
+  };
+  return classes[role] || 'bg-secondary';
+};
+
+const getRoleLabel = (role) => {
+  const labels = {
+    admin: 'Admin', manager: 'Manager', user: 'Utilisateur',
+    cashier: 'Caissier', sales: 'Commercial', stock_manager: 'Stock',
+    pharmacist: 'Pharmacien', baker: 'Boulanger', accountant: 'Comptable'
+  };
+  return labels[role] || role;
+};
+
+const calculateIndex = (index) => (pagination.value.current_page - 1) * pagination.value.per_page + index + 1;
+
 const fetchUsers = async (page = 1, search = '') => {
   try {
     await store.dispatch('users/fetchUsers', { page, search });
     await store.dispatch('companies/fetchCompanies');
   } catch (e) {
-    console.error('Erreur chargement users', e);
+    console.error('Erreur:', e);
   }
 };
 
-/* SEARCH HANDLER */
 const handleSearch = () => {
   if (searchTimeout.value) clearTimeout(searchTimeout.value);
-  searchTimeout.value = setTimeout(() => {
-    fetchUsers(1, searchQuery.value);
-  }, 500);
+  searchTimeout.value = setTimeout(() => fetchUsers(1, searchQuery.value), 500);
 };
 
-/* PAGINATION CHANGE */
 const changePage = (page) => {
-  if (page > 0 && page <= lastPage.value) {
-    fetchUsers(page, searchQuery.value);
-  }
+  if (page > 0 && page <= lastPage.value) fetchUsers(page, searchQuery.value);
 };
 
-/* MODAL ACTIONS */
-function openCreateModal() {
-  selectedUser.value = null; // CREATE
+const openCreateModal = () => {
+  selectedUser.value = null;
   showModal.value = true;
-}
+};
 
-function editUser(user) {
-  selectedUser.value = user; // EDIT
+const editUser = (user) => {
+  selectedUser.value = user;
   showModal.value = true;
-}
+};
 
-function closeModal() {
+const closeModal = () => {
   showModal.value = false;
   selectedUser.value = null;
-}
+};
 
-/* DELETE */
-async function deleteUser(user) {
-  if (!confirm(`Voulez-vous supprimer ${user.name} ?`)) return;
+const handleFilterChange = () => fetchUsers(1, searchQuery.value);
 
+const clearFilters = () => {
+  roleFilter.value = '';
+  companyFilter.value = '';
+  fetchUsers(1, searchQuery.value);
+};
+
+const deleteUser = async (user) => {
   try {
     await store.dispatch('users/deleteUser', user.id);
     fetchUsers(pagination.value.current_page, searchQuery.value);
   } catch (e) {
     alert("Erreur lors de la suppression");
-    console.error(e);
   }
-}
+};
+
+const confirmDelete = async (user) => {
+  const confirmed = await showDeleteConfirmation(user);
+  if (confirmed) await deleteUser(user);
+};
+
+const showDeleteConfirmation = (user) => {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade show d-block';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+    modal.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer</h5>
+            <button type="button" class="btn-close btn-close-white" data-action="cancel"></button>
+          </div>
+          <div class="modal-body">
+            <p>Supprimer <strong>${user.name}</strong> ?</p>
+            <div class="alert alert-warning mb-0">
+              <small><i class="bi bi-info-circle me-1"></i>Action irréversible</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-action="cancel">Annuler</button>
+            <button class="btn btn-danger" data-action="confirm">
+              <i class="bi bi-trash me-1"></i>Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const closeModal = (result) => {
+      modal.remove();
+      resolve(result);
+    };
+    
+    modal.querySelectorAll('[data-action="cancel"]').forEach(btn => btn.addEventListener('click', () => closeModal(false)));
+    modal.querySelector('[data-action="confirm"]').addEventListener('click', () => closeModal(true));
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(false); });
+  });
+};
 
 onMounted(() => fetchUsers(1));
 </script>
 
 <style scoped>
-.table th,
-.table td {
+.avatar-circle {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.table th, .table td {
   vertical-align: middle;
+  padding: 12px;
 }
 
-.page-link {
-  color: #c51818;
-  border-color: #dee2e6;
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 123, 255, 0.05);
 }
 
-.page-link:hover {
-  color: #9b0e0e;
-  background-color: #fff5f5;
+.badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
 }
 
-.page-item.active .page-link {
-  background-color: #c51818 !important;
-  border-color: #c51818 !important;
+.card {
+  transition: box-shadow 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
 }
 </style>
