@@ -31,12 +31,20 @@ const handleLogout = () => {
 // Compute initials from the connected user's name
 const userInitials = computed(() => {
   const user = store.state.auth.user;
-  console.log("User initials",user);
-  return user?.name ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase() : "";
+  console.log("User initials", user);
+  return user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+    : "";
 });
 
 // Company name
-const companyName = computed(() => store.state.auth.company?.name || "Nom de l'entreprise");
+const companyName = computed(
+  () => store.state.auth.company?.name || "Nom de l'entreprise",
+);
 
 const currentUser = computed(() => store.state.auth.user);
 
@@ -44,36 +52,83 @@ const userPermissions = computed(() => {
   if (!currentUser.value || !currentUser.value.roles) {
     return [];
   }
-  
+
   const permissions = new Set();
-  
-  currentUser.value.roles.forEach(role => {
+
+  currentUser.value.roles.forEach((role) => {
+    // Add role name as a permission (e.g. "sales" role -> "sales" permission)
+    if (role.name) {
+      permissions.add(role.name);
+    }
+
     if (role.permissions && Array.isArray(role.permissions)) {
-      role.permissions.forEach(permission => permissions.add(permission));
+      role.permissions.forEach((permission) => permissions.add(permission));
     }
   });
-  
+
   return Array.from(permissions);
 });
 
 // Navigation items
 const navItems = [
-  { to: "/dashboard", icon: "pi-home", label: "Accueil", permission: "dashboard" },
-  { to: "/sales", icon: "pi-shopping-cart", label: "Vente", permission: "sales" },
+  {
+    to: "/dashboard",
+    icon: "pi-home",
+    label: "Accueil",
+    permission: "dashboard",
+  },
+  {
+    to: "/sales",
+    icon: "pi-shopping-cart",
+    label: "Vente",
+    permission: "sales",
+  },
   { to: "/clients", icon: "pi-users", label: "Clients", permission: "clients" },
   { to: "/stock", icon: "pi-box", label: "Stock", permission: "stock" },
-  { to: "/pharmaceutical", icon: "pi-heart", label: "Pharmacie", permission: "pharmaceutical" },
-  { to: "/bakery/production", icon: "pi-sun", label: "Boulange", permission: "bakery" },
+  {
+    to: "/pharmaceutical",
+    icon: "pi-heart",
+    label: "Pharmacie",
+    permission: "pharmaceutical",
+  },
+  {
+    to: "/bakery/production",
+    icon: "pi-sun",
+    label: "Boulangerie",
+    permission: "bakery",
+  },
   { to: "/journal", icon: "pi-book", label: "Journal", permission: "journal" },
-  { to: "/reports", icon: "pi-chart-bar", label: "Rapports", permission: "reports" },
-  { to: "/expenses", icon: "pi-wallet", label: "Dépenses", permission: "expenses" },
-  { to: "/company", icon: "pi-building", label: "Entreprise", permission: "company" },
+  {
+    to: "/reports",
+    icon: "pi-chart-bar",
+    label: "Rapports",
+    permission: "reports",
+  },
+  {
+    to: "/expenses",
+    icon: "pi-wallet",
+    label: "Dépenses",
+    permission: "expenses",
+  },
+  {
+    to: "/company",
+    icon: "pi-building",
+    label: "Entreprise",
+    permission: "company",
+  },
   { to: "/users", icon: "pi-user", label: "Utilisateurs", permission: "users" },
 ];
 
 const filteredNavItems = computed(() => {
-  return navItems.filter(item => {
+  return navItems.filter((item) => {
     if (!item.permission) return true;
+
+    // Admin bypass: if user has admin role, show all items
+    const isAdmin = currentUser.value?.roles?.some((r) =>
+      ["admin", "Admin", "super_admin"].includes(r.name),
+    );
+    if (isAdmin) return true;
+
     return userPermissions.value.includes(item.permission);
   });
 });
@@ -98,32 +153,50 @@ const filteredNavItems = computed(() => {
             <span class="fs-6">{{ item.label }}</span>
           </RouterLink>
         </li>
-
       </ul>
 
       <!-- User Dropdown -->
       <div class="dropdown border-top border-secondary py-3 text-center">
-        <a href="#" class="text-white text-decoration-none dropdown-toggle" 
-           id="dropdownUser" data-bs-toggle="dropdown" @click.prevent>
+        <a
+          href="#"
+          class="text-white text-decoration-none dropdown-toggle"
+          id="dropdownUser"
+          data-bs-toggle="dropdown"
+          @click.prevent
+        >
           <div class="user-avatar bg-primary">{{ userInitials }}</div>
         </a>
         <ul class="dropdown-menu dropdown-menu-dark shadow">
-          <li><RouterLink to="/profile" class="dropdown-item">Profile</RouterLink></li>
-          <li><RouterLink to="/settings" class="dropdown-item">Paramètres</RouterLink></li>
+          <li>
+            <RouterLink to="/profile" class="dropdown-item">Profile</RouterLink>
+          </li>
+          <li>
+            <RouterLink to="/settings" class="dropdown-item"
+              >Paramètres</RouterLink
+            >
+          </li>
           <li><hr class="dropdown-divider" /></li>
-          <li><a href="#" class="dropdown-item" @click="handleLogout">Déconnexion</a></li>
+          <li>
+            <a href="#" class="dropdown-item" @click="handleLogout"
+              >Déconnexion</a
+            >
+          </li>
         </ul>
       </div>
     </aside>
 
     <main class="d-flex flex-column flex-grow-1 overflow-hidden">
       <!-- Header -->
-      <header class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white">
+      <header
+        class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white"
+      >
         <h4 class="mb-0 fw-bold text-primary">{{ companyName }}</h4>
         <div class="d-flex align-items-center gap-3">
           <button class="btn btn-light position-relative rounded-circle p-2">
             <i class="pi pi-bell"></i>
-            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+            <span
+              class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
+            ></span>
           </button>
           <div class="text-end d-none d-sm-block lh-1 text-muted">
             <small class="d-block fw-bold text-dark">Admin User</small>
@@ -140,8 +213,6 @@ const filteredNavItems = computed(() => {
   </div>
 </template>
 
-
-
 <style scoped>
 .sidebar {
   width: 120px;
@@ -153,7 +224,9 @@ const filteredNavItems = computed(() => {
   scrollbar-width: none;
   flex-shrink: 0;
 }
-.sidebar::-webkit-scrollbar { display: none; }
+.sidebar::-webkit-scrollbar {
+  display: none;
+}
 
 .logo-section {
   display: flex;
@@ -218,14 +291,20 @@ const filteredNavItems = computed(() => {
   font-weight: bold;
 }
 
-.overflow-auto::-webkit-scrollbar { width: 8px; }
+.overflow-auto::-webkit-scrollbar {
+  width: 8px;
+}
 .overflow-auto::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
 }
 
 @media (max-width: 768px) {
-  .sidebar { width: 85px; }
-  .nav-link span { font-size: 0.7rem; }
+  .sidebar {
+    width: 85px;
+  }
+  .nav-link span {
+    font-size: 0.7rem;
+  }
 }
 </style>
