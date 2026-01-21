@@ -217,11 +217,6 @@ const filteredNavItems = computed(() => {
           <li>
             <RouterLink to="/profile" class="dropdown-item">Profile</RouterLink>
           </li>
-          <li>
-            <RouterLink to="/settings" class="dropdown-item"
-              >Paramètres</RouterLink
-            >
-          </li>
           <li><hr class="dropdown-divider" /></li>
           <li>
             <a href="#" class="dropdown-item" @click="handleLogout"
