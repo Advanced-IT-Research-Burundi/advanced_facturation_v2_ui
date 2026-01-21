@@ -1,20 +1,19 @@
 <script setup>
 import {
-  Package,
-  BarChart2,
-  Users,
-  Settings,
-  LogOut,
-  Bell,
-  Search,
+  Home,
   ShoppingCart,
-  ClipboardList,
+  Users,
+  Package,
+  Pill,
+  ChefHat,
+  FileText,
+  BarChart2,
   Wallet,
   Building,
-  Home,
-  Pill,
-  FileText,
-  Layers,
+  UserCog,
+  LogOut,
+  Bell,
+  Settings,
 } from "lucide-vue-next";
 import { RouterLink, RouterView } from "vue-router";
 import { computed } from "vue";
@@ -73,50 +72,50 @@ const userPermissions = computed(() => {
 const navItems = [
   {
     to: "/dashboard",
-    icon: "pi-home",
+    icon: Home,
     label: "Accueil",
     permission: "dashboard",
   },
   {
     to: "/sales",
-    icon: "pi-shopping-cart",
+    icon: ShoppingCart,
     label: "Vente",
     permission: "sales",
   },
-  { to: "/clients", icon: "pi-users", label: "Clients", permission: "clients" },
-  { to: "/stock", icon: "pi-box", label: "Stock", permission: "stock" },
+  { to: "/clients", icon: Users, label: "Clients", permission: "clients" },
+  { to: "/stock", icon: Package, label: "Stock", permission: "stock" },
   {
     to: "/pharmaceutical",
-    icon: "pi-heart",
+    icon: Pill,
     label: "Pharmacie",
     permission: "pharmaceutical",
   },
   {
     to: "/bakery/production",
-    icon: "pi-sun",
+    icon: ChefHat,
     label: "Boulangerie",
     permission: "bakery",
   },
-  { to: "/journal", icon: "pi-book", label: "Journal", permission: "journal" },
+  { to: "/journal", icon: FileText, label: "Journal", permission: "journal" },
   {
     to: "/reports",
-    icon: "pi-chart-bar",
+    icon: BarChart2,
     label: "Rapports",
     permission: "reports",
   },
   {
     to: "/expenses",
-    icon: "pi-wallet",
+    icon: Wallet,
     label: "Dépenses",
     permission: "expenses",
   },
   {
     to: "/company",
-    icon: "pi-building",
+    icon: Building,
     label: "Entreprise",
     permission: "company",
   },
-  { to: "/users", icon: "pi-user", label: "Utilisateurs", permission: "users" },
+  { to: "/users", icon: UserCog, label: "Utilisateurs", permission: "users" },
 ];
 
 const filteredNavItems = computed(() => {
@@ -149,7 +148,7 @@ const filteredNavItems = computed(() => {
       <ul class="nav nav-pills flex-column mb-auto py-3 gap-1 px-2">
         <li v-for="item in filteredNavItems" :key="item.to" class="nav-item">
           <RouterLink :to="item.to" class="nav-link" active-class="active">
-            <i :class="`pi ${item.icon}`"></i>
+            <component :is="item.icon" :size="20" />
             <span class="fs-6">{{ item.label }}</span>
           </RouterLink>
         </li>
