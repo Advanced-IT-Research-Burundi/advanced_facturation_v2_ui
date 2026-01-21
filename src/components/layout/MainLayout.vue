@@ -16,7 +16,7 @@ import {
   Settings,
 } from "lucide-vue-next";
 import { RouterLink, RouterView } from "vue-router";
-import { computed } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 
 const store = useStore();
@@ -41,9 +41,57 @@ const userInitials = computed(() => {
 });
 
 // Company name
-const companyName = computed(
-  () => store.state.auth.company?.name || "Nom de l'entreprise",
+const fetchedCompanyName = ref("");
+
+// Company name
+const companyName = computed(() => {
+  const user = store.state.auth.user;
+
+  if (user?.company?.name) return user.company.name;
+  if (user?.company_name) return user.company_name;
+  if (fetchedCompanyName.value) return fetchedCompanyName.value;
+
+  return "Nom de l'entreprise";
+});
+
+const loadCompanyInfo = async () => {
+  const user = store.state.auth.user;
+  if (user && user.company_id && !user.company && !user.company_name) {
+    try {
+      const result = await store.dispatch(
+        "companies/fetchCompany",
+        user.company_id,
+      );
+      if (result.success && result.data) {
+        fetchedCompanyName.value = result.data.name;
+      }
+    } catch (error) {
+      console.error("Failed to fetch company info", error);
+    }
+  }
+};
+
+onMounted(() => {
+  loadCompanyInfo();
+});
+
+// Watch for user changes (e.g. login/logout or refresh)
+watch(
+  () => store.state.auth.user,
+  () => {
+    loadCompanyInfo();
+  },
 );
+
+const userName = computed(() => store.state.auth.user?.name || "Utilisateur");
+
+const userRole = computed(() => {
+  const roles = store.state.auth.user?.roles;
+  if (roles && roles.length > 0) {
+    return roles.map((r) => r.name).join(", ");
+  }
+  return "Rôle inconnu";
+});
 
 const currentUser = computed(() => store.state.auth.user);
 
@@ -198,8 +246,8 @@ const filteredNavItems = computed(() => {
             ></span>
           </button>
           <div class="text-end d-none d-sm-block lh-1 text-muted">
-            <small class="d-block fw-bold text-dark">Admin User</small>
-            <span style="font-size: 0.75rem">Administrateur</span>
+            <small class="d-block fw-bold text-dark">{{ userName }}</small>
+            <span style="font-size: 0.75rem">{{ userRole }}</span>
           </div>
         </div>
       </header>

@@ -15,10 +15,10 @@ const objectToFormData = (data, method = null) => {
   const formData = new FormData();
   for (const key in data) {
     if (data[key] !== null && data[key] !== undefined) {
-      if (typeof data[key] === 'boolean') {
-          formData.append(key, data[key] ? '1' : '0'); 
+      if (typeof data[key] === "boolean") {
+        formData.append(key, data[key] ? "1" : "0");
       } else {
-          formData.append(key, data[key]);
+        formData.append(key, data[key]);
       }
     }
   }
@@ -50,7 +50,9 @@ const companiesModule = {
       state.companies.unshift(company);
     },
     UPDATE_COMPANY(state, updatedCompany) {
-      const index = state.companies.findIndex((c) => c.id === updatedCompany.id);
+      const index = state.companies.findIndex(
+        (c) => c.id === updatedCompany.id,
+      );
       if (index !== -1) {
         state.companies.splice(index, 1, updatedCompany);
       }
@@ -67,18 +69,22 @@ const companiesModule = {
     },
   },
   actions: {
-    async fetchCompanies({ commit }, { page = 1, search = '' } = {}) {
+    async fetchCompanies({ commit }, { page = 1, search = "" } = {}) {
       commit("SET_LOADING", true);
       commit("SET_ERROR", null);
       try {
         const params = { page };
         if (search) params.search = search;
-        
+
         const response = await api.get(`/companies`, { params });
         const { data, ...meta } = response.data.data;
         commit("SET_COMPANIES", { data, meta });
       } catch (error) {
-        commit("SET_ERROR", error.response?.data?.message || "Erreur lors du chargement des entreprises");
+        commit(
+          "SET_ERROR",
+          error.response?.data?.message ||
+            "Erreur lors du chargement des entreprises",
+        );
         console.error("Error fetching companies:", error);
       } finally {
         commit("SET_LOADING", false);
@@ -97,16 +103,21 @@ const companiesModule = {
         }
 
         const response = await api.post("/companies", payload, config);
-        
+
         if (response.data.success) {
-            commit("ADD_COMPANY", response.data.data);
-            return { success: true };
+          commit("ADD_COMPANY", response.data.data);
+          return { success: true };
         }
         return { success: false, message: "Unknown error" };
       } catch (error) {
-        const message = error.response?.data?.message || "Erreur lors de la création";
+        const message =
+          error.response?.data?.message || "Erreur lors de la création";
         commit("SET_ERROR", message);
-        return { success: false, error: message, errors: error.response?.data?.errors };
+        return {
+          success: false,
+          error: message,
+          errors: error.response?.data?.errors,
+        };
       } finally {
         commit("SET_LOADING", false);
       }
@@ -118,27 +129,53 @@ const companiesModule = {
         let payload = data;
         let config = {};
         let url = `/companies/${id}`;
-        let method = 'put';
+        let method = "put";
 
         // Laravel requires POST with _method=PUT for multipart updates
         if (hasFiles(data)) {
-           payload = objectToFormData(data, 'PUT');
-           config.headers = { "Content-Type": "multipart/form-data" };
-           // We use POST here because we are spoofing PUT via FormData
-           method = 'post'; 
+          payload = objectToFormData(data, "PUT");
+          config.headers = { "Content-Type": "multipart/form-data" };
+          // We use POST here because we are spoofing PUT via FormData
+          method = "post";
         }
 
         const response = await api[method](url, payload, config);
-        
+
         if (response.data.success) {
-             commit("UPDATE_COMPANY", response.data.data);
-             return { success: true };
+          commit("UPDATE_COMPANY", response.data.data);
+          return { success: true };
         }
-         return { success: false, message: response.data.message || "Unknown error" };
+        return {
+          success: false,
+          message: response.data.message || "Unknown error",
+        };
       } catch (error) {
-        const message = error.response?.data?.message || "Erreur lors de la mise à jour";
+        const message =
+          error.response?.data?.message || "Erreur lors de la mise à jour";
         commit("SET_ERROR", message);
-        return { success: false, error: message, errors: error.response?.data?.errors };
+        return {
+          success: false,
+          error: message,
+          errors: error.response?.data?.errors,
+        };
+      } finally {
+        commit("SET_LOADING", false);
+      }
+    },
+    async fetchCompany({ commit }, id) {
+      commit("SET_LOADING", true);
+      commit("SET_ERROR", null);
+      try {
+        const response = await api.get(`/companies/${id}`);
+        // Assuming the API returns { data: companyContent }
+        return { success: true, data: response.data.data };
+      } catch (error) {
+        commit(
+          "SET_ERROR",
+          error.response?.data?.message ||
+            "Erreur lors du chargement de l'entreprise",
+        );
+        return { success: false, error: error };
       } finally {
         commit("SET_LOADING", false);
       }
@@ -151,7 +188,10 @@ const companiesModule = {
         commit("DELETE_COMPANY", id);
         return { success: true };
       } catch (error) {
-        commit("SET_ERROR", error.response?.data?.message || "Erreur lors de la suppression");
+        commit(
+          "SET_ERROR",
+          error.response?.data?.message || "Erreur lors de la suppression",
+        );
         return { success: false };
       } finally {
         commit("SET_LOADING", false);
