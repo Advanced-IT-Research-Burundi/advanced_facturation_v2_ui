@@ -1,593 +1,373 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { 
-  Activity, Search, Filter, Calendar, User, 
-  ChevronLeft, ChevronRight, Loader2, Download, RefreshCw,
-  LogIn, LogOut, Package, Receipt, Users, Wallet, 
-  Building, ShoppingCart, Settings, Eye, Clock, FileText
-} from 'lucide-vue-next';
+import { Printer, Loader2 } from 'lucide-vue-next';
 import api from '@/services/api';
 
 // State
-const activities = ref([]);
+const invoices = ref([]);
 const loading = ref(false);
 const error = ref(null);
-const searchQuery = ref('');
-const searchTimeout = ref(null);
-const selectedType = ref('all');
-const selectedAction = ref('all');
+
+// Dates - par défaut vide pour afficher tout
 const startDate = ref('');
 const endDate = ref('');
-const showFilters = ref(false);
-const selectedActivity = ref(null);
-const showDetailsModal = ref(false);
 
-// Data
-const activityTypes = ref([]);
-const activityActions = ref([]);
-const stats = ref({
-  today: 0,
-  this_week: 0,
-  by_type: {},
-  daily_stats: {},
-  top_users: []
+// Summary statistics
+const summary = computed(() => {
+  const list = invoices.value || [];
+  return {
+    total_invoices: list.length,
+    total_amount_tvac: list.reduce((sum, inv) => sum + (parseFloat(inv.invoice_total_amount) || 0), 0),
+    total_tva: list.reduce((sum, inv) => sum + (parseFloat(inv.invoice_vat_amount) || 0), 0),
+    total_htva: list.reduce((sum, inv) => sum + (parseFloat(inv.invoice_amount_nvat) || 0), 0),
+  };
 });
 
-// Pagination
-const pagination = ref({
-  current_page: 1,
-  last_page: 1,
-  total: 0,
-  from: 0,
-  to: 0
-});
-
-// Icons mapping
-const typeIcons = {
-  auth: LogIn,
-  invoice: Receipt,
-  product: Package,
-  stock: Package,
-  customer: Users,
-  payment: Wallet,
-  expense: Wallet,
-  user: User,
-  warehouse: Building,
-  order: ShoppingCart,
-  system: Settings,
+// Payment types mapping (comme dans la démo)
+const TYPE_PAYMENT = {
+  '1': 'Espèces',
+  '2': 'Banque',
+  '3': 'Crédit',
+  '4': 'Mobile Money',
+  'cash': 'Espèces',
+  'bank': 'Banque',
+  'credit': 'Crédit',
+  'mobile': 'Mobile Money',
 };
 
-// Colors mapping
-const actionColors = {
-  created: 'success',
-  updated: 'info',
-  deleted: 'danger',
-  login: 'primary',
-  logout: 'secondary',
-  viewed: 'light',
-  approved: 'success',
-  cancelled: 'warning',
-  paid: 'success',
-  exported: 'info',
+// Invoice type labels
+const INVOICE_TYPES = {
+  'FN': 'Facture Normale',
+  'FA': 'Facture Avoir',
+  'FC': 'Facture à Crédit',
+  'FP': 'Proforma',
+  'RC': 'Reçu de Caisse',
 };
 
-// Fetch functions
-const fetchActivities = async (page = 1) => {
+// Fetch invoices - EXACTEMENT comme InvoicesList
+const fetchInvoices = async () => {
   loading.value = true;
   error.value = null;
+  console.log('Journal: Fetching invoices...');
   try {
-    const params = { page, per_page: 20 };
-    if (searchQuery.value) params.search = searchQuery.value;
-    if (selectedType.value !== 'all') params.log_type = selectedType.value;
-    if (selectedAction.value !== 'all') params.action = selectedAction.value;
-    if (startDate.value) params.start_date = startDate.value;
-    if (endDate.value) params.end_date = endDate.value;
+    const params = {};
+    
+    // Filtres de date optionnels
+    if (startDate.value) {
+      params.start_date = startDate.value;
+    }
+    if (endDate.value) {
+      params.end_date = endDate.value;
+    }
 
-    const response = await api.get('/activity-logs', { params });
+    const response = await api.get('/invoices', { params });
+    console.log('Journal: API Response:', response.data);
+    
     if (response.data.success) {
-      const data = response.data.data;
-      activities.value = data.data || [];
-      pagination.value = {
-        current_page: data.current_page || 1,
-        last_page: data.last_page || 1,
-        total: data.total || 0,
-        from: data.from || 0,
-        to: data.to || 0
-      };
+      // Exactement comme InvoicesList
+      invoices.value = response.data.data.data || response.data.data;
+      console.log('Journal: Invoices loaded:', invoices.value.length, 'factures');
+    } else {
+      console.log('Journal: API returned success=false');
     }
   } catch (err) {
-    console.error('Error fetching activities:', err);
-    error.value = 'Erreur lors du chargement du journal';
+    console.error('Journal: Error fetching invoices:', err);
+    error.value = 'Erreur lors du chargement du journal des factures';
   } finally {
     loading.value = false;
   }
 };
 
-const fetchStats = async () => {
-  try {
-    const response = await api.get('/activity-logs/stats');
-    if (response.data.success) {
-      stats.value = response.data.data;
-    }
-  } catch (err) {
-    console.error('Error fetching stats:', err);
-  }
-};
-
-const fetchTypes = async () => {
-  try {
-    const response = await api.get('/activity-logs/types');
-    if (response.data.success) {
-      activityTypes.value = response.data.data;
-    }
-  } catch (err) {
-    console.error('Error fetching types:', err);
-  }
-};
-
-const fetchActions = async () => {
-  try {
-    const response = await api.get('/activity-logs/actions');
-    if (response.data.success) {
-      activityActions.value = response.data.data;
-    }
-  } catch (err) {
-    console.error('Error fetching actions:', err);
-  }
-};
-
-// Handlers
-const handleSearch = () => {
-  if (searchTimeout.value) clearTimeout(searchTimeout.value);
-  searchTimeout.value = setTimeout(() => {
-    fetchActivities(1);
-  }, 400);
-};
-
-const applyFilters = () => {
-  fetchActivities(1);
-};
-
-const resetFilters = () => {
-  selectedType.value = 'all';
-  selectedAction.value = 'all';
-  startDate.value = '';
-  endDate.value = '';
-  searchQuery.value = '';
-  fetchActivities(1);
-};
-
-const changePage = (page) => {
-  if (page >= 1 && page <= pagination.value.last_page) {
-    fetchActivities(page);
-  }
-};
-
-const openDetails = (activity) => {
-  selectedActivity.value = activity;
-  showDetailsModal.value = true;
-};
-
-const closeDetails = () => {
-  selectedActivity.value = null;
-  showDetailsModal.value = false;
-};
-
-const exportActivities = async () => {
-  try {
-    const params = {};
-    if (selectedType.value !== 'all') params.log_type = selectedType.value;
-    if (startDate.value) params.start_date = startDate.value;
-    if (endDate.value) params.end_date = endDate.value;
-
-    const response = await api.get('/activity-logs/export', { params });
-    if (response.data.success) {
-      // Create CSV
-      const data = response.data.data;
-      const headers = ['Date', 'Type', 'Action', 'Description', 'Utilisateur'];
-      const rows = data.map(a => [
-        formatDateTime(a.created_at),
-        getTypeLabel(a.log_type),
-        getActionLabel(a.action),
-        a.description,
-        a.user?.name || 'Système'
-      ]);
-
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(r => r.map(cell => `"${cell}"`).join(','))
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `journal_activites_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-    }
-  } catch (err) {
-    console.error('Error exporting:', err);
-    alert('Erreur lors de l\'export');
-  }
-};
-
 // Helpers
-const getTypeLabel = (type) => {
-  const found = activityTypes.value.find(t => t.value === type);
-  return found?.label || type;
+const formatPrice = (amount) => {
+  if (!amount && amount !== 0) return '0';
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
 };
 
-const getActionLabel = (action) => {
-  const found = activityActions.value.find(a => a.value === action);
-  return found?.label || action;
-};
-
-const getActionBadgeClass = (action) => {
-  return actionColors[action] || 'secondary';
-};
-
-const getTypeIcon = (type) => {
-  return typeIcons[type] || Activity;
-};
-
-const formatDateTime = (dateStr) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('fr-FR', {
+const formatDate = (date) => {
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 };
 
-const formatRelativeTime = (dateStr) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = now - date;
-  
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return 'À l\'instant';
-  if (minutes < 60) return `Il y a ${minutes} min`;
-  if (hours < 24) return `Il y a ${hours}h`;
-  if (days < 7) return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
-  return formatDateTime(dateStr);
+const getPaymentTypeLabel = (type) => {
+  return TYPE_PAYMENT[type] || type || 'Espèces';
 };
 
-// Watch filters
-watch([selectedType, selectedAction], () => {
-  fetchActivities(1);
-});
+const getInvoiceTypeLabel = (type) => {
+  return INVOICE_TYPES[type] || type || '';
+};
+
+// Print page
+const printPage = () => {
+  window.print();
+};
+
+// Print single invoice
+const printInvoice = async (invoice) => {
+  try {
+    const response = await api.get(`/invoices/${invoice.id}`);
+    if (response.data.success) {
+      const fullInvoice = response.data.data;
+      const printContent = generatePrintContent(fullInvoice);
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
+  } catch (err) {
+    console.error('Error fetching invoice for print:', err);
+    alert('Erreur lors de la récupération de la facture');
+  }
+};
+
+const generatePrintContent = (invoice) => {
+  const itemsRows = invoice.invoiceItems?.map(item => `
+    <tr>
+      <td>${item.item_designation || item.product?.name || 'Produit'}</td>
+      <td style="text-align: center;">${item.item_quantity}</td>
+      <td style="text-align: right;">${formatPrice(item.item_price)} FBU</td>
+      <td style="text-align: right;">${formatPrice(item.item_total_amount)} FBU</td>
+    </tr>
+  `).join('') || '';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Facture ${invoice.invoice_number}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .company-name { font-size: 18px; font-weight: bold; }
+        .invoice-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .info-block { width: 48%; }
+        .info-block h4 { background: #f0f0f0; padding: 5px; margin-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #333; color: white; }
+        .totals { margin-top: 20px; }
+        .totals table { width: 300px; margin-left: auto; }
+        .totals td { border: none; padding: 5px; }
+        .total-row { font-weight: bold; font-size: 14px; background: #f0f0f0; }
+        .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="company-name">${invoice.tp_name || 'Entreprise'}</div>
+        <div>NIF: ${invoice.tp_TIN || ''}</div>
+        <div>Tél: ${invoice.tp_phone_number || ''}</div>
+      </div>
+      <h2 style="text-align: center; margin-bottom: 20px;">FACTURE N° ${invoice.invoice_number}</h2>
+      <div class="invoice-info">
+        <div class="info-block">
+          <h4>Client</h4>
+          <p><strong>Nom:</strong> ${invoice.customer?.customer_name || invoice.customer_name || 'Client Anonyme'}</p>
+          <p><strong>NIF:</strong> ${invoice.customer?.customer_TIN || invoice.customer_TIN || '-'}</p>
+        </div>
+        <div class="info-block">
+          <h4>Facture</h4>
+          <p><strong>Date:</strong> ${new Date(invoice.invoice_date || invoice.created_at).toLocaleDateString('fr-FR')}</p>
+          <p><strong>Vendeur:</strong> ${invoice.user?.name || 'Inconnu'}</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Désignation</th><th style="text-align:center;">Qté</th><th style="text-align:right;">Prix Unit.</th><th style="text-align:right;">Total</th></tr>
+        </thead>
+        <tbody>${itemsRows}</tbody>
+      </table>
+      <div class="totals">
+        <table>
+          <tr><td>Total HTVA:</td><td style="text-align:right;">${formatPrice(invoice.invoice_amount_nvat)} FBU</td></tr>
+          <tr><td>TVA:</td><td style="text-align:right;">${formatPrice(invoice.invoice_vat_amount)} FBU</td></tr>
+          <tr class="total-row"><td>Total TVAC:</td><td style="text-align:right;">${formatPrice(invoice.invoice_total_amount)} FBU</td></tr>
+        </table>
+      </div>
+      ${invoice.obr_electronic_signature ? `<div style="margin-top:20px;font-size:10px;"><strong>Signature:</strong> ${invoice.obr_electronic_signature}</div>` : ''}
+      <div class="footer"><p>Merci pour votre confiance!</p></div>
+    </body>
+    </html>
+  `;
+};
 
 // Init
 onMounted(() => {
-  fetchActivities();
-  fetchStats();
-  fetchTypes();
-  fetchActions();
+  fetchInvoices();
 });
 </script>
 
 <template>
-  <div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h1 class="h3 mb-1">
-          <Activity :size="28" class="me-2 text-primary" />
-          Journal d'Activités
-        </h1>
-        <p class="text-muted mb-0">Historique des actions et événements du système</p>
-      </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" @click="fetchActivities(pagination.current_page); fetchStats()">
-          <RefreshCw :size="16" class="me-1" />
-          Actualiser
-        </button>
-        <button class="btn btn-outline-primary" @click="exportActivities">
-          <Download :size="16" class="me-1" />
-          Exporter
-        </button>
-      </div>
+  <div class="container-fluid py-3">
+    <!-- Header Navigation -->
+    <div class="d-flex justify-content-end align-items-center mb-2 noprint">
+      <button class="btn btn-info btn-sm" @click="printPage">
+        <Printer :size="14" class="me-1" />
+        Imprimer
+      </button>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100 bg-primary bg-gradient text-white">
-          <div class="card-body py-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1 opacity-75">Aujourd'hui</h6>
-                <h2 class="mb-0 fw-bold">{{ stats.today }}</h2>
-              </div>
-              <Clock :size="32" class="opacity-50" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100 bg-success bg-gradient text-white">
-          <div class="card-body py-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1 opacity-75">Cette semaine</h6>
-                <h2 class="mb-0 fw-bold">{{ stats.this_week }}</h2>
-              </div>
-              <Calendar :size="32" class="opacity-50" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100 bg-info bg-gradient text-white">
-          <div class="card-body py-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1 opacity-75">Factures</h6>
-                <h2 class="mb-0 fw-bold">{{ stats.by_type?.invoice || 0 }}</h2>
-              </div>
-              <Receipt :size="32" class="opacity-50" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="card border-0 shadow-sm h-100 bg-warning bg-gradient text-dark">
-          <div class="card-body py-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-1 opacity-75">Stock</h6>
-                <h2 class="mb-0 fw-bold">{{ stats.by_type?.stock || 0 }}</h2>
-              </div>
-              <Package :size="32" class="opacity-50" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <h5 class="text-center mb-4">Historique des ventes</h5>
 
-    <!-- Filters -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body py-3">
-        <div class="row g-3 align-items-end">
-          <div class="col-md-4">
-            <div class="input-group">
-              <span class="input-group-text bg-white">
-                <Search :size="16" />
-              </span>
+    <!-- Filters and Stats Row - comme dans la démo -->
+    <div class="row mb-4">
+      <!-- Date Filters -->
+      <div class="col-md-4">
+        <form @submit.prevent="fetchInvoices">
+          <div class="row">
+            <div class="col-6">
+              <label class="small">DU</label>
               <input 
-                v-model="searchQuery"
-                @input="handleSearch"
-                type="text" 
-                class="form-control" 
-                placeholder="Rechercher une activité..."
+                type="date" 
+                class="form-control form-control-sm" 
+                v-model="startDate"
               >
             </div>
+            <div class="col-6">
+              <label class="small">AU</label>
+              <input 
+                type="date" 
+                class="form-control form-control-sm" 
+                v-model="endDate"
+              >
+            </div>
+            <div class="col-6 mt-2 noprint">
+              <button type="submit" class="btn btn-info btn-sm">
+                Ok
+              </button>
+            </div>
           </div>
-          <div class="col-md-2">
-            <select v-model="selectedType" class="form-select">
-              <option value="all">Tous les types</option>
-              <option v-for="type in activityTypes" :key="type.value" :value="type.value">
-                {{ type.label }}
-              </option>
-            </select>
-          </div>
-          <div class="col-md-2">
-            <select v-model="selectedAction" class="form-select">
-              <option value="all">Toutes les actions</option>
-              <option v-for="action in activityActions" :key="action.value" :value="action.value">
-                {{ action.label }}
-              </option>
-            </select>
-          </div>
-          <div class="col-md-2">
-            <input 
-              v-model="startDate" 
-              @change="applyFilters"
-              type="date" 
-              class="form-control"
-              placeholder="Date début"
-            >
-          </div>
-          <div class="col-md-2">
-            <input 
-              v-model="endDate" 
-              @change="applyFilters"
-              type="date" 
-              class="form-control"
-              placeholder="Date fin"
-            >
-          </div>
-        </div>
-        <div v-if="startDate || endDate || selectedType !== 'all' || selectedAction !== 'all'" class="mt-2">
-          <button class="btn btn-sm btn-link text-danger p-0" @click="resetFilters">
-            Réinitialiser les filtres
-          </button>
-        </div>
+        </form>
+      </div>
+
+      <!-- Stats Table 1 -->
+      <div class="col-md-4">
+        <table class="table table-sm table-striped mb-0">
+          <tbody>
+            <tr>
+              <th>DATE</th>
+              <td>{{ startDate || 'Tout' }} - {{ endDate || 'Tout' }}</td>
+            </tr>
+            <tr>
+              <th>NOMBRE TOTAL DE FACTURE</th>
+              <td class="fw-bold">{{ formatPrice(summary.total_invoices) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Stats Table 2 -->
+      <div class="col-md-4">
+        <table class="table table-sm table-striped mb-0">
+          <tbody>
+            <tr>
+              <th>MONTANT TOTAL DES FACTURE TVAC</th>
+              <td class="text-nowrap fw-bold">{{ formatPrice(summary.total_amount_tvac) }}</td>
+            </tr>
+            <tr>
+              <th>NOMBRE TOTAL POUR TVA</th>
+              <td class="text-nowrap">{{ formatPrice(summary.total_tva) }}</td>
+            </tr>
+            <tr>
+              <th>NOMBRE TOTAL POUR HTVA</th>
+              <td class="text-nowrap">{{ formatPrice(summary.total_htva) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- Error Alert -->
-    <div v-if="error" class="alert alert-danger alert-dismissible mb-4">
+    <div v-if="error" class="alert alert-danger alert-dismissible mb-3">
       {{ error }}
       <button type="button" class="btn-close" @click="error = null"></button>
     </div>
 
-    <!-- Activity List -->
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-0">
-        <div v-if="loading" class="text-center py-5">
-          <Loader2 :size="32" class="animate-spin text-primary" />
-          <p class="text-muted mt-2">Chargement...</p>
-        </div>
+    <!-- Loading -->
+    <div v-if="loading" class="text-center py-5">
+      <Loader2 :size="32" class="animate-spin text-primary" />
+      <p class="text-muted mt-2">Chargement...</p>
+    </div>
 
-        <div v-else-if="activities.length === 0" class="text-center py-5 text-muted">
-          <Activity :size="48" class="opacity-25 mb-3" />
-          <p class="mb-0">Aucune activité trouvée</p>
-        </div>
-
-        <div v-else class="activity-timeline">
-          <div 
-            v-for="activity in activities" 
-            :key="activity.id" 
-            class="activity-item d-flex p-3 border-bottom hover-bg"
-            @click="openDetails(activity)"
-            style="cursor: pointer;"
-          >
-            <!-- Icon -->
-            <div class="activity-icon me-3">
-              <div 
-                class="rounded-circle d-flex align-items-center justify-content-center"
-                :class="`bg-${getActionBadgeClass(activity.action)}-subtle text-${getActionBadgeClass(activity.action)}`"
-                style="width: 44px; height: 44px;"
-              >
-                <component :is="getTypeIcon(activity.log_type)" :size="20" />
-              </div>
-            </div>
-
-            <!-- Content -->
-            <div class="activity-content flex-grow-1">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <h6 class="mb-1 fw-semibold">{{ activity.description }}</h6>
-                  <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <span class="badge" :class="`bg-${getActionBadgeClass(activity.action)}`">
-                      {{ getActionLabel(activity.action) }}
-                    </span>
-                    <small class="text-muted">
-                      <span class="badge bg-light text-dark">{{ getTypeLabel(activity.log_type) }}</span>
-                    </small>
-                    <small class="text-muted">
-                      <User :size="12" class="me-1" />
-                      {{ activity.user?.name || 'Système' }}
-                    </small>
-                  </div>
-                </div>
-                <small class="text-muted text-nowrap">
-                  {{ formatRelativeTime(activity.created_at) }}
-                </small>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="pagination.last_page > 1 || pagination.total > 0" class="d-flex justify-content-between align-items-center p-3 border-top">
-          <small class="text-muted">
-            Affichage {{ pagination.from }} à {{ pagination.to }} sur {{ pagination.total }}
-          </small>
-          <nav v-if="pagination.last_page > 1">
-            <ul class="pagination pagination-sm mb-0">
-              <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
-                <button class="page-link" @click="changePage(pagination.current_page - 1)">
-                  <ChevronLeft :size="14" />
-                </button>
+    <!-- Main Table - exactement comme la démo -->
+    <table v-else class="table table-sm">
+      <thead class="table-dark">
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">PRODUITS</th>
+          <th scope="col">MONTANT</th>
+          <th scope="col" class="noprint">MODE DE PAIEMENT</th>
+          <th scope="col" class="noprint">TYPE DE FACTURE</th>
+          <th scope="col">TVA</th>
+          <th scope="col" class="noprint">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="invoices.length === 0">
+          <td colspan="7" class="text-center py-4 text-muted">
+            Aucune facture trouvée
+          </td>
+        </tr>
+        <tr v-for="invoice in invoices" :key="invoice.id">
+          <th scope="row">{{ invoice.id }}</th>
+          
+          <!-- PRODUITS - comme dans la démo -->
+          <td>
+            <ul class="list-unstyled mb-0">
+              <li v-for="(item, idx) in (invoice.invoice_items || invoice.invoiceItems || [])" :key="idx">
+                {{ item.item_designation || item.product?.name }} | Qte : {{ item.item_quantity }} | PRIX : {{ formatPrice(item.item_price) }}
               </li>
-              <li class="page-item active">
-                <span class="page-link">{{ pagination.current_page }} / {{ pagination.last_page }}</span>
+              <li v-if="!(invoice.invoice_items || invoice.invoiceItems || []).length" class="text-muted">
+                (Voir détails)
               </li>
-              <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
-                <button class="page-link" @click="changePage(pagination.current_page + 1)">
-                  <ChevronRight :size="14" />
-                </button>
+              <li class="text-center border-top mt-2 pt-2">
+                {{ formatDate(invoice.invoice_date || invoice.created_at) }}
+              </li>
+              <li>
+                Client : <b>{{ invoice.customer?.customer_name || invoice.customer_name || 'Client Anonyme' }}</b> &nbsp;&nbsp;&nbsp; 
+                Vendu par : <b>{{ invoice.user?.name || 'Inconnu' }}</b>
               </li>
             </ul>
-          </nav>
-        </div>
-      </div>
-    </div>
+          </td>
 
-    <!-- Top Users Card -->
-    <div v-if="stats.top_users && stats.top_users.length > 0" class="card border-0 shadow-sm mt-4">
-      <div class="card-header bg-white border-0 py-3">
-        <h6 class="mb-0 fw-bold">
-          <Users :size="18" class="me-2" />
-          Utilisateurs les plus actifs ce mois
-        </h6>
-      </div>
-      <div class="card-body p-0">
-        <div class="list-group list-group-flush">
-          <div 
-            v-for="(user, index) in stats.top_users" 
-            :key="index"
-            class="list-group-item d-flex justify-content-between align-items-center"
-          >
-            <div class="d-flex align-items-center">
-              <span class="badge bg-primary me-3">{{ index + 1 }}</span>
-              <span>{{ user.user }}</span>
-            </div>
-            <span class="badge bg-secondary">{{ user.count }} actions</span>
-          </div>
-        </div>
-      </div>
-    </div>
+          <!-- MONTANT -->
+          <td class="text-nowrap">{{ formatPrice(invoice.invoice_total_amount) }}</td>
 
-    <!-- Details Modal -->
-    <div v-if="showDetailsModal && selectedActivity" class="modal fade show d-block" style="background: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title">
-              <FileText :size="20" class="me-2" />
-              Détails de l'activité
-            </h5>
-            <button type="button" class="btn-close btn-close-white" @click="closeDetails"></button>
-          </div>
-          <div class="modal-body">
-            <table class="table table-borderless mb-0">
-              <tbody>
-                <tr>
-                  <th class="text-muted" style="width: 140px;">Date</th>
-                  <td>{{ formatDateTime(selectedActivity.created_at) }}</td>
-                </tr>
-                <tr>
-                  <th class="text-muted">Type</th>
-                  <td>
-                    <span class="badge bg-light text-dark">{{ getTypeLabel(selectedActivity.log_type) }}</span>
-                  </td>
-                </tr>
-                <tr>
-                  <th class="text-muted">Action</th>
-                  <td>
-                    <span class="badge" :class="`bg-${getActionBadgeClass(selectedActivity.action)}`">
-                      {{ getActionLabel(selectedActivity.action) }}
-                    </span>
-                  </td>
-                </tr>
-                <tr>
-                  <th class="text-muted">Description</th>
-                  <td>{{ selectedActivity.description }}</td>
-                </tr>
-                <tr>
-                  <th class="text-muted">Utilisateur</th>
-                  <td>{{ selectedActivity.user?.name || 'Système' }}</td>
-                </tr>
-                <tr>
-                  <th class="text-muted">Adresse IP</th>
-                  <td>{{ selectedActivity.ip_address || '-' }}</td>
-                </tr>
-                <tr v-if="selectedActivity.properties">
-                  <th class="text-muted">Données</th>
-                  <td>
-                    <pre class="bg-light p-2 rounded small mb-0">{{ JSON.stringify(selectedActivity.properties, null, 2) }}</pre>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="modal-footer bg-light">
-            <button type="button" class="btn btn-secondary" @click="closeDetails">
-              Fermer
+          <!-- MODE DE PAIEMENT -->
+          <td class="noprint">{{ getPaymentTypeLabel(invoice.payment_type) }}</td>
+
+          <!-- TYPE DE FACTURE -->
+          <td class="noprint">{{ getInvoiceTypeLabel(invoice.invoice_type) }}</td>
+
+          <!-- TVA -->
+          <td class="text-nowrap">{{ formatPrice(invoice.invoice_vat_amount) }}</td>
+
+          <!-- Action -->
+          <td class="noprint">
+            <button 
+              class="btn btn-sm btn-success" 
+              @click="printInvoice(invoice)"
+              title="Imprimer"
+            >
+              <Printer :size="14" />
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>
 
@@ -601,24 +381,31 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.hover-bg:hover {
-  background-color: #f8f9fa;
+/* Style d'impression - cacher les éléments noprint */
+@media print {
+  .noprint {
+    display: none !important;
+  }
+  
+  .container-fluid {
+    padding: 0 !important;
+  }
+  
+  .table {
+    font-size: 11px;
+  }
 }
 
-.activity-timeline .activity-item:last-child {
-  border-bottom: none !important;
+/* Style pour les liens comme dans la démo */
+a {
+  color: #333;
 }
 
-.bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
-.bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
-.bg-warning-subtle { background-color: rgba(255, 193, 7, 0.1) !important; }
-.bg-info-subtle { background-color: rgba(13, 202, 240, 0.1) !important; }
-.bg-primary-subtle { background-color: rgba(13, 110, 253, 0.1) !important; }
-.bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1) !important; }
-.bg-light-subtle { background-color: rgba(248, 249, 250, 0.5) !important; }
+a:hover {
+  color: #007bff;
+}
 
-pre {
-  max-height: 200px;
-  overflow-y: auto;
+.table th {
+  white-space: nowrap;
 }
 </style>
