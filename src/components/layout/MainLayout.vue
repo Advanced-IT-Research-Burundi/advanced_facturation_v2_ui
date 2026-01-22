@@ -197,11 +197,11 @@ const filteredNavItems = computed(() => {
       </div>
 
       <!-- Navigation -->
-      <ul class="nav nav-pills flex-column mb-auto py-3 gap-1 px-2">
+      <ul class="nav nav-pills flex-column mb-auto py-2 gap-0 px-1">
         <li v-for="item in filteredNavItems" :key="item.to" class="nav-item">
           <RouterLink :to="item.to" class="nav-link" active-class="active">
-            <component :is="item.icon" :size="20" />
-            <span class="fs-6">{{ item.label }}</span>
+            <component :is="item.icon" :size="22" class="nav-icon" />
+            <span>{{ item.label }}</span>
           </RouterLink>
         </li>
       </ul>
@@ -278,57 +278,67 @@ const filteredNavItems = computed(() => {
 
 <style scoped>
 .sidebar {
-  width: 120px;
-  min-width: 120px;
+  width: 110px;
+  min-width: 110px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--bs-secondary);
-  overflow-y: auto;
-  scrollbar-width: none;
+  overflow: hidden;
   flex-shrink: 0;
-}
-.sidebar::-webkit-scrollbar {
-  display: none;
 }
 
 .logo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem 0;
+  padding: clamp(0.5rem, 1.5vh, 1.25rem) 0;
   border-bottom: 1px solid var(--bs-secondary);
+  flex-shrink: 0;
 }
 .logo-circle {
-  width: 48px;
-  height: 48px;
+  width: clamp(32px, 5vh, 44px);
+  height: clamp(32px, 5vh, 44px);
   border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.logo-circle span {
+  font-size: clamp(0.9rem, 2vh, 1.5rem) !important;
 }
 .logo-text {
-  font-size: 0.75rem;
+  font-size: clamp(0.55rem, 1vh, 0.75rem);
   font-weight: bold;
   letter-spacing: 1px;
+}
+
+.nav-pills {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  overflow: hidden;
 }
 
 .nav-link {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 0.5rem;
+  gap: clamp(0.15rem, 0.5vh, 0.35rem);
+  padding: clamp(0.35rem, 1vh, 0.7rem) 0.25rem;
   color: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
+  border-radius: 6px;
   transition: all 0.2s;
   text-decoration: none;
 }
-.nav-link i {
-  font-size: 1.35rem;
+.nav-link .nav-icon {
+  width: clamp(20px, 3vh, 24px);
+  height: clamp(20px, 3vh, 24px);
+  flex-shrink: 0;
 }
 .nav-link span {
-  font-size: 0.8rem;
+  font-size: clamp(0.6rem, 1.1vh, 0.75rem);
   font-weight: 500;
   text-align: center;
   line-height: 1.1;
@@ -340,7 +350,7 @@ const filteredNavItems = computed(() => {
 .nav-link.active {
   background: var(--bs-primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
 }
 
 .header-avatar {
@@ -368,10 +378,18 @@ const filteredNavItems = computed(() => {
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 85px;
+    width: 80px;
+    min-width: 80px;
   }
+}
+
+@media (max-height: 600px) {
   .nav-link span {
-    font-size: 0.7rem;
+    display: none;
+  }
+  .sidebar {
+    width: 70px;
+    min-width: 70px;
   }
 }
 </style>
