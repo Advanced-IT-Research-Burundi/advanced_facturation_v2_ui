@@ -17,6 +17,7 @@ import InvoicePrintModal from "./InvoicePrintModal.vue";
 import InvoicesList from "./InvoicesList.vue";
 import Reports from "./Reports.vue";
 import PaymentModal from "./PaymentModal.vue";
+import ClientFormModal from "./ClientFormModal.vue";
 
 const store = useStore();
 
@@ -35,6 +36,9 @@ const currentCompany = ref(null);
 // --- PAYMENT MODAL STATE ---
 const showPaymentModal = ref(false);
 const invoiceToPay = ref(null);
+
+// --- CLIENT FORM MODAL STATE ---
+const showClientForm = ref(false);
 
 // Handle warehouse change from POS
 const handleStockChanged = (warehouseId) => {
@@ -75,6 +79,17 @@ const closePaymentModal = () => {
 const handlePaymentAdded = () => {
     // Optionally trigger invoice list refresh via a global event bus or similar if desired.
     // For now we assume the user will manually refresh the list if needed.
+};
+
+// Handle client created from modal
+const handleClientCreated = (newClient) => {
+  customers.value.push(newClient);
+  showClientForm.value = false;
+};
+
+// Open client form modal
+const openClientForm = () => {
+  showClientForm.value = true;
 };
 
 const fetchCompany = async () => {
@@ -288,6 +303,7 @@ const closeProformaDetails = () => {
         @remove-from-cart="removeFromCart"
         @update-quantity="updateQuantity"
         @invoice-submitted="handleInvoiceSubmit"
+        @add-client="openClientForm"
       />
     </div>
 
@@ -324,6 +340,13 @@ const closeProformaDetails = () => {
       :invoice="invoiceToPay"
       @close="closePaymentModal"
       @payment-added="handlePaymentAdded"
+    />
+
+    <!-- MODAL AJOUT CLIENT -->
+    <ClientFormModal
+      :show="showClientForm"
+      @close="showClientForm = false"
+      @client-created="handleClientCreated"
     />
   </div>
 </template>

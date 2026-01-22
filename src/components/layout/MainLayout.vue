@@ -15,16 +15,20 @@ import {
   Bell,
   Settings,
 } from "lucide-vue-next";
-import { RouterLink, RouterView } from "vue-router";
+import { RouterLink, RouterView, useRouter } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 
 const store = useStore();
+const router = useRouter();
 
 // Logout handler
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  window.location.href = "/login";
+const handleLogout = async () => {
+  try {
+    await store.dispatch("auth/logout");
+  } finally {
+    router.push("/login");
+  }
 };
 
 // Compute initials from the connected user's name
@@ -202,29 +206,6 @@ const filteredNavItems = computed(() => {
         </li>
       </ul>
 
-      <!-- User Dropdown -->
-      <div class="dropdown border-top border-secondary py-3 text-center">
-        <a
-          href="#"
-          class="text-white text-decoration-none dropdown-toggle"
-          id="dropdownUser"
-          data-bs-toggle="dropdown"
-          @click.prevent
-        >
-          <div class="user-avatar bg-primary">{{ userInitials }}</div>
-        </a>
-        <ul class="dropdown-menu dropdown-menu-dark shadow">
-          <li>
-            <RouterLink to="/profile" class="dropdown-item">Profile</RouterLink>
-          </li>
-          <li><hr class="dropdown-divider" /></li>
-          <li>
-            <a href="#" class="dropdown-item" @click="handleLogout"
-              >Déconnexion</a
-            >
-          </li>
-        </ul>
-      </div>
     </aside>
 
     <main class="d-flex flex-column flex-grow-1 overflow-hidden">
@@ -234,15 +215,55 @@ const filteredNavItems = computed(() => {
       >
         <h4 class="mb-0 fw-bold text-primary">{{ companyName }}</h4>
         <div class="d-flex align-items-center gap-3">
+          <!-- Notifications -->
           <button class="btn btn-light position-relative rounded-circle p-2">
-            <i class="pi pi-bell"></i>
+            <Bell :size="18" />
             <span
               class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
             ></span>
           </button>
-          <div class="text-end d-none d-sm-block lh-1 text-muted">
-            <small class="d-block fw-bold text-dark">{{ userName }}</small>
-            <span style="font-size: 0.75rem">{{ userRole }}</span>
+          
+          <!-- User Profile Dropdown -->
+          <div class="dropdown">
+            <a
+              href="#"
+              class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle"
+              id="dropdownUserHeader"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              @click.prevent
+            >
+              <div class="text-end d-none d-sm-block lh-1">
+                <small class="d-block fw-bold text-dark">{{ userName }}</small>
+                <span class="text-muted" style="font-size: 0.75rem">{{ userRole }}</span>
+              </div>
+              <div class="header-avatar bg-primary text-white">{{ userInitials }}</div>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="dropdownUserHeader">
+              <li class="px-3 py-2 border-bottom">
+                <div class="fw-bold">{{ userName }}</div>
+                <small class="text-muted">{{ userRole }}</small>
+              </li>
+              <li>
+                <RouterLink to="/profile" class="dropdown-item py-2">
+                  <UserCog :size="16" class="me-2" />
+                  Mon Profil
+                </RouterLink>
+              </li>
+              <li>
+                <RouterLink to="/settings" class="dropdown-item py-2">
+                  <Settings :size="16" class="me-2" />
+                  Paramètres
+                </RouterLink>
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <a href="#" class="dropdown-item py-2 text-danger" @click.prevent="handleLogout">
+                  <LogOut :size="16" class="me-2" />
+                  Déconnexion
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
       </header>
@@ -322,15 +343,19 @@ const filteredNavItems = computed(() => {
   box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
 }
 
-.user-avatar {
-  width: 45px;
-  height: 45px;
+.header-avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   font-weight: bold;
+}
+
+.dropdown-toggle::after {
+  margin-left: 0.5rem;
 }
 
 .overflow-auto::-webkit-scrollbar {

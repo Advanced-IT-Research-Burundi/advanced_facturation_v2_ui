@@ -24,11 +24,16 @@ const fetchStock = async () => {
   try {
     const response = await api.get("/mes_stock");
     if (response.data.success) {
-      store.state.data.stocksPOS = response.data.data;
-      selectedStock.value = response.data.data[0].warehouse_id;
-      // Emit the warehouse_id when stock is loaded
-      const warehouseId = response.data.data[0]?.warehouse_id || response.data.data[0]?.warehouse?.id;
-      emit("stock-changed", warehouseId);
+      const stocksData = response.data.data || [];
+      store.state.data.stocksPOS = stocksData;
+      
+      // Vérifier si des stocks existent
+      if (stocksData.length > 0) {
+        selectedStock.value = stocksData[0].warehouse_id || stocksData[0].id;
+        // Emit the warehouse_id when stock is loaded
+        const warehouseId = stocksData[0]?.warehouse_id || stocksData[0]?.warehouse?.id || stocksData[0]?.id;
+        emit("stock-changed", warehouseId);
+      }
     }
   } catch (error) {
     console.error("Erreur lors de la récupération des stocks:", error);

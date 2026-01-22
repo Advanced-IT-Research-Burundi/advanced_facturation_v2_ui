@@ -15,7 +15,7 @@
         <h4 class="m-0 fw-normal text-dark">Liste des clients</h4>
         
         <div class="search-box" style="width: 300px;">
-          <input v-model="search" type="text" class="form-control border-danger-subtle" placeholder="Rechercher ici" />
+          <input v-model="search" @input="handleSearch" type="text" class="form-control border-danger-subtle" placeholder="Rechercher ici" />
         </div>
       </div>
     </div>
@@ -36,9 +36,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading && filteredClients.length === 0"><td colspan="8" class="text-center py-5 text-danger">Chargement...</td></tr>
-            <tr v-else-if="filteredClients.length === 0"><td colspan="8" class="text-center py-5">Aucun client trouvé</td></tr>
-            <tr v-for="(client, index) in filteredClients" :key="client.id">
+            <tr v-if="loading"><td colspan="8" class="text-center py-5 text-danger">Chargement...</td></tr>
+            <tr v-else-if="clients.length === 0"><td colspan="8" class="text-center py-5">Aucun client trouvé</td></tr>
+            <tr v-for="(client, index) in clients" :key="client.id">
               <td class="ps-3 fw-bold">{{ calculateIndex(index) }}</td>
               <td>{{ client.id }}</td>
               <td class="fw-medium">{{ client.customer_name }}</td>
@@ -63,68 +63,81 @@
 
       <div class="d-flex justify-content-between align-items-center p-3 border-top">
         <div class="small text-muted">
-          Page <strong>{{ pagination.current_page }}</strong> sur <strong>{{ lastPage }}</strong>
+          Page <strong>{{ pagination?.current_page || 1 }}</strong> sur <strong>{{ lastPage }}</strong>
         </div>
-        <nav>
+        <nav v-if="lastPage > 1">
           <ul class="pagination pagination-sm mb-0">
-            <li class="page-item" :class="{ disabled: !pagination.prev_page_url }">
-              <button class="page-link text-danger" @click="changePage(pagination.current_page - 1)">Précédent</button>
+            <li class="page-item" :class="{ disabled: !pagination?.prev_page_url }">
+              <button class="page-link text-danger" @click="changePage((pagination?.current_page || 1) - 1)">Précédent</button>
             </li>
             
             <li class="page-item active">
-              <button class="page-link bg-danger border-danger text-white">{{ pagination.current_page }}</button>
+              <button class="page-link bg-danger border-danger text-white">{{ pagination?.current_page || 1 }}</button>
             </li>
 
-            <li class="page-item" :class="{ disabled: !pagination.next_page_url }">
-              <button class="page-link text-danger" @click="changePage(pagination.current_page + 1)">Suivant</button>
+            <li class="page-item" :class="{ disabled: !pagination?.next_page_url }">
+              <button class="page-link text-danger" @click="changePage((pagination?.current_page || 1) + 1)">Suivant</button>
             </li>
           </ul>
         </nav>
       </div>
     </div>
 
-    <ClientsAdd v-if="showAddModal" @close="showAddModal = false" />
+    <ClientsAdd v-if="showAddModal" @close="handleModalClose" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import ClientsAdd from './ClientsAdd.vue';
 
 const store = useStore();
 const search = ref('');
 const showAddModal = ref(false);
+const searchTimeout = ref(null);
+const perPage = 15;
 
 const clients = computed(() => store.getters['clients/allClients']);
 const totalClients = computed(() => store.getters['clients/totalClients']);
 const loading = computed(() => store.getters['clients/isLoading']);
 const pagination = computed(() => store.state.clients.pagination);
 
-const lastPage = computed(() => Math.ceil(totalClients.value / 15) || 1);
+const lastPage = computed(() => pagination.value?.last_page || 1);
 
-const fetchClients = (page = 1) => store.dispatch('clients/fetchClients', page);
+// Recherche côté serveur avec debounce
+const fetchClients = (page = 1, searchTerm = search.value) => {
+  store.dispatch('clients/fetchClients', { page, search: searchTerm });
+};
+
+// Debounce sur la recherche
+const handleSearch = () => {
+  if (searchTimeout.value) clearTimeout(searchTimeout.value);
+  searchTimeout.value = setTimeout(() => {
+    fetchClients(1, search.value);
+  }, 400);
+};
 
 const changePage = (page) => {
   if (page > 0 && page <= lastPage.value) {
-    fetchClients(page);
+    fetchClients(page, search.value);
   }
 };
 
 const calculateIndex = (index) => {
-  return (pagination.value.current_page - 1) * 15 + (index + 1);
+  const currentPage = pagination.value?.current_page || 1;
+  return (currentPage - 1) * perPage + (index + 1);
 };
 
-const filteredClients = computed(() => {
-  if (!search.value) return clients.value;
-  return clients.value.filter(c => 
-    c.customer_name.toLowerCase().includes(search.value.toLowerCase())
-  );
-});
-
-const handleDelete = (id) => {
+const handleDelete = async (id) => {
   if (confirm("Supprimer ce client ?")) {
-    store.dispatch('clients/deleteClient', id);
+    const result = await store.dispatch('clients/deleteClient', id);
+    if (result.success) {
+      // Recharger la page actuelle ou la précédente si la page est vide
+      const currentPage = pagination.value.current_page;
+      const shouldGoBack = clients.value.length === 1 && currentPage > 1;
+      fetchClients(shouldGoBack ? currentPage - 1 : currentPage, search.value);
+    }
   }
 };
 
@@ -136,7 +149,13 @@ const formatDate = (dateStr) => {
   };
 };
 
-onMounted(() => fetchClients(1));
+const handleModalClose = () => {
+  showAddModal.value = false;
+  // Recharger les clients après ajout
+  fetchClients(1, search.value);
+};
+
+onMounted(() => fetchClients(1, ''));
 </script>
 
 <style scoped>

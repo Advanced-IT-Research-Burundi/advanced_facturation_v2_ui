@@ -22,19 +22,31 @@ const invoices = ref([]);
 const searchQuery = ref("");
 const filterType = ref("all");
 const filterStatus = ref("all");
+const searchTimeout = ref(null);
 const pagination = ref({
   currentPage: 1,
   lastPage: 1,
   total: 0,
+  from: 0,
+  to: 0,
 });
 
 const fetchInvoices = async (page = 1) => {
   isLoading.value = true;
   try {
     const params = { page };
+    
+    // Ajouter les filtres
     if (filterType.value !== "all") {
       params.invoice_type = filterType.value;
     }
+    if (filterStatus.value !== "all") {
+      params.obr_status = filterStatus.value;
+    }
+    if (searchQuery.value) {
+      params.search = searchQuery.value;
+    }
+    
     const response = await api.get("/invoices", { params });
     if (response.data.success) {
       invoices.value = response.data.data.data || response.data.data;
@@ -42,6 +54,8 @@ const fetchInvoices = async (page = 1) => {
         currentPage: response.data.data.current_page || 1,
         lastPage: response.data.data.last_page || 1,
         total: response.data.data.total || invoices.value.length,
+        from: response.data.data.from || 0,
+        to: response.data.data.to || 0,
       };
     }
   } catch (error) {
@@ -51,31 +65,21 @@ const fetchInvoices = async (page = 1) => {
   }
 };
 
+// Debounce pour la recherche
+const handleSearch = () => {
+  if (searchTimeout.value) clearTimeout(searchTimeout.value);
+  searchTimeout.value = setTimeout(() => {
+    fetchInvoices(1);
+  }, 400);
+};
+
 onMounted(() => {
   fetchInvoices();
 });
 
+// Recharger quand les filtres changent
 watch([filterType, filterStatus], () => {
   fetchInvoices(1);
-});
-
-const filteredInvoices = computed(() => {
-  let result = invoices.value;
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(
-      (inv) =>
-        inv.invoice_number?.toLowerCase().includes(query) ||
-        inv.customer_name?.toLowerCase().includes(query)
-    );
-  }
-
-  if (filterStatus.value !== "all") {
-    result = result.filter((inv) => inv.obr_submission_status === filterStatus.value);
-  }
-
-  return result;
 });
 
 const formatPrice = (price) => {
@@ -177,9 +181,10 @@ const changePage = (page) => {
             </span>
             <input
               v-model="searchQuery"
+              @input="handleSearch"
               type="text"
               class="form-control"
-              placeholder="Rechercher..."
+              placeholder="Rechercher (N°, Client)..."
             />
           </div>
         </div>
@@ -211,7 +216,7 @@ const changePage = (page) => {
         <p class="text-muted mt-2">Chargement...</p>
       </div>
 
-      <div v-else-if="filteredInvoices.length === 0" class="text-center py-5 text-muted">
+      <div v-else-if="invoices.length === 0" class="text-center py-5 text-muted">
         <FileText :size="48" class="opacity-25 mb-2" />
         <p>Aucune facture trouvée</p>
       </div>
@@ -230,7 +235,7 @@ const changePage = (page) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="invoice in filteredInvoices" :key="invoice.id">
+          <tr v-for="invoice in invoices" :key="invoice.id">
             <td class="fw-bold">{{ invoice.invoice_number }}</td>
             <td class="small">{{ formatDate(invoice.invoice_date || invoice.created_at) }}</td>
             <td>
@@ -297,24 +302,34 @@ const changePage = (page) => {
     </div>
 
     <!-- Pagination -->
-    <div v-if="pagination.lastPage > 1" class="p-3 border-top bg-light">
+    <div v-if="pagination.total > 0" class="p-3 border-top bg-light">
       <div class="d-flex justify-content-between align-items-center">
         <small class="text-muted">
-          {{ pagination.total }} factures au total
+          Affichage {{ pagination.from }} à {{ pagination.to }} sur {{ pagination.total }} factures
         </small>
-        <nav>
+        <nav v-if="pagination.lastPage > 1">
           <ul class="pagination pagination-sm mb-0">
             <li class="page-item" :class="{ disabled: pagination.currentPage === 1 }">
-              <button class="page-link" @click="changePage(pagination.currentPage - 1)">
-                Préc.
+              <button class="page-link" @click="changePage(1)" :disabled="pagination.currentPage === 1">
+                «
+              </button>
+            </li>
+            <li class="page-item" :class="{ disabled: pagination.currentPage === 1 }">
+              <button class="page-link" @click="changePage(pagination.currentPage - 1)" :disabled="pagination.currentPage === 1">
+                ‹
               </button>
             </li>
             <li class="page-item active">
               <span class="page-link">{{ pagination.currentPage }} / {{ pagination.lastPage }}</span>
             </li>
             <li class="page-item" :class="{ disabled: pagination.currentPage === pagination.lastPage }">
-              <button class="page-link" @click="changePage(pagination.currentPage + 1)">
-                Suiv.
+              <button class="page-link" @click="changePage(pagination.currentPage + 1)" :disabled="pagination.currentPage === pagination.lastPage">
+                ›
+              </button>
+            </li>
+            <li class="page-item" :class="{ disabled: pagination.currentPage === pagination.lastPage }">
+              <button class="page-link" @click="changePage(pagination.lastPage)" :disabled="pagination.currentPage === pagination.lastPage">
+                »
               </button>
             </li>
           </ul>
