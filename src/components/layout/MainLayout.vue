@@ -13,7 +13,6 @@ import {
   UserCog,
   LogOut,
   Bell,
-  Settings,
 } from "lucide-vue-next";
 import { RouterLink, RouterView, useRouter } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
@@ -174,13 +173,27 @@ const filteredNavItems = computed(() => {
   return navItems.filter((item) => {
     if (!item.permission) return true;
 
+    const roles = currentUser.value?.roles || [];
+
     // Admin bypass: if user has admin role, show all items
-    const isAdmin = currentUser.value?.roles?.some((r) =>
-      ["admin", "Admin", "super_admin"].includes(r.name),
+    const isAdmin = roles.some((r) =>
+      ["admin", "Admin", "super_admin", "Super Admin"].includes(r.name),
     );
     if (isAdmin) return true;
 
-    return userPermissions.value.includes(item.permission);
+    // Check role names (case insensitive)
+    const roleNames = roles.map((r) => r.name?.toLowerCase());
+    if (roleNames.includes(item.permission.toLowerCase())) return true;
+
+    // Check permissions in roles
+    for (const role of roles) {
+      if (role.permissions && Array.isArray(role.permissions)) {
+        if (role.permissions.includes(item.permission)) return true;
+        if (role.permissions.includes(item.permission.toLowerCase())) return true;
+      }
+    }
+
+    return false;
   });
 });
 </script>
@@ -248,12 +261,6 @@ const filteredNavItems = computed(() => {
                 <RouterLink to="/profile" class="dropdown-item py-2">
                   <UserCog :size="16" class="me-2" />
                   Mon Profil
-                </RouterLink>
-              </li>
-              <li>
-                <RouterLink to="/settings" class="dropdown-item py-2">
-                  <Settings :size="16" class="me-2" />
-                  Paramètres
                 </RouterLink>
               </li>
               <li><hr class="dropdown-divider" /></li>
