@@ -16,7 +16,7 @@ const router = createRouter({
           path: "dashboard",
           name: "dashboard",
           component: Dashboard,
-          meta: { permission: "dashboard" },
+          // Dashboard accessible à tous les utilisateurs authentifiés
         },
         {
           path: "sales",
@@ -151,6 +151,12 @@ const router = createRouter({
           meta: { permission: "stock" },
         },
         {
+          path: "products/import-export",
+          name: "products.import-export",
+          component: () => import("../views/products/ImportExportProducts.vue"),
+          meta: { permission: "stock" },
+        },
+        {
           path: "fournisseurs",
           name: "fournisseurs",
           component: () => import("../views/fournisseurs/FournisseurPage.vue"),
@@ -220,6 +226,12 @@ const router = createRouter({
           path: "settings",
           name: "settings",
           component: () => import("../views/settings/SettingPage.vue"),
+          meta: { permission: "settings" },
+        },
+        {
+          path: "settings/obr-logs",
+          name: "settings.obr-logs",
+          component: () => import("../views/settings/ObrLogs.vue"),
           meta: { permission: "settings" },
         },
         // Routes Pharmaceutiques
@@ -309,26 +321,41 @@ const hasPermission = (user, requiredPermission) => {
 };
 
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem("token");
+  const token = localStorage.getItem("token");
+  const isAuthenticated = !!token;
   const user = JSON.parse(localStorage.getItem("user") || "null");
 
-  // Allow public routes
-  if (to.name === "login" || to.name === "register-company" || to.name === "unauthorized") {
+  // Public routes - always accessible
+  const publicRoutes = ["login", "register-company", "unauthorized"];
+  
+  if (publicRoutes.includes(to.name)) {
+    // If already authenticated and going to login, redirect to dashboard
+    if (isAuthenticated && to.name === "login") {
+      next({ name: "dashboard" });
+      return;
+    }
     next();
     return;
   }
 
-  // Check authentication
+  // Check authentication for protected routes
   if (!isAuthenticated) {
     next({ name: "login" });
+    return;
+  }
+
+  // Dashboard and profile are always accessible to authenticated users
+  const alwaysAccessible = ["dashboard", "profile"];
+  if (alwaysAccessible.includes(to.name)) {
+    next();
     return;
   }
 
   // Check permission if route has meta.permission
   const requiredPermission = to.meta?.permission;
   if (requiredPermission && !hasPermission(user, requiredPermission)) {
-    // Redirect to dashboard or unauthorized page
-    next({ name: "unauthorized" });
+    // Redirect to dashboard (not unauthorized) - user can at least see dashboard
+    next({ name: "dashboard" });
     return;
   }
 

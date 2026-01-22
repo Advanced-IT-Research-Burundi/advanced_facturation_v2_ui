@@ -34,6 +34,11 @@ const routeLinks = ref([
     path: "/settings",
     icon: "bi bi-sliders",
   },
+  {
+    name: "Journal OBR",
+    path: "/settings/obr-logs",
+    icon: "bi bi-file-earmark-text",
+  },
 ]);
 </script>
 

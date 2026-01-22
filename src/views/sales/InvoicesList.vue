@@ -12,6 +12,7 @@ import {
   Clock,
   Filter,
   DollarSign,
+  Ban,
 } from "lucide-vue-next";
 import api from "@/services/api";
 
@@ -131,7 +132,7 @@ const getStatusIcon = (status) => {
   }
 };
 
-const emit = defineEmits(["view", "print", "pay"]);
+const emit = defineEmits(["view", "print", "pay", "cancel"]);
 
 const getPaymentStatusBadge = (status) => {
   const classes = {
@@ -293,6 +294,14 @@ const changePage = (page) => {
                   title="Payer"
                 >
                   <DollarSign :size="14" />
+                </button>
+                <button
+                  v-if="!invoice.is_cancelled && invoice.invoice_type !== 'FP'"
+                  @click="$emit('cancel', invoice)"
+                  class="btn btn-outline-danger"
+                  title="Annuler"
+                >
+                  <Ban :size="14" />
                 </button>
               </div>
             </td>

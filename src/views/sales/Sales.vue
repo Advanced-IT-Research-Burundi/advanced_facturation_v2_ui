@@ -81,6 +81,40 @@ const handlePaymentAdded = () => {
     // For now we assume the user will manually refresh the list if needed.
 };
 
+// Handle cancel invoice
+const handleCancelInvoice = async (invoice) => {
+  const motif = prompt(
+    `Annuler la facture ${invoice.invoice_number}?\n\nVeuillez saisir le motif d'annulation (minimum 10 caractères):`
+  );
+  
+  if (!motif) return;
+  
+  if (motif.length < 10) {
+    alert("Le motif doit contenir au moins 10 caractères.");
+    return;
+  }
+
+  const restoreStock = confirm("Voulez-vous restaurer le stock après annulation?");
+
+  try {
+    const response = await api.post(`/invoices/${invoice.id}/cancel`, {
+      motif: motif,
+      restore_stock: restoreStock
+    });
+
+    if (response.data.success) {
+      alert(`Facture annulée avec succès!\n${restoreStock ? 'Stock restauré.' : ''}`);
+      // Refresh la liste (optionnel: émettre un événement ou recharger)
+      window.location.reload();
+    } else {
+      alert("Erreur: " + (response.data.message || "Annulation échouée"));
+    }
+  } catch (error) {
+    console.error("Erreur annulation:", error);
+    alert("Erreur lors de l'annulation: " + (error.response?.data?.message || error.message));
+  }
+};
+
 // Handle client created from modal
 const handleClientCreated = (newClient) => {
   customers.value.push(newClient);
@@ -289,6 +323,7 @@ const closeProformaDetails = () => {
           @view="handleViewInvoice"
           @print="handlePrintInvoice"
           @pay="handlePayInvoice"
+          @cancel="handleCancelInvoice"
         />
         <Reports v-else-if="activeTab === 'Rapports'" />
       </div>

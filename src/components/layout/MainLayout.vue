@@ -125,7 +125,7 @@ const navItems = [
     to: "/dashboard",
     icon: Home,
     label: "Accueil",
-    permission: "dashboard",
+    // Toujours accessible à tous les utilisateurs authentifiés
   },
   {
     to: "/sales",
