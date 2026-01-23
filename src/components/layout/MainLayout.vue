@@ -6,6 +6,7 @@ import {
   Package,
   Pill,
   ChefHat,
+  UtensilsCrossed,
   FileText,
   BarChart2,
   Wallet,
@@ -146,6 +147,12 @@ const navItems = [
     icon: ChefHat,
     label: "Boulangerie",
     permission: "bakery",
+  },
+  {
+    to: "/restaurant",
+    icon: UtensilsCrossed,
+    label: "Restaurant",
+    permission: "restaurant",
   },
   { to: "/journal", icon: FileText, label: "Journal", permission: "journal" },
   {

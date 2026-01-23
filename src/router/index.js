@@ -272,6 +272,31 @@ const router = createRouter({
           component: () => import("../views/finance/Currencies.vue"),
           meta: { permission: "finance" },
         },
+        // Routes Restaurant
+        {
+          path: "restaurant",
+          name: "restaurant.tables",
+          component: () => import("../views/restaurant/RestaurantTables.vue"),
+          meta: { permission: "restaurant" },
+        },
+        {
+          path: "restaurant/orders",
+          name: "restaurant.orders",
+          component: () => import("../views/restaurant/RestaurantOrders.vue"),
+          meta: { permission: "restaurant" },
+        },
+        {
+          path: "restaurant/invoices",
+          name: "restaurant.invoices",
+          component: () => import("../views/restaurant/RestaurantInvoices.vue"),
+          meta: { permission: "restaurant" },
+        },
+        {
+          path: "restaurant/invoice/:id",
+          name: "restaurant.invoice",
+          component: () => import("../views/restaurant/RestaurantInvoice.vue"),
+          meta: { permission: "restaurant" },
+        },
       ],
     },
     {
