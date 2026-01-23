@@ -15,34 +15,46 @@
       </div>
     </div>
 
-    <!-- Modal Sélection Client pour Facturation -->
+    <!-- Modal Sélection Client et Dépôt pour Facturation -->
     <div v-if="showInvoiceModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title"><i class="bi bi-person-check me-2"></i>Sélectionner un Client</h5>
+            <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Générer la Facture</h5>
             <button type="button" class="btn-close" @click="showInvoiceModal = false"></button>
           </div>
           <div class="modal-body">
-            <p class="text-muted mb-3">Veuillez sélectionner ou créer un client pour la facture.</p>
+            <!-- Sélection du Dépôt -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold"><i class="bi bi-box-seam me-1"></i> Dépôt de sortie *</label>
+              <select v-model="invoiceWarehouseId" class="form-select" :class="{ 'is-invalid': !invoiceWarehouseId && invoiceAttempted }">
+                <option :value="null" disabled>Sélectionner un dépôt...</option>
+                <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                  {{ wh.name }}
+                </option>
+              </select>
+              <div class="invalid-feedback">Le dépôt est obligatoire</div>
+            </div>
+
+            <hr>
 
             <!-- Recherche Client -->
             <div class="mb-3">
-              <label class="form-label fw-semibold">Rechercher un client existant</label>
+              <label class="form-label fw-semibold"><i class="bi bi-person me-1"></i> Client *</label>
               <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input
                   v-model="customerSearch"
                   type="text"
                   class="form-control"
-                  placeholder="Nom ou NIF du client..."
+                  placeholder="Rechercher par nom ou NIF..."
                   @input="searchCustomers"
                 >
               </div>
             </div>
 
             <!-- Liste des clients trouvés -->
-            <div v-if="filteredCustomers.length > 0" class="list-group mb-3" style="max-height: 200px; overflow-y: auto;">
+            <div v-if="filteredCustomers.length > 0" class="list-group mb-3" style="max-height: 150px; overflow-y: auto;">
               <a
                 v-for="customer in filteredCustomers"
                 :key="customer.id"
@@ -60,15 +72,14 @@
             </div>
 
             <!-- Client sélectionné -->
-            <div v-if="selectedCustomer" class="alert alert-success py-2">
+            <div v-if="selectedCustomer" class="alert alert-success py-2 mb-2">
               <i class="bi bi-person-check me-2"></i>
-              Client sélectionné: <strong>{{ selectedCustomer.customer_name }}</strong>
+              Client: <strong>{{ selectedCustomer.customer_name }}</strong>
             </div>
 
             <!-- Bouton nouveau client -->
-            <div class="text-center">
-              <span class="text-muted">ou</span>
-              <button class="btn btn-outline-primary btn-sm ms-2" @click="showNewClientModal = true">
+            <div class="text-center mb-2">
+              <button class="btn btn-outline-primary btn-sm" @click="showNewClientModal = true">
                 <i class="bi bi-plus-lg me-1"></i> Créer un nouveau client
               </button>
             </div>
@@ -79,7 +90,7 @@
               type="button"
               class="btn btn-warning"
               @click="confirmInvoice"
-              :disabled="!selectedCustomer || generatingInvoice"
+              :disabled="!selectedCustomer || !invoiceWarehouseId || generatingInvoice"
             >
               <span v-if="generatingInvoice" class="spinner-border spinner-border-sm me-1"></span>
               <i v-else class="bi bi-receipt me-1"></i>
@@ -102,11 +113,28 @@
       <div class="col-lg-5">
         <div class="card">
           <div class="card-header">
-            <input v-model="searchProduct" type="text" class="form-control" placeholder="Rechercher un produit...">
+            <!-- Warehouse Selection -->
+            <div class="mb-2">
+              <select v-model="selectedWarehouseId" class="form-select form-select-sm" @change="loadWarehouseProducts">
+                <option :value="null" disabled>Sélectionner un dépôt...</option>
+                <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                  <i class="bi bi-box"></i> {{ wh.name }} ({{ wh.warehouse_products_count || 0 }} produits)
+                </option>
+              </select>
+            </div>
+            <input v-model="searchProduct" type="text" class="form-control form-control-sm" placeholder="Rechercher un produit...">
           </div>
           <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
-            <div v-if="loading" class="text-center py-4">
+            <div v-if="!selectedWarehouseId" class="text-center text-muted py-5">
+              <i class="bi bi-box-seam fs-1"></i>
+              <p>Sélectionnez un dépôt pour voir les produits</p>
+            </div>
+            <div v-else-if="loading" class="text-center py-4">
               <div class="spinner-border"></div>
+            </div>
+            <div v-else-if="products.length === 0" class="text-center text-muted py-5">
+              <i class="bi bi-inbox fs-1"></i>
+              <p>Aucun produit en stock dans ce dépôt</p>
             </div>
             <div v-else class="row g-2">
               <div
@@ -114,10 +142,18 @@
                 :key="product.id"
                 class="col-6"
               >
-                <div class="card h-100 product-card" @click="addToOrder(product)" style="cursor: pointer">
+                <div
+                  class="card h-100 product-card"
+                  :class="{ 'border-danger': product.stock_quantity <= 0 }"
+                  @click="addToOrder(product)"
+                  style="cursor: pointer"
+                >
                   <div class="card-body p-2 text-center">
                     <h6 class="card-title small mb-1">{{ product.name || product.item_designation }}</h6>
                     <p class="card-text text-primary fw-bold mb-0">{{ formatCurrency(product.selling_price) }}</p>
+                    <small class="badge" :class="product.stock_quantity > 5 ? 'bg-success' : (product.stock_quantity > 0 ? 'bg-warning' : 'bg-danger')">
+                      Stock: {{ product.stock_quantity }}
+                    </small>
                   </div>
                 </div>
               </div>
@@ -250,6 +286,10 @@ const selectedServerId = ref(null);
 const loading = ref(false);
 const saving = ref(false);
 
+// Warehouse management
+const warehouses = ref([]);
+const selectedWarehouseId = ref(null);
+
 // Client selection for invoice
 const customers = ref([]);
 const filteredCustomers = ref([]);
@@ -258,6 +298,8 @@ const selectedCustomer = ref(null);
 const showInvoiceModal = ref(false);
 const showNewClientModal = ref(false);
 const generatingInvoice = ref(false);
+const invoiceWarehouseId = ref(null);
+const invoiceAttempted = ref(false);
 
 const filteredProducts = computed(() => {
   if (!searchProduct.value) return products.value;
@@ -274,7 +316,7 @@ const orderTotal = computed(() => {
 });
 
 onMounted(async () => {
-  await loadProducts();
+  await loadWarehouses();
   await loadServers();
   await loadCustomers();
 
@@ -295,13 +337,35 @@ watch(() => route.query.table, async (tableId) => {
   }
 });
 
-async function loadProducts() {
+async function loadWarehouses() {
+  try {
+    const { data } = await api.get('/restaurant/warehouses');
+    warehouses.value = data.data || [];
+    // Auto-select first warehouse if available
+    if (warehouses.value.length > 0) {
+      selectedWarehouseId.value = warehouses.value[0].id;
+      invoiceWarehouseId.value = warehouses.value[0].id;
+      await loadWarehouseProducts();
+    }
+  } catch (error) {
+    console.error('Erreur chargement dépôts:', error);
+    warehouses.value = [];
+  }
+}
+
+async function loadWarehouseProducts() {
+  if (!selectedWarehouseId.value) {
+    products.value = [];
+    return;
+  }
+
   loading.value = true;
   try {
-    const { data } = await api.get('/pos-products');
-    products.value = data.data || data;
+    const { data } = await api.get(`/restaurant/warehouses/${selectedWarehouseId.value}/products`);
+    products.value = data.data || [];
   } catch (error) {
     console.error('Erreur chargement produits:', error);
+    products.value = [];
   } finally {
     loading.value = false;
   }
@@ -337,8 +401,19 @@ async function loadTableOrders(tableId) {
 }
 
 function addToOrder(product) {
+  // Check stock availability
+  if (product.stock_quantity <= 0) {
+    alert(`Stock insuffisant pour ${product.name || product.item_designation}`);
+    return;
+  }
+
   const existing = orderItems.value.find(i => i.product_id === product.id && i.status !== 'cancelled');
   if (existing) {
+    // Check if we can add more
+    if (existing.quantity >= product.stock_quantity) {
+      alert(`Stock insuffisant. Disponible: ${product.stock_quantity}`);
+      return;
+    }
     existing.quantity += 1;
     existing.total_price = existing.quantity * existing.unit_price;
   } else {
@@ -350,6 +425,7 @@ function addToOrder(product) {
       unit_price: product.selling_price || 0,
       total_price: product.selling_price || 0,
       status: 'pending',
+      stock_available: product.stock_quantity,
     });
   }
 }
@@ -482,19 +558,30 @@ function onClientCreated(newCustomer) {
 function openInvoiceModal() {
   selectedCustomer.value = null;
   customerSearch.value = '';
+  invoiceAttempted.value = false;
+  // Pre-select the current warehouse
+  invoiceWarehouseId.value = selectedWarehouseId.value || (warehouses.value.length > 0 ? warehouses.value[0].id : null);
   const list = Array.isArray(customers.value) ? customers.value : [];
   filteredCustomers.value = list.slice(0, 10);
   showInvoiceModal.value = true;
 }
 
 async function confirmInvoice() {
-  if (!currentTable.value || !selectedCustomer.value) return;
+  invoiceAttempted.value = true;
+
+  if (!currentTable.value || !selectedCustomer.value || !invoiceWarehouseId.value) {
+    if (!invoiceWarehouseId.value) {
+      alert('Veuillez sélectionner un dépôt');
+    }
+    return;
+  }
 
   generatingInvoice.value = true;
   try {
     const { data } = await api.post('/restaurant/invoices/generate', {
       table_id: currentTable.value.id,
       customer_id: selectedCustomer.value.id,
+      warehouse_id: invoiceWarehouseId.value,
     });
     showInvoiceModal.value = false;
     router.push({ name: 'restaurant.invoice', params: { id: data.data.id } });

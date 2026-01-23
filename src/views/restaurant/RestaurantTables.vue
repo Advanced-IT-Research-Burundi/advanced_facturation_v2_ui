@@ -183,34 +183,45 @@
     </div>
     <div v-if="showDetailModal" class="modal-backdrop fade show"></div>
 
-    <!-- Modal Sélection Client pour Facturation -->
+    <!-- Modal Sélection Client et Dépôt pour Facturation -->
     <div v-if="showInvoiceModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title"><i class="bi bi-person-check me-2"></i>Sélectionner un Client</h5>
+            <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Générer la Facture</h5>
             <button type="button" class="btn-close" @click="showInvoiceModal = false"></button>
           </div>
           <div class="modal-body">
-            <p class="text-muted mb-3">Veuillez sélectionner ou créer un client pour la facture.</p>
+            <!-- Sélection du Dépôt -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold"><i class="bi bi-box-seam me-1"></i> Dépôt de sortie *</label>
+              <select v-model="invoiceWarehouseId" class="form-select">
+                <option :value="null" disabled>Sélectionner un dépôt...</option>
+                <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                  {{ wh.name }}
+                </option>
+              </select>
+            </div>
+
+            <hr>
 
             <!-- Recherche Client -->
             <div class="mb-3">
-              <label class="form-label fw-semibold">Rechercher un client existant</label>
+              <label class="form-label fw-semibold"><i class="bi bi-person me-1"></i> Client *</label>
               <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input
                   v-model="customerSearch"
                   type="text"
                   class="form-control"
-                  placeholder="Nom ou NIF du client..."
+                  placeholder="Rechercher par nom ou NIF..."
                   @input="searchCustomers"
                 >
               </div>
             </div>
 
             <!-- Liste des clients trouvés -->
-            <div v-if="filteredCustomers.length > 0" class="list-group mb-3" style="max-height: 200px; overflow-y: auto;">
+            <div v-if="filteredCustomers.length > 0" class="list-group mb-3" style="max-height: 150px; overflow-y: auto;">
               <a
                 v-for="customer in filteredCustomers"
                 :key="customer.id"
@@ -228,15 +239,14 @@
             </div>
 
             <!-- Client sélectionné -->
-            <div v-if="selectedCustomer" class="alert alert-success py-2">
+            <div v-if="selectedCustomer" class="alert alert-success py-2 mb-2">
               <i class="bi bi-person-check me-2"></i>
-              Client sélectionné: <strong>{{ selectedCustomer.customer_name }}</strong>
+              Client: <strong>{{ selectedCustomer.customer_name }}</strong>
             </div>
 
             <!-- Bouton nouveau client -->
-            <div class="text-center">
-              <span class="text-muted">ou</span>
-              <button class="btn btn-outline-primary btn-sm ms-2" @click="showNewClientModal = true">
+            <div class="text-center mb-2">
+              <button class="btn btn-outline-primary btn-sm" @click="showNewClientModal = true">
                 <i class="bi bi-plus-lg me-1"></i> Créer un nouveau client
               </button>
             </div>
@@ -247,7 +257,7 @@
               type="button"
               class="btn btn-warning"
               @click="confirmInvoice"
-              :disabled="!selectedCustomer || generatingInvoice"
+              :disabled="!selectedCustomer || !invoiceWarehouseId || generatingInvoice"
             >
               <span v-if="generatingInvoice" class="spinner-border spinner-border-sm me-1"></span>
               <i v-else class="bi bi-receipt me-1"></i>
@@ -284,6 +294,10 @@ const showDetailModal = ref(false);
 const editingTable = ref(null);
 const saving = ref(false);
 
+// Warehouse management
+const warehouses = ref([]);
+const invoiceWarehouseId = ref(null);
+
 // Client selection for invoice
 const customers = ref([]);
 const filteredCustomers = ref([]);
@@ -306,7 +320,21 @@ onMounted(() => {
   loadTables();
   loadDashboard();
   loadCustomers();
+  loadWarehouses();
 });
+
+async function loadWarehouses() {
+  try {
+    const { data } = await api.get('/restaurant/warehouses');
+    warehouses.value = data.data || [];
+    if (warehouses.value.length > 0) {
+      invoiceWarehouseId.value = warehouses.value[0].id;
+    }
+  } catch (error) {
+    console.error('Erreur chargement dépôts:', error);
+    warehouses.value = [];
+  }
+}
 
 async function loadTables() {
   try {
@@ -438,6 +466,8 @@ function generateInvoice(table) {
   tableToInvoice.value = table;
   selectedCustomer.value = null;
   customerSearch.value = '';
+  // Pre-select first warehouse
+  invoiceWarehouseId.value = warehouses.value.length > 0 ? warehouses.value[0].id : null;
   const list = Array.isArray(customers.value) ? customers.value : [];
   filteredCustomers.value = list.slice(0, 10);
   showDetailModal.value = false;
@@ -445,13 +475,19 @@ function generateInvoice(table) {
 }
 
 async function confirmInvoice() {
-  if (!tableToInvoice.value || !selectedCustomer.value) return;
+  if (!tableToInvoice.value || !selectedCustomer.value || !invoiceWarehouseId.value) {
+    if (!invoiceWarehouseId.value) {
+      alert('Veuillez sélectionner un dépôt');
+    }
+    return;
+  }
 
   generatingInvoice.value = true;
   try {
     const { data } = await api.post('/restaurant/invoices/generate', {
       table_id: tableToInvoice.value.id,
       customer_id: selectedCustomer.value.id,
+      warehouse_id: invoiceWarehouseId.value,
     });
     showInvoiceModal.value = false;
     router.push({ name: 'restaurant.invoice', params: { id: data.data.id } });
