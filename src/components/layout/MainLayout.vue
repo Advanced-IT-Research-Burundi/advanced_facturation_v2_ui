@@ -34,7 +34,6 @@ const handleLogout = async () => {
 // Compute initials from the connected user's name
 const userInitials = computed(() => {
   const user = store.state.auth.user;
-  console.log("User initials", user);
   return user?.name
     ? user.name
         .split(" ")
@@ -47,7 +46,6 @@ const userInitials = computed(() => {
 // Company name
 const fetchedCompanyName = ref("");
 
-// Company name
 const companyName = computed(() => {
   const user = store.state.auth.user;
 
@@ -99,25 +97,12 @@ const userRole = computed(() => {
 
 const currentUser = computed(() => store.state.auth.user);
 
-const userPermissions = computed(() => {
-  if (!currentUser.value || !currentUser.value.roles) {
-    return [];
-  }
 
-  const permissions = new Set();
-
-  currentUser.value.roles.forEach((role) => {
-    // Add role name as a permission (e.g. "sales" role -> "sales" permission)
-    if (role.name) {
-      permissions.add(role.name);
-    }
-
-    if (role.permissions && Array.isArray(role.permissions)) {
-      role.permissions.forEach((permission) => permissions.add(permission));
-    }
-  });
-
-  return Array.from(permissions);
+const isAdmin = computed(() => {
+  const roles = currentUser.value?.roles || [];
+  return roles.some((r) =>
+    ["admin", "Admin", "super_admin", "Super Admin"].includes(r.name)
+  );
 });
 
 // Navigation items
@@ -126,7 +111,6 @@ const navItems = [
     to: "/dashboard",
     icon: Home,
     label: "Accueil",
-    // Toujours accessible à tous les utilisateurs authentifiés
   },
   {
     to: "/sales",
@@ -182,11 +166,8 @@ const filteredNavItems = computed(() => {
 
     const roles = currentUser.value?.roles || [];
 
-    // Admin bypass: if user has admin role, show all items
-    const isAdmin = roles.some((r) =>
-      ["admin", "Admin", "super_admin", "Super Admin"].includes(r.name),
-    );
-    if (isAdmin) return true;
+    // Admin bypass uses the variable we created earlier
+    if (isAdmin.value) return true;
 
     // Check role names (case insensitive)
     const roleNames = roles.map((r) => r.name?.toLowerCase());
@@ -208,7 +189,6 @@ const filteredNavItems = computed(() => {
 <template>
   <div class="d-flex vh-100 vw-100 overflow-hidden bg-light">
     <aside class="sidebar bg-dark text-white">
-      <!-- Logo -->
       <div class="logo-section">
         <div class="logo-circle bg-primary">
           <span class="fw-bold fs-3">A</span>
@@ -216,8 +196,10 @@ const filteredNavItems = computed(() => {
         <small class="logo-text">ADVANCED</small>
       </div>
 
-      <!-- Navigation -->
-      <ul class="nav nav-pills flex-column mb-auto py-2 gap-0 px-1">
+      <ul 
+        class="nav nav-pills flex-column mb-auto py-2 px-1"
+        :class="{ 'compact-nav': !isAdmin, 'gap-0': isAdmin }"
+      >
         <li v-for="item in filteredNavItems" :key="item.to" class="nav-item">
           <RouterLink :to="item.to" class="nav-link" active-class="active">
             <component :is="item.icon" :size="22" class="nav-icon" />
@@ -229,13 +211,11 @@ const filteredNavItems = computed(() => {
     </aside>
 
     <main class="d-flex flex-column flex-grow-1 overflow-hidden">
-      <!-- Header -->
       <header
         class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white"
       >
         <h4 class="mb-0 fw-bold text-primary">{{ companyName }}</h4>
         <div class="d-flex align-items-center gap-3">
-          <!-- Notifications -->
           <button class="btn btn-light position-relative rounded-circle p-2">
             <Bell :size="18" />
             <span
@@ -243,7 +223,6 @@ const filteredNavItems = computed(() => {
             ></span>
           </button>
           
-          <!-- User Profile Dropdown -->
           <div class="dropdown">
             <a
               href="#"
@@ -282,7 +261,6 @@ const filteredNavItems = computed(() => {
         </div>
       </header>
 
-      <!-- Content -->
       <div class="flex-grow-1 overflow-auto p-4 bg-body">
         <RouterView />
       </div>
@@ -333,6 +311,14 @@ const filteredNavItems = computed(() => {
   flex-direction: column;
   justify-content: space-evenly;
   overflow: hidden;
+}
+
+
+.nav-pills.compact-nav {
+  
+  justify-content: flex-start !important;
+ 
+  gap: 0.5rem; 
 }
 
 .nav-link {
