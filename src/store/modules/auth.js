@@ -47,6 +47,24 @@ export default {
         commit("SET_LOADING", false);
       }
     },
+    async registerCompany({ commit }, companyData) {
+      commit("SET_LOADING", true);
+      try {
+        const response = await api.post("/register-company", companyData);
+        // Structure: response.data.data includes user and token
+        const { user, token } = response.data.data;
+        commit("SET_AUTH", { user, token });
+        return { success: true };
+      } catch (error) {
+        const message =
+          error.response?.data?.message || "Erreur lors de l'enregistrement";
+        const errors = error.response?.data?.error || null;
+        return { success: false, error: message, validationErrors: errors };
+      } finally {
+        commit("SET_LOADING", false);
+      }
+    },
+
     async logout({ commit }) {
       try {
         await api.post("/logout");
