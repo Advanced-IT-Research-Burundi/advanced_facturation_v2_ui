@@ -115,6 +115,18 @@ const handleFileChange = (e) => {
   form.value.image = e.target.files[0];
 };
 
+const handleUnitChange = (e) => {
+  const unitId = e.target.value;
+  const unit = props.productUnits.find(u => u.id == unitId);
+  if (unit) {
+    form.value.item_measurement_unit = unit.name;
+    form.value.product_unit_id = unit.id;
+  } else {
+    form.value.item_measurement_unit = "";
+    form.value.product_unit_id = null;
+  }
+};
+
 const isCalculating = ref(false);
 
 watch(
@@ -264,12 +276,13 @@ watch(
                     >
                     <select
                       class="form-select bg-light"
-                      v-model="form.item_measurement_unit"
+                      v-model="form.product_unit_id"
+                      @change="handleUnitChange"
                     >
                       <option :value="null">Sélectionner une unité</option>
                       <option
                         v-for="unit in productUnits"
-                        :key="unit.name"
+                        :key="unit.id"
                         :value="unit.id"
                       >
                         {{ unit.name }}
