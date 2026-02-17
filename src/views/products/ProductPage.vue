@@ -16,6 +16,7 @@ const isEditing = ref(false);
 const editId = ref(null);
 const showModal = ref(false);
 const selectedProduct = ref(null);
+const successMessage = ref(null);
 
 // Initial Data Fetch
 onMounted(async () => {
@@ -76,6 +77,12 @@ const handleSave = async (payload) => {
 
   if (result.success) {
     closeModal();
+    successMessage.value = isEditing.value
+      ? "Produit modifié avec succès"
+      : "Produit créé avec succès";
+    setTimeout(() => {
+      successMessage.value = null;
+    }, 3000);
   } else {
     alert(
       "Erreur lors de l'enregistrement: " +
@@ -91,7 +98,12 @@ const handleDelete = async (product) => {
     )
   ) {
     const result = await store.dispatch("products/deleteProduct", product.id);
-    if (!result.success) {
+    if (result.success) {
+      successMessage.value = "Produit supprimé avec succès";
+      setTimeout(() => {
+        successMessage.value = null;
+      }, 3000);
+    } else {
       alert("Erreur lors de la suppression");
     }
   }
@@ -101,6 +113,21 @@ const handleDelete = async (product) => {
 <template>
   <div class="container-fluid py-4 min-vh-100 bg-light">
     <StockHeader />
+
+    <!-- Message de succès -->
+    <div
+      v-if="successMessage"
+      class="alert alert-success alert-dismissible fade show"
+      role="alert"
+    >
+      <i class="bi bi-check-circle me-2"></i>{{ successMessage }}
+      <button
+        type="button"
+        class="btn-close"
+        @click="successMessage = null"
+        aria-label="Close"
+      ></button>
+    </div>
 
     <ProductHeader @create="openCreateModal" />
 

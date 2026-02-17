@@ -1,5 +1,20 @@
 <template>
   <div class="container-fluid py-4">
+    <!-- Message de succès -->
+    <div
+      v-if="successMessage"
+      class="alert alert-success alert-dismissible fade show"
+      role="alert"
+    >
+      <i class="bi bi-check-circle me-2"></i>{{ successMessage }}
+      <button
+        type="button"
+        class="btn-close"
+        @click="successMessage = null"
+        aria-label="Close"
+      ></button>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h4 class="fw-bold mb-0">Gestion des Produits par Stock</h4>
       <button class="btn btn-outline-secondary btn-sm" @click="$router.back()">
@@ -202,6 +217,7 @@ const searchInStock = ref("");
 const showDeleteModal = ref(false);
 const productToDelete = ref(null);
 const deleting = ref(null);
+const successMessage = ref(null);
 
 const handleSearchNotInStock = () => {
   loadProductsNotInStock();
@@ -241,16 +257,26 @@ const loadProductsNotInStock = async () => {
 const transfer = async (productId) => {
   working.value = productId;
 
-  const res = await api.post(
-    `/warehouses/${warehouseId}/products/${productId}`,
-  );
+  try {
+    const res = await api.post(
+      `/warehouses/${warehouseId}/products/${productId}`,
+    );
 
-  console.log(res.data);
+    if (res.data.success) {
+      successMessage.value = "Produit ajouté avec succès";
+      setTimeout(() => {
+        successMessage.value = null;
+      }, 3000);
+    }
 
-  await loadProductsInStock();
-  await loadProductsNotInStock();
-
-  working.value = null;
+    await loadProductsInStock();
+    await loadProductsNotInStock();
+  } catch (error) {
+    console.error("Erreur lors de l'ajout:", error);
+    alert("Erreur lors de l'ajout du produit");
+  } finally {
+    working.value = null;
+  }
 };
 
 const confirmDelete = (product) => {
@@ -268,9 +294,16 @@ const deleteProduct = async () => {
 
   deleting.value = productToDelete.value.id;
   try {
-    await api.delete(
+    const res = await api.delete(
       `/warehouses/${warehouseId}/products/${productToDelete.value.id}`,
     );
+
+    if (res.data.success) {
+      successMessage.value = "Produit supprimé avec succès";
+      setTimeout(() => {
+        successMessage.value = null;
+      }, 3000);
+    }
 
     // Recharger les listes
     await loadProductsInStock();
