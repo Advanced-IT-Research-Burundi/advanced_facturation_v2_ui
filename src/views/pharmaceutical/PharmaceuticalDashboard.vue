@@ -251,7 +251,7 @@ const generateAlerts = async () => {
                   </button>
                 </div>
                 <div class="col-md-3">
-                  <button class="btn btn-outline-info w-100 py-3" @click="navigateTo('/products')">
+                  <button class="btn btn-outline-info w-100 py-3" @click="navigateTo('/pharmaceutical/products')">
                     <i class="bi bi-capsule d-block fs-3 mb-2"></i>
                     Produits Pharma
                   </button>

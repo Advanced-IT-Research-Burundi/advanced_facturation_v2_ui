@@ -242,6 +242,12 @@ const router = createRouter({
           meta: { permission: "pharmaceutical" },
         },
         {
+          path: "pharmaceutical/products",
+          name: "pharmaceutical.products",
+          component: () => import("../views/pharmaceutical/PharmaceuticalProducts.vue"),
+          meta: { permission: "pharmaceutical" },
+        },
+        {
           path: "lots",
           name: "lots",
           component: () => import("../views/lots/LotsPage.vue"),

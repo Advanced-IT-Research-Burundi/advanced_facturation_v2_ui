@@ -36,12 +36,10 @@ const loadFormData = async () => {
   try {
     const [custRes, prodRes] = await Promise.all([
       api.get("/customers"),
-      api.get("/products?per_page=1000"),
+      api.get("/products/pharmaceutical?per_page=1000"),
     ]);
     customers.value = custRes.data.data.data || custRes.data.data || [];
-    products.value = (prodRes.data.data.data || prodRes.data.data || []).filter(
-      (p) => p.is_pharmaceutical || p.requires_prescription
-    );
+    products.value = prodRes.data.data.data || prodRes.data.data || [];
   } catch (error) {
     console.error("Error loading form data:", error);
   }
