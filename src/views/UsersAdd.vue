@@ -65,18 +65,9 @@
         <!-- PASSWORD ERROR -->
         <div v-if="passwordError" class="alert alert-danger py-2">{{ passwordError }}</div>
 
-        <!-- COMPANY & ROLES -->
+        <!-- ROLES -->
         <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label small fw-bold">Entreprise</label>
-            <select v-model="form.company_id" class="form-select" required>
-              <option :value="null">Sélectionner...</option>
-              <option v-for="company in companies" :key="company.id" :value="company.id">
-                {{ company.name }}
-              </option>
-            </select>
-          </div>
-          <div class="col-md-6">
+          <div class="col-md-12">
             <label class="form-label small fw-bold">Rôles <span class="text-danger">*</span></label>
             <div class="border rounded p-2" style="max-height: 180px; overflow-y: auto;">
               <div v-if="loadingRoles" class="text-center py-3">
@@ -140,6 +131,8 @@ const showPassword = ref(false);
 const showPasswordConfirm = ref(false);
 const errorMessage = ref('');
 
+const currentUser = computed(() => store.getters['auth/currentUser']);
+
 const form = reactive({
   name: '',
   email: '',
@@ -149,7 +142,6 @@ const form = reactive({
   roles: []
 });
 
-const companies = computed(() => store.getters['users/allCompanies']);
 const roles = computed(() => store.getters['users/allRoles']);
 const loadingRoles = computed(() => store.getters['users/isLoadingRoles']);
 
@@ -167,7 +159,7 @@ const resetForm = () => {
   form.email = '';
   form.password = '';
   form.password_confirmation = '';
-  form.company_id = null;
+  form.company_id = currentUser.value?.company_id ?? null;
   form.roles = [];
 };
 
@@ -224,7 +216,7 @@ const saveUser = async () => {
 };
 
 onMounted(() => {
-  store.dispatch('users/fetchCompanies');
+  form.company_id = currentUser.value?.company_id ?? null;
   store.dispatch('users/fetchRoles').catch((error) => {
     errorMessage.value = 'Impossible de charger les rôles';
     console.error('Erreur chargement rôles:', error);
