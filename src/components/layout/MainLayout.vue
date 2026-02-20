@@ -7,6 +7,7 @@ import {
   Pill,
   ChefHat,
   UtensilsCrossed,
+  BedDouble,
   FileText,
   BarChart2,
   Wallet,
@@ -137,6 +138,12 @@ const navItems = [
     icon: UtensilsCrossed,
     label: "Restaurant",
     permission: "restaurant",
+  },
+  {
+    to: "/hotel",
+    icon: BedDouble,
+    label: "Hôtel",
+    permission: "hotel",
   },
   { to: "/journal", icon: FileText, label: "Journal", permission: "journal" },
   {

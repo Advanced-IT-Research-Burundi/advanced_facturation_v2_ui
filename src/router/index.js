@@ -278,6 +278,19 @@ const router = createRouter({
           component: () => import("../views/finance/Currencies.vue"),
           meta: { permission: "finance" },
         },
+        // Routes Hotel
+        {
+          path: "hotel",
+          name: "hotel.rooms",
+          component: () => import("../views/hotel/HotelRooms.vue"),
+          meta: { permission: "hotel" },
+        },
+        {
+          path: "hotel/reservations",
+          name: "hotel.reservations",
+          component: () => import("../views/hotel/HotelReservations.vue"),
+          meta: { permission: "hotel" },
+        },
         // Routes Restaurant
         {
           path: "restaurant",
