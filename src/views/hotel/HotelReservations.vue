@@ -235,7 +235,7 @@
             </div>
             <div class="col-md-3">
               <label class="form-label small fw-bold">Nuits</label>
-              <input :value="formNights" type="number" class="form-control bg-light" readonly />
+              <input :value="formNights" type="number" class="form-control bg-light" />
             </div>
             <div class="col-md-3">
               <label class="form-label small fw-bold">Avance</label>
@@ -310,6 +310,7 @@ import { ref, computed, onMounted, reactive, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
+import router from '@/router';
 
 const route = useRoute();
 
