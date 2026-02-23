@@ -133,6 +133,24 @@
                   >
                     <i class="bi bi-x-circle"></i>
                   </button>
+                  <button
+                    v-if="['checked_in', 'checked_out'].includes(reservation.status) && !reservation.invoice_id"
+                    class="btn btn-sm btn-primary"
+                    title="Générer la facture"
+                    :disabled="generatingInvoiceId === reservation.id"
+                    @click="generateInvoice(reservation)"
+                  >
+                    <span v-if="generatingInvoiceId === reservation.id" class="spinner-border spinner-border-sm"></span>
+                    <i v-else class="bi bi-receipt"></i>
+                  </button>
+                  <router-link
+                    v-if="reservation.invoice_id"
+                    :to="{ name: 'hotel.invoice', params: { id: reservation.invoice_id } }"
+                    class="btn btn-sm btn-outline-success"
+                    title="Voir la facture"
+                  >
+                    <i class="bi bi-file-earmark-text"></i>
+                  </router-link>
                 </div>
               </td>
             </tr>
@@ -194,6 +212,16 @@
             <div class="col-md-6">
               <label class="form-label small fw-bold">Email</label>
               <input v-model="form.guest_email" type="email" class="form-control" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Client (pour facturation)</label>
+              <select v-model="form.customer_id" class="form-select">
+                <option :value="null">Aucun / Client occasionnel</option>
+                <option v-for="c in customers" :key="c.id" :value="c.id">
+                  {{ c.customer_name }} {{ c.customer_TIN ? `(${c.customer_TIN})` : '' }}
+                </option>
+              </select>
+              <small class="text-muted">Requis pour générer la facture</small>
             </div>
             <div class="col-md-3">
               <label class="form-label small fw-bold">Check-in <span class="text-danger">*</span></label>
@@ -285,6 +313,8 @@ const route = useRoute();
 const loading = ref(false);
 const reservations = ref([]);
 const allRooms = ref([]);
+const customers = ref([]);
+const generatingInvoiceId = ref(null);
 const pagination = ref({ current_page: 1, last_page: 1, total: 0 });
 const search = ref('');
 const filterStatus = ref('');
@@ -310,6 +340,7 @@ const form = reactive({
   guest_name: '',
   guest_phone: '',
   guest_email: '',
+  customer_id: null,
   check_in_date: today,
   check_out_date: '',
   advance_payment: 0,
@@ -386,6 +417,7 @@ const openAddModal = () => {
     guest_name: '',
     guest_phone: '',
     guest_email: '',
+    customer_id: null,
     check_in_date: today,
     check_out_date: '',
     advance_payment: 0,
@@ -402,6 +434,7 @@ const editReservation = (reservation) => {
     guest_name: reservation.guest_name,
     guest_phone: reservation.guest_phone || '',
     guest_email: reservation.guest_email || '',
+    customer_id: reservation.customer_id ?? null,
     check_in_date: reservation.check_in_date,
     check_out_date: reservation.check_out_date,
     advance_payment: reservation.advance_payment,
@@ -427,6 +460,27 @@ const saveReservation = async () => {
     formError.value = e.response?.data?.message || 'Erreur lors de l\'enregistrement';
   } finally {
     saving.value = false;
+  }
+};
+
+const loadCustomers = async () => {
+  try {
+    const res = await api.get('/customers', { params: { per_page: 500 } });
+    customers.value = res.data?.data?.data ?? res.data?.data ?? [];
+  } catch (e) {
+    console.error('Erreur chargement clients:', e);
+  }
+};
+
+const generateInvoice = async (reservation) => {
+  generatingInvoiceId.value = reservation.id;
+  try {
+    await api.post(`/hotel/reservations/${reservation.id}/invoice`);
+    await loadReservations();
+  } catch (e) {
+    alert(e.response?.data?.message || 'Impossible de générer la facture');
+  } finally {
+    generatingInvoiceId.value = null;
   }
 };
 
@@ -534,7 +588,7 @@ onMounted(() => {
   if (route.query.date) {
     filterDate.value = route.query.date;
   }
-  Promise.all([loadReservations(), loadRooms()]);
+  Promise.all([loadReservations(), loadRooms(), loadCustomers()]);
 });
 </script>
 
