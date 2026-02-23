@@ -1,181 +1,183 @@
 <template>
-  <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h4 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Réservations Hôtel</h4>
-      <div class="d-flex gap-2">
-        <router-link :to="{ name: 'hotel.rooms' }" class="btn btn-outline-secondary">
-          <i class="bi bi-building me-1"></i> Chambres
-        </router-link>
-        <button class="btn btn-primary" @click="openAddModal">
-          <i class="bi bi-plus-lg me-1"></i> Nouvelle Réservation
-        </button>
-      </div>
-    </div>
+  <div class="container-fluid pb-4">
 
-    <!-- Filters -->
-    <div class="card mb-3">
-      <div class="card-body py-2">
-        <div class="row g-2 align-items-center">
-          <div class="col-md-4">
-            <input
-              v-model="search"
-              type="text"
-              class="form-control form-control-sm"
-              placeholder="Rechercher par nom, téléphone..."
-              @input="debouncedLoad"
-            />
-          </div>
-          <div class="col-md-3">
-            <select v-model="filterStatus" class="form-select form-select-sm" @change="loadReservations">
-              <option value="">Tous les statuts</option>
-              <option value="pending">En attente</option>
-              <option value="confirmed">Confirmées</option>
-              <option value="checked_in">En cours</option>
-              <option value="checked_out">Terminées</option>
-              <option value="cancelled">Annulées</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <input
-              v-model="filterDate"
-              type="date"
-              class="form-control form-control-sm"
-              @change="loadReservations"
-              placeholder="Filtrer par date"
-            />
-          </div>
-          <div class="col-md-2">
-            <button class="btn btn-sm btn-outline-secondary w-100" @click="resetFilters">
-              <i class="bi bi-x-circle me-1"></i>Réinitialiser
-            </button>
+    <!-- Hotel Header Tabs -->
+    <HotelHeader modelValue="Reservations" />
+
+    <div class="mt-3">
+      <div class="d-flex justify-content-end align-items-center mb-4">
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" @click="openAddModal">
+            <i class="bi bi-plus-lg me-1"></i> Nouvelle Réservation
+          </button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="card mb-3">
+        <div class="card-body py-2">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-4">
+              <input
+                v-model="search"
+                type="text"
+                class="form-control form-control-sm"
+                placeholder="Rechercher par nom, téléphone..."
+                @input="debouncedLoad"
+              />
+            </div>
+            <div class="col-md-3">
+              <select v-model="filterStatus" class="form-select form-select-sm" @change="loadReservations">
+                <option value="">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="confirmed">Confirmées</option>
+                <option value="checked_in">En cours</option>
+                <option value="checked_out">Terminées</option>
+                <option value="cancelled">Annulées</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <input
+                v-model="filterDate"
+                type="date"
+                class="form-control form-control-sm"
+                @change="loadReservations"
+                placeholder="Filtrer par date"
+              />
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-sm btn-outline-secondary w-100" @click="resetFilters">
+                <i class="bi bi-x-circle me-1"></i>Réinitialiser
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary"></div>
-    </div>
-
-    <!-- Table -->
-    <div v-else class="card">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Client</th>
-              <th>Chambre</th>
-              <th>Check-in</th>
-              <th>Check-out</th>
-              <th>Nuits</th>
-              <th>Total</th>
-              <th>Avance</th>
-              <th>Reste</th>
-              <th>Statut</th>
-              <th class="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="reservation in reservations" :key="reservation.id">
-              <td>
-                <div class="fw-semibold">{{ reservation.guest_name }}</div>
-                <div class="small text-muted">{{ reservation.guest_phone }}</div>
-              </td>
-              <td>
-                <span class="badge bg-dark">{{ reservation.room?.room_number }}</span>
-                <div class="small text-muted">{{ getRoomTypeLabel(reservation.room?.type) }}</div>
-              </td>
-              <td>{{ formatDate(reservation.check_in_date) }}</td>
-              <td>{{ formatDate(reservation.check_out_date) }}</td>
-              <td class="text-center">{{ reservation.nights }}</td>
-              <td>{{ formatCurrency(reservation.total_amount) }}</td>
-              <td>{{ formatCurrency(reservation.advance_payment) }}</td>
-              <td :class="reservation.balance_due > 0 ? 'text-danger fw-semibold' : 'text-success'">
-                {{ formatCurrency(reservation.balance_due) }}
-              </td>
-              <td>
-                <span class="badge" :class="getStatusBadgeClass(reservation.status)">
-                  {{ getStatusLabel(reservation.status) }}
-                </span>
-              </td>
-              <td class="text-center">
-                <div class="d-flex gap-1 justify-content-center">
-                  <button
-                    v-if="reservation.status === 'confirmed'"
-                    class="btn btn-sm btn-success"
-                    title="Check-in"
-                    @click="doCheckIn(reservation)"
-                  >
-                    <i class="bi bi-box-arrow-in-right"></i>
-                  </button>
-                  <button
-                    v-if="reservation.status === 'checked_in'"
-                    class="btn btn-sm btn-warning"
-                    title="Check-out"
-                    @click="openCheckOutModal(reservation)"
-                  >
-                    <i class="bi bi-box-arrow-right"></i>
-                  </button>
-                  <button
-                    v-if="['pending', 'confirmed'].includes(reservation.status)"
-                    class="btn btn-sm btn-outline-primary"
-                    title="Modifier"
-                    @click="editReservation(reservation)"
-                  >
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button
-                    v-if="['pending', 'confirmed'].includes(reservation.status)"
-                    class="btn btn-sm btn-outline-danger"
-                    title="Annuler"
-                    @click="confirmCancel(reservation)"
-                  >
-                    <i class="bi bi-x-circle"></i>
-                  </button>
-                  <button
-                    v-if="['checked_in', 'checked_out'].includes(reservation.status) && !reservation.invoice_id"
-                    class="btn btn-sm btn-primary"
-                    title="Générer la facture"
-                    :disabled="generatingInvoiceId === reservation.id"
-                    @click="generateInvoice(reservation)"
-                  >
-                    <span v-if="generatingInvoiceId === reservation.id" class="spinner-border spinner-border-sm"></span>
-                    <i v-else class="bi bi-receipt"></i>
-                  </button>
-                  <router-link
-                    v-if="reservation.invoice_id"
-                    :to="{ name: 'hotel.invoice', params: { id: reservation.invoice_id } }"
-                    class="btn btn-sm btn-outline-success"
-                    title="Voir la facture"
-                  >
-                    <i class="bi bi-file-earmark-text"></i>
-                  </router-link>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="reservations.length === 0">
-              <td colspan="10" class="text-center py-5 text-muted">
-                <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
-                Aucune réservation trouvée
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Loading -->
+      <div v-if="loading" class="text-center py-5">
+        <div class="spinner-border text-primary"></div>
       </div>
 
-      <!-- Pagination -->
-      <div v-if="pagination.last_page > 1" class="card-footer d-flex justify-content-between align-items-center">
-        <small class="text-muted">
-          Page {{ pagination.current_page }} / {{ pagination.last_page }} — {{ pagination.total }} réservations
-        </small>
-        <div class="d-flex gap-1">
-          <button class="btn btn-sm btn-outline-secondary" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">
-            <i class="bi bi-chevron-left"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-secondary" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">
-            <i class="bi bi-chevron-right"></i>
-          </button>
+      <!-- Table -->
+      <div v-else class="card">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Client</th>
+                <th>Chambre</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+                <th>Nuits</th>
+                <th>Total</th>
+                <th>Avance</th>
+                <th>Reste</th>
+                <th>Statut</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="reservation in reservations" :key="reservation.id">
+                <td>
+                  <div class="fw-semibold">{{ reservation.guest_name }}</div>
+                  <div class="small text-muted">{{ reservation.guest_phone }}</div>
+                </td>
+                <td>
+                  <span class="badge bg-dark">{{ reservation.room?.room_number }}</span>
+                  <div class="small text-muted">{{ getRoomTypeLabel(reservation.room?.type) }}</div>
+                </td>
+                <td>{{ formatDate(reservation.check_in_date) }}</td>
+                <td>{{ formatDate(reservation.check_out_date) }}</td>
+                <td class="text-center">{{ reservation.nights }}</td>
+                <td>{{ formatCurrency(reservation.total_amount) }}</td>
+                <td>{{ formatCurrency(reservation.advance_payment) }}</td>
+                <td :class="reservation.balance_due > 0 ? 'text-danger fw-semibold' : 'text-success'">
+                  {{ formatCurrency(reservation.balance_due) }}
+                </td>
+                <td>
+                  <span class="badge" :class="getStatusBadgeClass(reservation.status)">
+                    {{ getStatusLabel(reservation.status) }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <div class="d-flex gap-1 justify-content-center">
+                    <button
+                      v-if="reservation.status === 'confirmed'"
+                      class="btn btn-sm btn-success"
+                      title="Check-in"
+                      @click="doCheckIn(reservation)"
+                    >
+                      <i class="bi bi-box-arrow-in-right"></i>
+                    </button>
+                    <button
+                      v-if="reservation.status === 'checked_in'"
+                      class="btn btn-sm btn-warning"
+                      title="Check-out"
+                      @click="openCheckOutModal(reservation)"
+                    >
+                      <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                    <button
+                      v-if="['pending', 'confirmed'].includes(reservation.status)"
+                      class="btn btn-sm btn-outline-primary"
+                      title="Modifier"
+                      @click="editReservation(reservation)"
+                    >
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button
+                      v-if="['pending', 'confirmed'].includes(reservation.status)"
+                      class="btn btn-sm btn-outline-danger"
+                      title="Annuler"
+                      @click="confirmCancel(reservation)"
+                    >
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                    <button
+                      v-if="['checked_in', 'checked_out'].includes(reservation.status) && !reservation.invoice_id"
+                      class="btn btn-sm btn-primary"
+                      title="Générer la facture"
+                      :disabled="generatingInvoiceId === reservation.id"
+                      @click="generateInvoice(reservation)"
+                    >
+                      <span v-if="generatingInvoiceId === reservation.id" class="spinner-border spinner-border-sm"></span>
+                      <i v-else class="bi bi-receipt"></i>
+                    </button>
+                    <router-link
+                      v-if="reservation.invoice_id"
+                      :to="{ name: 'hotel.invoice', params: { id: reservation.invoice_id } }"
+                      class="btn btn-sm btn-outline-success"
+                      title="Voir la facture"
+                    >
+                      <i class="bi bi-file-earmark-text"></i>
+                    </router-link>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="reservations.length === 0">
+                <td colspan="10" class="text-center py-5 text-muted">
+                  <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
+                  Aucune réservation trouvée
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="pagination.last_page > 1" class="card-footer d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            Page {{ pagination.current_page }} / {{ pagination.last_page }} — {{ pagination.total }} réservations
+          </small>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -307,6 +309,7 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
+import HotelHeader from './HotelHeader.vue';
 
 const route = useRoute();
 
