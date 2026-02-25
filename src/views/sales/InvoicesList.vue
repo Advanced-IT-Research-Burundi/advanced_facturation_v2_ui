@@ -160,7 +160,7 @@ const changePage = (page) => {
 </script>
 
 <template>
-  <div class="d-flex flex-column h-100 bg-white">
+  <div class="d-flex flex-column bg-white">
     <!-- Header -->
     <div class="p-3 bg-light border-bottom">
       <div class="d-flex justify-content-between align-items-center mb-3">

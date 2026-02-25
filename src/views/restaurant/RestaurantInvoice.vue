@@ -160,9 +160,14 @@
             </div>
 
             <!-- Print -->
-            <button class="btn btn-outline-secondary w-100" @click="printInvoice">
-              <i class="bi bi-printer me-1"></i> Imprimer
-            </button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary w-100" @click="printA4(invoice)">
+                <i class="bi bi-printer me-1"></i> A4
+              </button>
+              <button class="btn btn-outline-dark w-100" @click="printPOS(invoice)">
+                <i class="bi bi-receipt me-1"></i> POS
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -174,6 +179,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
+import { useInvoicePrint } from '@/composables/useInvoicePrint';
 
 const route = useRoute();
 const router = useRouter();
@@ -184,6 +190,7 @@ const processing = ref(false);
 const sendingObr = ref(false);
 const paymentMethod = ref('cash');
 const paymentAmount = ref(0);
+const { printA4, printPOS } = useInvoicePrint();
 
 onMounted(async () => {
   await loadInvoice();
@@ -237,9 +244,6 @@ async function sendToObr() {
   }
 }
 
-function printInvoice() {
-  window.print();
-}
 
 function getPaymentBadge(status) {
   const badges = {

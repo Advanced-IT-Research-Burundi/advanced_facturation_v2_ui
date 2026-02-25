@@ -32,7 +32,7 @@ const confirmDelete = (proforma) => {
 </script>
 
 <template>
-  <div class="d-flex flex-column h-100 bg-white p-4 overflow-auto">
+  <div class="d-flex flex-column bg-white p-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h4 class="mb-0">Gestion des Proformas Service</h4>
       <!-- <button

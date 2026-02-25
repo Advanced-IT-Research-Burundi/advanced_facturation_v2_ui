@@ -20,11 +20,11 @@ const invoiceTypes = [
 </script>
 
 <template>
-  <div class="bg-white border-bottom px-3 pt-2">
-    <ul class="nav nav-tabs border-bottom-0">
+  <div class="tabs-wrapper bg-white border-bottom">
+    <ul class="nav nav-tabs border-bottom-0 tabs-scroll">
       <li class="nav-item" v-for="type in invoiceTypes" :key="type.id">
         <a
-          class="nav-link text-dark cursor-pointer"
+          class="nav-link text-dark cursor-pointer tab-link"
           :class="{ active: modelValue === type.id }"
           @click="$emit('update:modelValue', type.id)"
         >
@@ -36,11 +36,29 @@ const invoiceTypes = [
 </template>
 
 <style scoped>
-.cursor-pointer {
+.tabs-wrapper {
+  margin: 0;
+}
+.tabs-scroll {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 0 0.5rem;
+}
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+.tab-link {
+  white-space: nowrap;
   cursor: pointer;
+  font-size: clamp(0.72rem, 2vw, 0.875rem);
+  padding: 0.5rem 0.55rem;
 }
 .nav-link.active {
   font-weight: 600;
   border-bottom: 2px solid var(--bs-primary) !important;
+  color: var(--bs-primary) !important;
 }
 </style>

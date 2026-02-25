@@ -136,3 +136,230 @@ aside .nav-link{
 .sidebar-link.active {
   background-color: var(--bs-primary);
 }
+
+/* ===== PAGE LAYOUT HELPERS ===== */
+
+/* Full-width page wrapper that lets sub-headers break out of container padding */
+.hotel-page,
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 1rem;
+}
+
+/* Page content area with standard padding */
+.page-body {
+  padding: 1rem 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .page-body {
+    padding: 1.5rem;
+  }
+}
+
+/* Standard page padding — replaces layout's removed p-4 padding */
+.container-fluid {
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+  padding-top: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+@media (max-width: 575.98px) {
+  .container-fluid {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE GLOBAL RULES
+   Covers all pages automatically via Bootstrap + overrides
+   ============================================================ */
+
+/* --- Tables: auto-scrollable on mobile without modifying every template --- */
+.table-responsive {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Make ALL Bootstrap tables scrollable on tablet/mobile by turning them into block elements */
+@media (max-width: 991.98px) {
+  table.table:not(.table-static) {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Card body min-width 0 to respect flex parent constraints */
+.card-body {
+  min-width: 0;
+}
+
+/* --- Cards: allow inner content to scroll (tables, etc.) --- */
+.card {
+  overflow: visible;
+}
+
+/* --- Modal: full-screen on small screens --- */
+@media (max-width: 575.98px) {
+  .modal-dialog {
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .modal-content {
+    border-radius: 0 !important;
+    min-height: 100dvh;
+  }
+  .modal-dialog.modal-lg,
+  .modal-dialog.modal-xl,
+  .modal-dialog.modal-xxl {
+    margin: 0 !important;
+  }
+}
+
+/* --- Nav tabs: horizontal scroll on small screens --- */
+.nav-tabs,
+.nav-pills.flex-row {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.nav-tabs::-webkit-scrollbar,
+.nav-pills.flex-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- Sub-header navigation tabs (hotel, sales, pharma, etc.) --- */
+.sub-header-nav {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+.sub-header-nav::-webkit-scrollbar {
+  display: none;
+}
+.sub-header-nav .nav-link {
+  white-space: nowrap;
+}
+
+/* --- Action bars (search + buttons rows) --- */
+@media (max-width: 575.98px) {
+  .action-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+  }
+  .action-bar .input-group,
+  .action-bar .form-select,
+  .action-bar .form-control,
+  .action-bar .btn {
+    width: 100% !important;
+  }
+
+  /* Filter rows with multiple selects */
+  .filter-row {
+    flex-wrap: wrap !important;
+  }
+  .filter-row > * {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  /* Reduce container padding */
+  .container-fluid {
+    padding-left: 0.6rem !important;
+    padding-right: 0.6rem !important;
+  }
+
+  /* Full-width buttons in cards/panels */
+  .btn-responsive {
+    width: 100% !important;
+  }
+
+  /* Stats cards: 2 per row on phone */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Heading sizes */
+  h4 { font-size: 1.1rem; }
+  h5 { font-size: 1rem; }
+
+  /* Card header button group: stack */
+  .card-header .d-flex {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+}
+
+/* --- Tablets (576-767px) --- */
+@media (max-width: 767.98px) {
+  /* Ensure tables scroll */
+  .table-wrapper,
+  .card-body > .table,
+  .card-body > div > .table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Page top action rows (flex justify-between with title + buttons) */
+  .page-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .page-header .btn-group,
+  .page-header .d-flex.gap-2 {
+    flex-wrap: wrap;
+  }
+
+  /* Reduce padding inside cards */
+  .card-body {
+    padding: 0.85rem !important;
+  }
+
+  /* Hide less-important table columns on small screens */
+  .col-hide-sm {
+    display: none !important;
+  }
+}
+
+/* --- Ensure images and embeds don't overflow --- */
+img, video, iframe, object, embed {
+  max-width: 100%;
+}
+
+/* --- Form groups spacing on mobile --- */
+@media (max-width: 575.98px) {
+  .row.g-3 { --bs-gutter-x: 0.75rem; }
+  .row.g-4 { --bs-gutter-x: 0.75rem; }
+}
+
+/* --- Overflow protection for all pages --- */
+.container-fluid,
+.container {
+  max-width: 100%;
+}
+
+/* --- Print: prevent sidebar from printing --- */
+@media print {
+  .sidebar,
+  .app-header,
+  .hamburger-btn {
+    display: none !important;
+  }
+  .page-content {
+    padding: 0 !important;
+  }
+}

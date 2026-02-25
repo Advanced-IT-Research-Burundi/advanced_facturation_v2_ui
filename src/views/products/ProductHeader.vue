@@ -11,22 +11,22 @@ const goToImportExport = () => {
 </script>
 
 <template>
-  <div class="row mb-4 mt-3">
-    <div class="col-md-6">
-      <h1 class="h3 fw-bold">Produits</h1>
-    </div>
-    <div class="col-md-6 text-end d-flex justify-content-end gap-2">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 mt-3">
+    <h1 class="h3 fw-bold mb-0">Produits</h1>
+    <div class="d-flex flex-wrap gap-2">
       <button
         class="btn btn-outline-success d-inline-flex align-items-center gap-2"
         @click="goToImportExport"
       >
-        <i class="bi bi-file-earmark-excel"></i> Import/Export
+        <i class="bi bi-file-earmark-excel"></i>
+        <span class="d-none d-sm-inline">Import/Export</span>
       </button>
       <button
         class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"
         @click="$emit('create')"
       >
-        <i class="bi bi-plus-circle"></i> Nouveau Produit
+        <i class="bi bi-plus-circle"></i>
+        <span>Nouveau Produit</span>
       </button>
     </div>
   </div>

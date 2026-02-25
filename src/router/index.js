@@ -283,19 +283,43 @@ const router = createRouter({
           path: "hotel",
           name: "hotel.rooms",
           component: () => import("../views/hotel/HotelRooms.vue"),
-          meta: { permission: "hotel" },
+          meta: { permission: "hotel_rooms" },
         },
         {
           path: "hotel/reservations",
           name: "hotel.reservations",
           component: () => import("../views/hotel/HotelReservations.vue"),
-          meta: { permission: "hotel" },
+          meta: { permission: "hotel_rooms" },
+        },
+        {
+          path: "hotel/conference-rooms",
+          name: "hotel.conference-rooms",
+          component: () => import("../views/hotel/HotelConferenceRooms.vue"),
+          meta: { permission: "hotel_rooms" },
+        },
+        {
+          path: "hotel/restaurant-bar",
+          name: "hotel.restaurant-bar",
+          component: () => import("../views/hotel/HotelRestaurantBar.vue"),
+          meta: { permissions: ["hotel_bar", "hotel_bar_order"] },
+        },
+        {
+          path: "hotel/kitchen",
+          name: "hotel.kitchen",
+          component: () => import("../views/hotel/HotelKitchen.vue"),
+          meta: { permissions: ["hotel_bar", "hotel_bar_order"] },
+        },
+        {
+          path: "hotel/invoices",
+          name: "hotel.invoices",
+          component: () => import("../views/hotel/HotelInvoicesList.vue"),
+          meta: { permission: "hotel_rooms" },
         },
         {
           path: "hotel/invoice/:id",
           name: "hotel.invoice",
           component: () => import("../views/hotel/HotelInvoice.vue"),
-          meta: { permission: "hotel" },
+          meta: { permission: "hotel_rooms" },
         },
         // Routes Restaurant
         {
@@ -401,10 +425,17 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
-  // Check permission if route has meta.permission
+  // Check permission if route has meta.permission (string) or meta.permissions (array, OR logic)
   const requiredPermission = to.meta?.permission;
-  if (requiredPermission && !hasPermission(user, requiredPermission)) {
-    // Redirect to dashboard (not unauthorized) - user can at least see dashboard
+  const requiredPermissions = to.meta?.permissions;
+
+  if (requiredPermissions) {
+    const allowed = requiredPermissions.some((p) => hasPermission(user, p));
+    if (!allowed) {
+      next({ name: "dashboard" });
+      return;
+    }
+  } else if (requiredPermission && !hasPermission(user, requiredPermission)) {
     next({ name: "dashboard" });
     return;
   }

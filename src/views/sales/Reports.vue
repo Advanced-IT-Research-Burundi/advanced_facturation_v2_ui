@@ -140,7 +140,7 @@ watch(filters, () => {
 </script>
 
 <template>
-    <div class="h-100 d-flex flex-column bg-white p-3 overflow-auto">
+    <div class="d-flex flex-column bg-white p-3">
         <!-- Filters Header -->
         <div class="card mb-3 no-print">
             <div class="card-body py-3">

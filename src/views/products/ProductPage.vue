@@ -111,7 +111,7 @@ const handleDelete = async (product) => {
 </script>
 
 <template>
-  <div class="container-fluid py-4 min-vh-100 bg-light">
+  <div class="container-fluid py-4 bg-light">
     <StockHeader />
 
     <!-- Message de succès -->

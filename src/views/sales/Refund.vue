@@ -200,7 +200,7 @@ const formatDate = (date) => {
 </script>
 
 <template>
-  <div class="d-flex flex-column h-100 bg-white overflow-auto">
+  <div class="d-flex flex-column bg-white">
     <!-- Header -->
     <div class="p-3 bg-light border-bottom">
       <h4 class="mb-0 d-flex align-items-center gap-2">

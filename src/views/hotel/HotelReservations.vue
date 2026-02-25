@@ -1,10 +1,10 @@
 <template>
-  <div class="container-fluid pb-4">
+  <div class="hotel-page">
 
     <!-- Hotel Header Tabs -->
     <HotelHeader modelValue="Reservations" />
 
-    <div class="mt-3">
+    <div class="px-3 pb-4 mt-3">
       <div class="d-flex justify-content-end align-items-center mb-4">
         <div class="d-flex gap-2">
           <button class="btn btn-primary" @click="openAddModal">
@@ -117,6 +117,14 @@
                       @click="openCheckOutModal(reservation)"
                     >
                       <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                    <button
+                      v-if="reservation.status === 'checked_in'"
+                      class="btn btn-sm btn-outline-primary"
+                      title="Room Service — commander boissons/plats"
+                      @click="openRoomServiceModal(reservation)"
+                    >
+                      <i class="bi bi-cup-hot"></i>
                     </button>
                     <button
                       v-if="['pending', 'confirmed'].includes(reservation.status)"
@@ -282,6 +290,92 @@
           <button class="btn btn-warning" @click="doCheckOut" :disabled="checkingOut">
             <span v-if="checkingOut" class="spinner-border spinner-border-sm me-1"></span>
             Confirmer le check-out
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Room Service -->
+    <div v-if="roomServiceModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="roomServiceModal = null">
+      <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 620px; max-height: 90vh; overflow-y: auto;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+          <h5 class="mb-0">
+            <i class="bi bi-cup-hot me-2 text-warning"></i>Room Service —
+            Chambre {{ roomServiceModal.room?.room_number }}
+            <span class="small text-muted">({{ roomServiceModal.guest_name }})</span>
+          </h5>
+          <button class="btn-close" @click="roomServiceModal = null"></button>
+        </div>
+        <div v-if="roomServiceError" class="alert alert-danger py-2">{{ roomServiceError }}</div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Ajouter un article</label>
+          <div class="row g-2 mb-2">
+            <div class="col-3">
+              <select v-model="rsNewItem.type" class="form-select form-select-sm">
+                <option value="menu">Bar</option>
+                <option value="dish">Cuisine</option>
+              </select>
+            </div>
+            <div class="col-5">
+              <select v-if="rsNewItem.type === 'menu'" v-model="rsNewItem.menu_item_id" class="form-select form-select-sm">
+                <option value="">— Article bar —</option>
+                <option v-for="m in rsMenuItems.filter(i => i.available)" :key="m.id" :value="m.id">
+                  {{ m.name }} ({{ formatCurrency(m.price) }})
+                </option>
+              </select>
+              <select v-else v-model="rsNewItem.dish_id" class="form-select form-select-sm">
+                <option value="">— Plat cuisine —</option>
+                <option v-for="d in rsDishes.filter(d => d.available)" :key="d.id" :value="d.id">
+                  {{ d.name }} ({{ formatCurrency(d.price) }})
+                </option>
+              </select>
+            </div>
+            <div class="col-2">
+              <input v-model.number="rsNewItem.qty" type="number" class="form-control form-control-sm" min="1" />
+            </div>
+            <div class="col-2">
+              <button type="button" class="btn btn-sm btn-primary w-100" @click="rsAddItem">
+                <i class="bi bi-plus"></i>
+              </button>
+            </div>
+          </div>
+          <div class="list-group">
+            <div v-for="(item, idx) in rsOrderItems" :key="idx" class="list-group-item py-2 d-flex justify-content-between align-items-center">
+              <span>
+                <span class="badge me-1" :class="item.type === 'dish' ? 'bg-danger' : 'bg-primary'">
+                  {{ item.type === 'dish' ? 'Cuisine' : 'Bar' }}
+                </span>
+                {{ item.name }} × {{ item.qty }}
+              </span>
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-semibold text-primary">{{ formatCurrency(item.price * item.qty) }}</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" @click="rsOrderItems.splice(idx, 1)">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+            </div>
+            <div v-if="rsOrderItems.length === 0" class="list-group-item text-muted text-center py-3">
+              Aucun article ajouté
+            </div>
+          </div>
+          <div v-if="rsOrderItems.length > 0" class="text-end mt-2 fw-bold">
+            Total : {{ formatCurrency(rsOrderItems.reduce((s, i) => s + i.price * i.qty, 0)) }}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Notes (optionnel)</label>
+          <input v-model="rsNotes" type="text" class="form-control" placeholder="Demandes spéciales..." />
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" @click="roomServiceModal = null">Annuler</button>
+          <button class="btn btn-warning" @click="submitRoomServiceOrder"
+            :disabled="rsOrderItems.length === 0 || rsSaving">
+            <span v-if="rsSaving" class="spinner-border spinner-border-sm me-1"></span>
+            <i v-else class="bi bi-send me-1"></i>
+            Envoyer la commande
           </button>
         </div>
       </div>
@@ -584,6 +678,87 @@ watch(() => route.query, (query) => {
   }
   loadReservations();
 }, { immediate: false });
+
+// ─── Room Service ────────────────────────────────────────────────────────────
+
+const roomServiceModal = ref(null);
+const rsMenuItems = ref([]);
+const rsDishes = ref([]);
+const rsOrderItems = ref([]);
+const rsNewItem = reactive({ type: 'menu', menu_item_id: '', dish_id: '', qty: 1 });
+const rsNotes = ref('');
+const rsSaving = ref(false);
+const roomServiceError = ref('');
+
+const openRoomServiceModal = async (reservation) => {
+  roomServiceModal.value = reservation;
+  rsOrderItems.value = [];
+  rsNotes.value = '';
+  roomServiceError.value = '';
+  rsNewItem.type = 'menu';
+  rsNewItem.menu_item_id = '';
+  rsNewItem.dish_id = '';
+  rsNewItem.qty = 1;
+
+  if (rsMenuItems.value.length === 0 || rsDishes.value.length === 0) {
+    const [menuRes, dishRes] = await Promise.all([
+      api.get('/hotel/menu-items'),
+      api.get('/hotel/dishes'),
+    ]);
+    rsMenuItems.value = menuRes.data.data;
+    rsDishes.value = dishRes.data.data;
+  }
+};
+
+const rsAddItem = () => {
+  if (rsNewItem.type === 'dish') {
+    const dish = rsDishes.value.find((d) => d.id === rsNewItem.dish_id);
+    if (!dish) { return; }
+    const existing = rsOrderItems.value.find((i) => i.type === 'dish' && i.dish_id === rsNewItem.dish_id);
+    if (existing) {
+      existing.qty += rsNewItem.qty;
+    } else {
+      rsOrderItems.value.push({ type: 'dish', dish_id: dish.id, name: dish.name, price: dish.price, qty: rsNewItem.qty });
+    }
+    rsNewItem.dish_id = '';
+  } else {
+    const menu = rsMenuItems.value.find((m) => m.id === rsNewItem.menu_item_id);
+    if (!menu) { return; }
+    const existing = rsOrderItems.value.find((i) => i.type !== 'dish' && i.menu_item_id === rsNewItem.menu_item_id);
+    if (existing) {
+      existing.qty += rsNewItem.qty;
+    } else {
+      rsOrderItems.value.push({ type: 'menu', menu_item_id: menu.id, name: menu.name, price: menu.price, qty: rsNewItem.qty });
+    }
+    rsNewItem.menu_item_id = '';
+  }
+  rsNewItem.qty = 1;
+};
+
+const submitRoomServiceOrder = async () => {
+  rsSaving.value = true;
+  roomServiceError.value = '';
+  try {
+    const reservation = roomServiceModal.value;
+    await api.post('/hotel/restaurant-orders', {
+      room_number: reservation.room?.room_number ?? String(reservation.id),
+      client_name: reservation.guest_name,
+      notes: rsNotes.value || null,
+      items: rsOrderItems.value.map((i) =>
+        i.type === 'dish'
+          ? { hotel_dish_id: i.dish_id, qty: i.qty }
+          : { hotel_menu_item_id: i.menu_item_id, qty: i.qty },
+      ),
+    });
+    roomServiceModal.value = null;
+  } catch (e) {
+    roomServiceError.value = e.response?.data?.message || 'Erreur lors de l\'envoi';
+  } finally {
+    rsSaving.value = false;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 onMounted(() => {
   if (route.query.status) {

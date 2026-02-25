@@ -126,7 +126,7 @@ defineExpose({ reset, clearClient });
 </script>
 
 <template>
-  <div class="d-flex flex-column h-100 bg-white p-4 overflow-auto">
+  <div class="d-flex flex-column bg-white p-4">
     <h4 class="mb-4">Facturation des Services</h4>
     <div class="table-responsive mb-4">
       <table class="table table-bordered align-middle">

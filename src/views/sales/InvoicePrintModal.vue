@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { X, Printer, Download } from "lucide-vue-next";
+import { ref, computed } from "vue";
+import { X, Printer } from "lucide-vue-next";
+import { useInvoicePrint } from "@/composables/useInvoicePrint";
 
 const props = defineProps({
   show: {
@@ -19,7 +20,18 @@ const props = defineProps({
 
 const emit = defineEmits(["close"]);
 
-const printRef = ref(null);
+const { printA4, printPOS } = useInvoicePrint();
+
+const invoiceTypeLabel = computed(() => {
+  const types = {
+    FN: "Facture Normale",
+    FA: "Facture Avoir",
+    FC: "Facture Caution",
+    FP: "Facture Proforma",
+    RC: "Remboursement Caution",
+  };
+  return types[props.invoice?.invoice_type] || "Facture";
+});
 
 const formatPrice = (price) => {
   const num = parseFloat(price) || 0;
@@ -36,172 +48,6 @@ const formatDate = (date) => {
     minute: "2-digit",
   });
 };
-
-const invoiceTypeLabel = computed(() => {
-  const types = {
-    FN: "Facture Normale",
-    FA: "Facture Avoir",
-    FC: "Facture Caution",
-    FP: "Facture Proforma",
-    RC: "Remboursement Caution",
-  };
-  return types[props.invoice?.invoice_type] || "Facture";
-});
-
-const printInvoice = () => {
-  const printContent = printRef.value;
-  const printWindow = window.open("", "_blank");
-
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Facture ${props.invoice?.invoice_number}</title>
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          font-size: 12px;
-          line-height: 1.4;
-          color: #333;
-          padding: 20px;
-        }
-        .invoice-container {
-          max-width: 800px;
-          margin: 0 auto;
-          border: 1px solid #ddd;
-          padding: 20px;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          border-bottom: 2px solid #007bff;
-          padding-bottom: 15px;
-          margin-bottom: 15px;
-        }
-        .company-info h1 {
-          font-size: 20px;
-          color: #007bff;
-          margin-bottom: 5px;
-        }
-        .company-info p {
-          font-size: 11px;
-          color: #666;
-        }
-        .invoice-info {
-          text-align: right;
-        }
-        .invoice-info h2 {
-          font-size: 16px;
-          color: #333;
-        }
-        .invoice-info .invoice-number {
-          font-size: 14px;
-          font-weight: bold;
-          color: #007bff;
-        }
-        .parties {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 20px;
-        }
-        .party {
-          width: 48%;
-        }
-        .party h3 {
-          font-size: 12px;
-          background: #f5f5f5;
-          padding: 5px 10px;
-          margin-bottom: 8px;
-          border-left: 3px solid #007bff;
-        }
-        .party p {
-          padding-left: 10px;
-          font-size: 11px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 15px;
-        }
-        th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
-          text-align: left;
-          font-size: 11px;
-        }
-        th {
-          background: #007bff;
-          color: white;
-          font-weight: 600;
-        }
-        tr:nth-child(even) {
-          background: #f9f9f9;
-        }
-        .text-right {
-          text-align: right;
-        }
-        .text-center {
-          text-align: center;
-        }
-        .totals {
-          width: 300px;
-          margin-left: auto;
-        }
-        .totals table {
-          margin-bottom: 0;
-        }
-        .totals th {
-          background: #f5f5f5;
-          color: #333;
-        }
-        .total-row {
-          font-size: 14px;
-          font-weight: bold;
-        }
-        .total-row td {
-          background: #007bff !important;
-          color: white;
-        }
-        .footer {
-          margin-top: 30px;
-          padding-top: 15px;
-          border-top: 1px solid #ddd;
-          font-size: 10px;
-          color: #666;
-          text-align: center;
-        }
-        .obr-info {
-          margin-top: 15px;
-          padding: 10px;
-          background: #f5f5f5;
-          border-radius: 4px;
-          font-size: 10px;
-        }
-        @media print {
-          body { padding: 0; }
-          .invoice-container { border: none; }
-        }
-      </style>
-    </head>
-    <body>
-      ${printContent.innerHTML}
-    </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-  printWindow.focus();
-
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 250);
-};
 </script>
 
 <template>
@@ -211,9 +57,13 @@ const printInvoice = () => {
       <div class="modal-header d-flex justify-content-between align-items-center p-3 border-bottom">
         <h5 class="mb-0">Apercu de la Facture</h5>
         <div class="d-flex gap-2">
-          <button @click="printInvoice" class="btn btn-primary btn-sm">
-            <Printer :size="16" class="me-1" />
-            Imprimer
+          <button @click="printA4(props.invoice, props.company)" class="btn btn-primary btn-sm">
+            <Printer :size="14" class="me-1" />
+            A4
+          </button>
+          <button @click="printPOS(props.invoice, props.company)" class="btn btn-outline-primary btn-sm">
+            <Printer :size="14" class="me-1" />
+            POS
           </button>
           <button @click="$emit('close')" class="btn btn-outline-secondary btn-sm">
             <X :size="16" />

@@ -1,10 +1,10 @@
 <template>
-  <div class="container-fluid pb-4">
+  <div class="hotel-page">
     <!-- Hotel Header Tabs -->
     <HotelHeader modelValue="Rooms" />
 
     <!-- Tab Content -->
-    <div class="mt-3">
+    <div class="px-3 pb-4 mt-3">
       <!-- Rooms Content -->
       <div class="d-flex justify-content-end align-items-center mb-4">
         <div class="d-flex gap-2">

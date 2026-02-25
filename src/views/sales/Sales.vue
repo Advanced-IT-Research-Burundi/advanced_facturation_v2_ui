@@ -280,14 +280,20 @@ const closeProformaDetails = () => {
 </script>
 
 <template>
-  <div class="d-flex flex-column overflow-hidden h-100" style="margin: -1.5rem">
+  <!-- overflow-hidden only for POS (fixed split layout); other tabs scroll via page-content -->
+  <div class="d-flex flex-column h-100" :class="{ 'overflow-hidden': activeTab === 'POS' }">
     <SalesHeader v-model="activeTab" />
 
-    <div class="row flex-grow-1 g-0 overflow-hidden">
+    <div
+      class="row g-0"
+      :class="activeTab === 'POS' ? 'flex-grow-1 overflow-hidden' : ''"
+    >
       <!-- Main Content Area -->
       <div
-        class="d-flex flex-column bg-light border-end overflow-hidden"
-        :class="activeTab === 'POS' ? 'col-12 col-lg-8' : 'col-12'"
+        class="d-flex flex-column bg-light border-end"
+        :class="[
+          activeTab === 'POS' ? 'col-12 col-lg-8 overflow-hidden' : 'col-12',
+        ]"
       >
         <POS v-if="activeTab === 'POS'" @add-to-cart="addToCart" @stock-changed="handleStockChanged" />
         <InvoiceService

@@ -1,5 +1,5 @@
 <template>
-  <div class="container-fluid bg-light min-vh-100 p-4">
+  <div class="container-fluid bg-light">
     <StockHeader />
       <div class="d-flex align-items-center gap-2">
         <h4 class="m-0 fw-normal me-4">Liste des produits</h4>

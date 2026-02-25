@@ -15,13 +15,26 @@ import {
   UserCog,
   LogOut,
   Bell,
+  Menu,
+  X,
 } from "lucide-vue-next";
-import { RouterLink, RouterView, useRouter } from "vue-router";
+import { RouterLink, RouterView, useRouter, useRoute } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 
 const store = useStore();
 const router = useRouter();
+const route = useRoute();
+
+const sidebarOpen = ref(false);
+
+const toggleSidebar = () => {
+  sidebarOpen.value = !sidebarOpen.value;
+};
+
+const closeSidebar = () => {
+  sidebarOpen.value = false;
+};
 
 // Logout handler
 const handleLogout = async () => {
@@ -45,14 +58,14 @@ const userInitials = computed(() => {
 });
 
 // Company name
-const fetchedCompanyName = ref("");
+const fetchedCompany = ref(null);
 
 const companyName = computed(() => {
   const user = store.state.auth.user;
 
   if (user?.company?.name) return user.company.name;
   if (user?.company_name) return user.company_name;
-  if (fetchedCompanyName.value) return fetchedCompanyName.value;
+  if (fetchedCompany.value?.name) return fetchedCompany.value.name;
 
   return "Nom de l'entreprise";
 });
@@ -66,7 +79,7 @@ const loadCompanyInfo = async () => {
         user.company_id,
       );
       if (result.success && result.data) {
-        fetchedCompanyName.value = result.data.name;
+        fetchedCompany.value = result.data;
       }
     } catch (error) {
       console.error("Failed to fetch company info", error);
@@ -83,6 +96,14 @@ watch(
   () => store.state.auth.user,
   () => {
     loadCompanyInfo();
+  },
+);
+
+// Close sidebar on route change (mobile)
+watch(
+  () => route.path,
+  () => {
+    closeSidebar();
   },
 );
 
@@ -107,18 +128,10 @@ const isAdmin = computed(() => {
 });
 
 // Navigation items
+// `domains` restricts visibility to specific company domains; absent = visible in all domains
 const navItems = [
-  {
-    to: "/dashboard",
-    icon: Home,
-    label: "Accueil",
-  },
-  {
-    to: "/sales",
-    icon: ShoppingCart,
-    label: "Vente",
-    permission: "sales",
-  },
+  { to: "/dashboard", icon: Home, label: "Accueil" },
+  { to: "/sales", icon: ShoppingCart, label: "Vente", permission: "sales" },
   { to: "/clients", icon: Users, label: "Clients", permission: "clients" },
   { to: "/stock", icon: Package, label: "Stock", permission: "stock" },
   {
@@ -126,76 +139,105 @@ const navItems = [
     icon: Pill,
     label: "Pharmacie",
     permission: "pharmaceutical",
+    domains: ["pharmaceutical"],
   },
   {
     to: "/bakery/production",
     icon: ChefHat,
     label: "Boulangerie",
     permission: "bakery",
+    domains: ["bakery"],
   },
   {
     to: "/restaurant",
     icon: UtensilsCrossed,
     label: "Restaurant",
     permission: "restaurant",
+    domains: ["restaurant"],
   },
   {
     to: "/hotel",
     icon: BedDouble,
     label: "Hôtel",
-    permission: "hotel",
+    // Visible si l'utilisateur a hotel_rooms OU hotel_bar
+    permissions: ["hotel_rooms", "hotel_bar"],
+    domains: ["hotel"],
   },
   { to: "/journal", icon: FileText, label: "Journal", permission: "journal" },
-  {
-    to: "/reports",
-    icon: BarChart2,
-    label: "Rapports",
-    permission: "reports",
-  },
-  {
-    to: "/expenses",
-    icon: Wallet,
-    label: "Dépenses",
-    permission: "expenses",
-  },
-  {
-    to: "/company",
-    icon: Building,
-    label: "Entreprise",
-    permission: "company",
-  },
+  { to: "/reports", icon: BarChart2, label: "Rapports", permission: "reports" },
+  { to: "/expenses", icon: Wallet, label: "Dépenses", permission: "expenses" },
+  { to: "/company", icon: Building, label: "Entreprise", permission: "company" },
   { to: "/users", icon: UserCog, label: "Utilisateurs", permission: "users" },
 ];
 
-const filteredNavItems = computed(() => {
-  return navItems.filter((item) => {
-    if (!item.permission) return true;
+const companyDomain = computed(() => {
+  return currentUser.value?.company?.domain || fetchedCompany.value?.domain || "general";
+});
 
-    const roles = currentUser.value?.roles || [];
-
-    // Admin bypass uses the variable we created earlier
-    if (isAdmin.value) return true;
-
-    // Check role names (case insensitive)
-    const roleNames = roles.map((r) => r.name?.toLowerCase());
-    if (roleNames.includes(item.permission.toLowerCase())) return true;
-
-    // Check permissions in roles
-    for (const role of roles) {
-      if (role.permissions && Array.isArray(role.permissions)) {
-        if (role.permissions.includes(item.permission)) return true;
-        if (role.permissions.includes(item.permission.toLowerCase())) return true;
-      }
+/** Vérifie si l'utilisateur possède une permission donnée dans l'un de ses rôles. */
+const userHasPermission = (permission) => {
+  if (isAdmin.value) return true;
+  const roles = currentUser.value?.roles || [];
+  for (const role of roles) {
+    if (role.permissions && Array.isArray(role.permissions)) {
+      if (role.permissions.includes(permission)) return true;
     }
+  }
+  return false;
+};
 
-    return false;
-  });
+/**
+ * Pour le nav item Hôtel, on pointe vers le premier onglet accessible :
+ *   - hotel_rooms → /hotel (chambres)
+ *   - hotel_bar uniquement → /hotel/restaurant-bar
+ */
+const hotelDefaultRoute = computed(() =>
+  userHasPermission("hotel_rooms") ? "/hotel" : "/hotel/restaurant-bar",
+);
+
+const filteredNavItems = computed(() => {
+  return navItems
+    .map((item) => {
+      // Route dynamique pour l'entrée Hôtel
+      if (item.permissions?.includes("hotel_rooms")) {
+        return { ...item, to: hotelDefaultRoute.value };
+      }
+      return item;
+    })
+    .filter((item) => {
+      // Filtrer par domaine d'entreprise
+      if (item.domains && !item.domains.includes(companyDomain.value)) {
+        return false;
+      }
+
+      // Aucune permission requise → toujours visible
+      if (!item.permission && !item.permissions) return true;
+
+      // Admin voit tout
+      if (isAdmin.value) return true;
+
+      // Logique OR : visible si l'utilisateur a AU MOINS UNE des permissions
+      if (item.permissions) {
+        return item.permissions.some((perm) => userHasPermission(perm));
+      }
+
+      // Logique simple : une seule permission requise
+      return userHasPermission(item.permission);
+    });
 });
 </script>
 
 <template>
-  <div class="d-flex vh-100 vw-100 overflow-hidden bg-light">
-    <aside class="sidebar bg-dark text-white">
+  <div class="app-layout">
+    <!-- Mobile overlay -->
+    <div
+      v-if="sidebarOpen"
+      class="sidebar-overlay d-md-none"
+      @click="closeSidebar"
+    ></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar bg-dark text-white" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="logo-section">
         <div class="logo-circle bg-primary">
           <span class="fw-bold fs-3">A</span>
@@ -203,7 +245,7 @@ const filteredNavItems = computed(() => {
         <small class="logo-text">ADVANCED</small>
       </div>
 
-      <ul 
+      <ul
         class="nav nav-pills flex-column mb-auto py-2 px-1"
         :class="{ 'compact-nav': !isAdmin, 'gap-0': isAdmin }"
       >
@@ -214,22 +256,30 @@ const filteredNavItems = computed(() => {
           </RouterLink>
         </li>
       </ul>
-
     </aside>
 
-    <main class="d-flex flex-column flex-grow-1 overflow-hidden">
-      <header
-        class="d-flex align-items-center justify-content-between p-3 border-bottom bg-white"
-      >
-        <h4 class="mb-0 fw-bold text-primary">{{ companyName }}</h4>
-        <div class="d-flex align-items-center gap-3">
+    <!-- Main area -->
+    <main class="main-content d-flex flex-column overflow-hidden">
+      <!-- Top header -->
+      <header class="app-header d-flex align-items-center justify-content-between border-bottom bg-white">
+        <!-- Hamburger (mobile only) -->
+        <button
+          class="btn btn-light btn-sm d-md-none me-2 hamburger-btn"
+          @click="toggleSidebar"
+          aria-label="Menu"
+        >
+          <X v-if="sidebarOpen" :size="20" />
+          <Menu v-else :size="20" />
+        </button>
+
+        <h4 class="mb-0 fw-bold text-primary company-title text-truncate">{{ companyName }}</h4>
+
+        <div class="d-flex align-items-center gap-2 ms-auto">
           <button class="btn btn-light position-relative rounded-circle p-2">
             <Bell :size="18" />
-            <span
-              class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
-            ></span>
+            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
           </button>
-          
+
           <div class="dropdown">
             <a
               href="#"
@@ -268,7 +318,8 @@ const filteredNavItems = computed(() => {
         </div>
       </header>
 
-      <div class="flex-grow-1 overflow-auto p-4 bg-body">
+      <!-- Page content -->
+      <div class="page-content bg-body">
         <RouterView />
       </div>
     </main>
@@ -276,14 +327,26 @@ const filteredNavItems = computed(() => {
 </template>
 
 <style scoped>
+/* ===== LAYOUT SHELL ===== */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bs-body-bg);
+}
+
+/* ===== SIDEBAR ===== */
 .sidebar {
   width: 110px;
   min-width: 110px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--bs-secondary);
   overflow: hidden;
-  flex-shrink: 0;
+  z-index: 1040;
+  transition: transform 0.25s ease;
 }
 
 .logo-section {
@@ -317,15 +380,14 @@ const filteredNavItems = computed(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-evenly;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
-
-
+.nav-pills::-webkit-scrollbar { display: none; }
 .nav-pills.compact-nav {
-  
   justify-content: flex-start !important;
- 
-  gap: 0.5rem; 
+  gap: 0.5rem;
 }
 
 .nav-link {
@@ -360,43 +422,90 @@ const filteredNavItems = computed(() => {
   box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
 }
 
+/* ===== MAIN AREA ===== */
+.main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-header {
+  padding: 0.65rem 1rem;
+  flex-shrink: 0;
+}
+
+.company-title {
+  font-size: clamp(0.9rem, 2.5vw, 1.25rem);
+  max-width: 200px;
+}
+
+.page-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: clip; /* clip without creating a scroll context — allows children to scroll internally */
+  padding: 0;
+}
+
+/* ===== HEADER AVATAR ===== */
 .header-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
-.dropdown-toggle::after {
-  margin-left: 0.5rem;
+.hamburger-btn {
+  flex-shrink: 0;
+  padding: 0.35rem 0.5rem;
 }
 
-.overflow-auto::-webkit-scrollbar {
-  width: 8px;
-}
-.overflow-auto::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+/* ===== SCROLLBARS ===== */
+.page-content::-webkit-scrollbar { width: 6px; }
+.page-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 4px;
 }
 
-@media (max-width: 768px) {
+/* ===== MOBILE (< 768px) ===== */
+@media (max-width: 767.98px) {
   .sidebar {
-    width: 80px;
-    min-width: 80px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    width: 110px;
+    min-width: 110px;
+  }
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1039;
+  }
+  .page-content {
+    padding: 0.75rem;
+  }
+  .company-title {
+    max-width: 130px;
+    font-size: 0.9rem;
   }
 }
 
+/* ===== SMALL HEIGHT (landscape mobile) ===== */
 @media (max-height: 600px) {
-  .nav-link span {
-    display: none;
-  }
-  .sidebar {
-    width: 70px;
-    min-width: 70px;
-  }
+  .nav-link span { display: none; }
+  .sidebar { width: 70px; min-width: 70px; }
 }
 </style>

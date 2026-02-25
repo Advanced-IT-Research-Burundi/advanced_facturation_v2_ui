@@ -1,5 +1,5 @@
 <template>
-  <div class="container-fluid bg-light min-vh-100 p-4">
+  <div class="container-fluid bg-light">
     <div class="mb-4">
       <h2 class="fw-normal">
         Le Nombre total des clients : <span class="fw-bold text-danger">{{ totalClients }}</span>

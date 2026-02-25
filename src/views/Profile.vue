@@ -1,64 +1,62 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
-import { User, Mail, Building, Shield, Calendar, Hash } from "lucide-vue-next";
+import {
+  User, Mail, Building, Shield, Calendar, Hash,
+  ShoppingBag, BedDouble, Pill, UtensilsCrossed, ChefHat,
+} from "lucide-vue-next";
 
 const store = useStore();
-const fetchedCompanyName = ref("");
-
-// --- Computed Properties ---
+const fetchedCompany = ref(null);
 
 const user = computed(() => store.state.auth.user || {});
 
 const userInitials = computed(() => {
   return user.value?.name
-    ? user.value.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
+    ? user.value.name.split(" ").map((n) => n[0]).join("").toUpperCase()
     : "U";
 });
 
 const companyName = computed(() => {
   if (user.value?.company?.name) return user.value.company.name;
   if (user.value?.company_name) return user.value.company_name;
-  if (fetchedCompanyName.value) return fetchedCompanyName.value;
+  if (fetchedCompany.value?.name) return fetchedCompany.value.name;
   return "Non défini";
 });
 
-const allRoles = computed(() => {
-  return user.value?.roles || [];
+const companyDomain = computed(() => {
+  return user.value?.company?.domain
+    ?? fetchedCompany.value?.domain
+    ?? "general";
 });
+
+const domainConfig = computed(() => {
+  const configs = {
+    general:        { label: "Commerce Général",      icon: ShoppingBag,     color: "primary",  bg: "rgba(196,37,29,0.08)"  },
+    hotel:          { label: "Hôtel / Hébergement",   icon: BedDouble,       color: "info",     bg: "rgba(14,165,233,0.08)" },
+    pharmaceutical: { label: "Pharmacie / Médical",   icon: Pill,            color: "success",  bg: "rgba(34,197,94,0.08)"  },
+    restaurant:     { label: "Restaurant / Café",     icon: UtensilsCrossed, color: "warning",  bg: "rgba(234,179,8,0.08)"  },
+    bakery:         { label: "Boulangerie / Pâtisserie", icon: ChefHat,      color: "danger",   bg: "rgba(239,68,68,0.08)"  },
+  };
+  return configs[companyDomain.value] ?? configs.general;
+});
+
+const allRoles = computed(() => user.value?.roles || []);
 
 const allPermissions = computed(() => {
   const perms = new Set();
-  if (user.value?.roles) {
-    user.value.roles.forEach((role) => {
-      if (role.permissions) {
-        role.permissions.forEach((p) => perms.add(p));
-      }
-    });
-  }
+  user.value?.roles?.forEach((role) => {
+    role.permissions?.forEach((p) => perms.add(p));
+  });
   return Array.from(perms);
 });
 
-// --- Methods ---
-
 const loadCompanyInfo = async () => {
-  if (
-    user.value &&
-    user.value.company_id &&
-    !user.value.company &&
-    !user.value.company_name
-  ) {
+  if (user.value?.company_id) {
     try {
-      const result = await store.dispatch(
-        "companies/fetchCompany",
-        user.value.company_id,
-      );
+      const result = await store.dispatch("companies/fetchCompany", user.value.company_id);
       if (result.success && result.data) {
-        fetchedCompanyName.value = result.data.name;
+        fetchedCompany.value = result.data;
       }
     } catch (error) {
       console.error("Failed to fetch company info", error);
@@ -66,16 +64,9 @@ const loadCompanyInfo = async () => {
   }
 };
 
-onMounted(() => {
-  loadCompanyInfo();
-});
+onMounted(() => loadCompanyInfo());
 
-watch(
-  () => store.state.auth.user,
-  () => {
-    loadCompanyInfo();
-  },
-);
+watch(() => store.state.auth.user, () => loadCompanyInfo());
 </script>
 
 <template>
@@ -158,25 +149,45 @@ watch(
               <Building class="me-2" :size="20" /> Entreprise
             </h5>
           </div>
-          <div class="card-body">
+          <div class="card-body d-flex flex-column gap-3">
+
+            <!-- Company name row -->
             <div class="d-flex align-items-center p-3 rounded bg-light">
-              <div
-                class="rounded-circle bg-white p-2 text-primary shadow-sm me-3"
-              >
+              <div class="rounded-circle bg-white p-2 text-primary shadow-sm me-3">
                 <Building :size="24" />
               </div>
-              <div>
-                <div class="small text-muted text-uppercase fw-bold">
-                  Nom de l'entreprise
-                </div>
-                <div class="fs-5 fw-bold">{{ companyName }}</div>
+              <div class="flex-grow-1 min-width-0">
+                <div class="small text-muted text-uppercase fw-bold">Nom de l'entreprise</div>
+                <div class="fs-5 fw-bold text-truncate">{{ companyName }}</div>
               </div>
-              <div class="ms-auto" v-if="user.company_id">
-                <span class="badge bg-secondary"
-                  >ID: {{ user.company_id }}</span
-                >
+              <div v-if="user.company_id" class="ms-2 flex-shrink-0">
+                <span class="badge bg-secondary">ID: {{ user.company_id }}</span>
               </div>
             </div>
+
+            <!-- Domain row -->
+            <div
+              class="d-flex align-items-center p-3 rounded domain-card"
+              :style="{ backgroundColor: domainConfig.color ? domainConfig.bg : 'rgba(0,0,0,0.05)' }"
+            >
+              <div
+                class="rounded-circle bg-white p-2 shadow-sm me-3 flex-shrink-0"
+                :class="`text-${domainConfig.color}`"
+              >
+                <component :is="domainConfig.icon" :size="24" />
+              </div>
+              <div class="flex-grow-1">
+                <div class="small text-muted text-uppercase fw-bold">Domaine d'activité</div>
+                <div class="fs-6 fw-semibold">{{ domainConfig.label }}</div>
+              </div>
+              <span
+                class="badge ms-2 flex-shrink-0"
+                :class="`bg-${domainConfig.color} text-white`"
+              >
+                {{ companyDomain }}
+              </span>
+            </div>
+
           </div>
         </div>
 
@@ -234,9 +245,19 @@ watch(
   align-items: center;
   justify-content: center;
   font-size: 2rem;
+  flex-shrink: 0;
 }
 
 .card {
   transition: transform 0.2s ease-in-out;
+}
+
+.domain-card {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s;
+}
+
+.min-width-0 {
+  min-width: 0;
 }
 </style>

@@ -6,9 +6,18 @@ import { useStore } from "vuex";
 const router = useRouter();
 const store = useStore();
 
+const domainOptions = [
+  { value: "general", label: "Commerce Général", icon: "pi-shopping-bag" },
+  { value: "hotel", label: "Hôtel / Hébergement", icon: "pi-building" },
+  { value: "pharmaceutical", label: "Pharmacie / Médical", icon: "pi-heart" },
+  { value: "restaurant", label: "Restaurant / Café", icon: "pi-table" },
+  { value: "bakery", label: "Boulangerie / Pâtisserie", icon: "pi-star" },
+];
+
 const form = reactive({
   company_name: "",
   tp_TIN: "",
+  domain: "general",
   name: "",
   email: "",
   password: "",
@@ -111,6 +120,30 @@ const handleRegister = async () => {
               class="text-danger x-small mt-1"
             >
               {{ validationErrors.tp_TIN[0] }}
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Domaine d'activité</label>
+            <div class="row g-2">
+              <div
+                v-for="option in domainOptions"
+                :key="option.value"
+                class="col-6 col-md-4"
+              >
+                <button
+                  type="button"
+                  class="domain-option w-100 d-flex flex-column align-items-center justify-content-center gap-1 p-2 rounded-3 border"
+                  :class="{ active: form.domain === option.value }"
+                  @click="form.domain = option.value"
+                >
+                  <i :class="['pi', option.icon, 'fs-5']"></i>
+                  <span class="small fw-semibold lh-1 text-center" style="font-size: 0.7rem">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+            <div v-if="validationErrors.domain" class="text-danger x-small mt-1">
+              {{ validationErrors.domain[0] }}
             </div>
           </div>
 
@@ -250,5 +283,23 @@ const handleRegister = async () => {
 }
 .form-control {
   border-left: none;
+}
+.domain-option {
+  background-color: #fff;
+  border-color: #dee2e6 !important;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 64px;
+}
+.domain-option:hover:not(.active) {
+  border-color: #0d6efd !important;
+  color: #0d6efd;
+  background-color: rgba(13, 110, 253, 0.05);
+}
+.domain-option.active {
+  border-color: #0d6efd !important;
+  background-color: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
 }
 </style>

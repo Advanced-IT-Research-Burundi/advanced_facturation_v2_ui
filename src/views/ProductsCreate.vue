@@ -1,5 +1,5 @@
 <template>
-  <div class="container-fluid bg-light min-vh-100 p-4">
+  <div class="container-fluid bg-light">
     <div class="d-flex flex-wrap gap-3 mb-3 border-bottom pb-2 small fw-bold">
       <span class="cursor-pointer text-white bg-red-dark px-2 py-1 rounded">
         <i class="bi bi-box-arrow-in-right"></i> Entré
