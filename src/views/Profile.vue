@@ -43,12 +43,21 @@ const domainConfig = computed(() => {
 
 const allRoles = computed(() => user.value?.roles || []);
 
+const DOMAIN_PERMISSIONS = {
+  general:        ['dashboard', 'sales', 'clients', 'stock', 'journal', 'reports', 'expenses', 'company', 'users'],
+  hotel:          ['dashboard', 'sales', 'clients', 'stock', 'hotel_rooms', 'hotel_bar', 'hotel_bar_order', 'journal', 'reports', 'expenses', 'company', 'users'],
+  pharmaceutical: ['dashboard', 'pharmaceutical', 'clients', 'stock', 'journal', 'reports', 'expenses', 'company', 'users'],
+  restaurant:     ['dashboard', 'restaurant', 'clients', 'stock', 'journal', 'reports', 'expenses', 'company', 'users'],
+  bakery:         ['dashboard', 'bakery', 'clients', 'stock', 'journal', 'reports', 'expenses', 'company', 'users'],
+};
+
 const allPermissions = computed(() => {
   const perms = new Set();
   user.value?.roles?.forEach((role) => {
     role.permissions?.forEach((p) => perms.add(p));
   });
-  return Array.from(perms);
+  const allowed = DOMAIN_PERMISSIONS[companyDomain.value] ?? DOMAIN_PERMISSIONS.general;
+  return Array.from(perms).filter((p) => allowed.includes(p));
 });
 
 const loadCompanyInfo = async () => {

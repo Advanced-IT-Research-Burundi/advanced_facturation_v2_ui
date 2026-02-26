@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /
+
+# Si le fichier ou dossier existe → accès direct
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Sinon renvoyer vers index.html
+RewriteRule ^ index.html [L]
