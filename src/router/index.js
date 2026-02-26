@@ -298,6 +298,12 @@ const router = createRouter({
           meta: { permission: "hotel_rooms" },
         },
         {
+          path: "hotel/reception-halls",
+          name: "hotel.reception-halls",
+          component: () => import("../views/hotel/HotelReceptionHalls.vue"),
+          meta: { permission: "hotel_rooms" },
+        },
+        {
           path: "hotel/restaurant-bar",
           name: "hotel.restaurant-bar",
           component: () => import("../views/hotel/HotelRestaurantBar.vue"),

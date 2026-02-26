@@ -1,12 +1,12 @@
 <template>
   <div class="hotel-page">
-    <!-- Hotel Header Tabs -->
     <HotelHeader modelValue="Rooms" />
 
-    <!-- Tab Content -->
     <div class="px-3 pb-4 mt-3">
-      <!-- Rooms Content -->
-      <div class="d-flex justify-content-end align-items-center mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="mb-0 fw-bold">
+          <i class="bi bi-door-closed me-2 text-primary"></i>Chambres
+        </h5>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-secondary" @click="loadAll">
             <i class="bi bi-arrow-clockwise"></i>
@@ -73,28 +73,6 @@
         </div>
       </div>
 
-      <!-- Today's actions -->
-      <div v-if="stats.reservations?.today_check_ins > 0 || stats.reservations?.today_check_outs > 0" class="row mb-4 g-3">
-        <div class="col-md-6" v-if="stats.reservations?.today_check_ins > 0">
-          <div class="alert alert-info mb-0 d-flex align-items-center">
-            <i class="bi bi-box-arrow-in-right me-2 fs-5"></i>
-            <span><strong>{{ stats.reservations.today_check_ins }}</strong> check-in(s) prévu(s) aujourd'hui</span>
-            <router-link :to="{ name: 'hotel.reservations', query: { status: 'confirmed', date: today } }" class="btn btn-sm btn-info ms-auto">
-              Voir
-            </router-link>
-          </div>
-        </div>
-        <div class="col-md-6" v-if="stats.reservations?.today_check_outs > 0">
-          <div class="alert alert-warning mb-0 d-flex align-items-center">
-            <i class="bi bi-box-arrow-right me-2 fs-5"></i>
-            <span><strong>{{ stats.reservations.today_check_outs }}</strong> check-out(s) prévu(s) aujourd'hui</span>
-            <router-link :to="{ name: 'hotel.reservations', query: { status: 'checked_in' } }" class="btn btn-sm btn-warning ms-auto">
-              Voir
-            </router-link>
-          </div>
-        </div>
-      </div>
-
       <!-- Filters -->
       <div class="d-flex gap-2 mb-3 flex-wrap">
         <button
@@ -149,61 +127,221 @@
         </div>
       </div>
 
+      <!-- ═══ RÉSERVATIONS ═══════════════════════════════════════════════ -->
+      <div class="card mt-4">
+        <div class="card-header bg-white py-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-calendar-check me-2 text-primary"></i>Réservations</h6>
+            <button class="btn btn-sm btn-primary" @click="openAddReservationModal">
+              <i class="bi bi-plus me-1"></i>Nouvelle réservation
+            </button>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <input v-model="resSearch" type="text" class="form-control form-control-sm" placeholder="Rechercher par nom, téléphone..." @input="debouncedLoad" />
+            </div>
+            <div class="col-md-3">
+              <select v-model="resFilterStatus" class="form-select form-select-sm" @change="loadReservations">
+                <option value="">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="confirmed">Confirmées</option>
+                <option value="checked_in">En cours</option>
+                <option value="checked_out">Terminées</option>
+                <option value="cancelled">Annulées</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <input v-model="resFilterDate" type="date" class="form-control form-control-sm" @change="loadReservations" />
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-sm btn-outline-secondary w-100" @click="resetResFilters">
+                <i class="bi bi-x-circle me-1"></i>Réinitialiser
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerte : réservations dépassées -->
+        <div v-if="overdueReservations.length > 0" class="alert alert-danger d-flex align-items-start gap-2 m-3 mb-0">
+          <i class="bi bi-alarm-fill fs-5 mt-1"></i>
+          <div>
+            <strong>{{ overdueReservations.length }} réservation(s) dépassée(s) !</strong>
+            <div v-for="r in overdueReservations" :key="r.id" class="small mt-1">
+              Chambre <strong>{{ r.room?.room_number }}</strong> — <strong>{{ r.guest_name }}</strong>
+              (prévu jusqu'au {{ formatDate(r.check_out_date) }})
+              <button class="btn btn-sm btn-warning ms-2 py-0" @click="openExtendModal(r)">
+                <i class="bi bi-clock-history me-1"></i>Prolonger
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="resLoading" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <div v-else class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Client</th>
+                <th>Chambre</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+                <th class="text-center">Nuits</th>
+                <th>Total</th>
+                <th>Avance</th>
+                <th>Reste</th>
+                <th>Statut</th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="reservation in reservations" :key="reservation.id">
+                <td>
+                  <div class="fw-semibold">{{ reservation.guest_name }}</div>
+                  <div class="small text-muted">{{ reservation.guest_phone }}</div>
+                </td>
+                <td>
+                  <span class="badge bg-dark">{{ reservation.room?.room_number }}</span>
+                  <div class="small text-muted">{{ getRoomTypeLabel(reservation.room?.type) }}</div>
+                </td>
+                <td>{{ formatDate(reservation.check_in_date) }}</td>
+                <td>
+                  {{ formatDate(reservation.check_out_date) }}
+                  <span v-if="isOverdue(reservation)" class="badge bg-danger ms-1 small">
+                    <i class="bi bi-alarm-fill"></i> Dépassé
+                  </span>
+                </td>
+                <td class="text-center">{{ reservation.nights }}</td>
+                <td>{{ formatCurrency(reservation.total_amount) }}</td>
+                <td>{{ formatCurrency(reservation.advance_payment) }}</td>
+                <td :class="reservation.balance_due > 0 ? 'text-danger fw-semibold' : 'text-success'">
+                  {{ formatCurrency(reservation.balance_due) }}
+                </td>
+                <td>
+                  <span class="badge" :class="getReservationStatusBadgeClass(reservation.status)">
+                    {{ getReservationStatusLabel(reservation.status) }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <div class="d-flex gap-1 justify-content-center">
+                    <button v-if="reservation.status === 'confirmed'" class="btn btn-sm btn-success" title="Check-in" @click="doCheckIn(reservation)">
+                      <i class="bi bi-box-arrow-in-right"></i>
+                    </button>
+                    <button v-if="reservation.status === 'checked_in'" class="btn btn-sm btn-warning" title="Check-out" @click="openCheckOutModal(reservation)">
+                      <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                    <button v-if="reservation.status === 'checked_in'" class="btn btn-sm btn-outline-warning" title="Prolonger" @click="openExtendModal(reservation)">
+                      <i class="bi bi-clock-history"></i>
+                    </button>
+                    <button v-if="reservation.status === 'checked_in'" class="btn btn-sm btn-outline-primary" title="Room Service" @click="openRoomServiceModal(reservation)">
+                      <i class="bi bi-cup-hot"></i>
+                    </button>
+                    <button v-if="['pending', 'confirmed'].includes(reservation.status)" class="btn btn-sm btn-outline-primary" title="Modifier" @click="editReservation(reservation)">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button v-if="['pending', 'confirmed'].includes(reservation.status)" class="btn btn-sm btn-outline-danger" title="Annuler" @click="confirmCancelReservation(reservation)">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
+                    <button
+                      v-if="['checked_in', 'checked_out'].includes(reservation.status) && !reservation.invoice_id"
+                      class="btn btn-sm btn-primary"
+                      title="Générer la facture"
+                      :disabled="generatingInvoiceId === reservation.id"
+                      @click="generateInvoice(reservation)"
+                    >
+                      <span v-if="generatingInvoiceId === reservation.id" class="spinner-border spinner-border-sm"></span>
+                      <i v-else class="bi bi-receipt"></i>
+                    </button>
+                    <button
+                      v-if="reservation.invoice_id && reservation.balance_due > 0"
+                      class="btn btn-sm btn-success"
+                      title="Enregistrer le paiement restant"
+                      @click="openRecordPaymentModal(reservation)"
+                    >
+                      <i class="bi bi-cash-coin"></i>
+                    </button>
+                    <router-link
+                      v-if="reservation.invoice_id"
+                      :to="{ name: 'hotel.invoice', params: { id: reservation.invoice_id } }"
+                      class="btn btn-sm btn-outline-success"
+                      title="Voir la facture"
+                    >
+                      <i class="bi bi-file-earmark-text"></i>
+                    </router-link>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="reservations.length === 0">
+                <td colspan="10" class="text-center py-5 text-muted">
+                  <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
+                  Aucune réservation trouvée
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="resPagination.last_page > 1" class="card-footer d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            Page {{ resPagination.current_page }} / {{ resPagination.last_page }} — {{ resPagination.total }} réservations
+          </small>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary" :disabled="resPagination.current_page === 1" @click="changeResPage(resPagination.current_page - 1)">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" :disabled="resPagination.current_page === resPagination.last_page" @click="changeResPage(resPagination.current_page + 1)">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ MODALS CHAMBRES ══════════════════════════════════════════════ -->
+
       <!-- MODAL: Chambre Detail -->
       <div v-if="selectedRoom" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="selectedRoom = null">
         <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 500px;">
           <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <h5 class="mb-0">
-              <i class="bi bi-door-closed me-2"></i>Chambre {{ selectedRoom.room_number }}
-            </h5>
+            <h5 class="mb-0"><i class="bi bi-door-closed me-2"></i>Chambre {{ selectedRoom.room_number }}</h5>
             <button class="btn-close" @click="selectedRoom = null"></button>
           </div>
-
-          <div class="mb-3">
-            <div class="row g-2">
-              <div class="col-6">
-                <div class="small text-muted">Type</div>
-                <div class="fw-semibold">{{ getRoomTypeLabel(selectedRoom.type) }}</div>
-              </div>
-              <div class="col-6">
-                <div class="small text-muted">Étage</div>
-                <div class="fw-semibold">{{ selectedRoom.floor || 'N/A' }}</div>
-              </div>
-              <div class="col-6">
-                <div class="small text-muted">Capacité</div>
-                <div class="fw-semibold">{{ selectedRoom.capacity }} pers.</div>
-              </div>
-              <div class="col-6">
-                <div class="small text-muted">Prix / nuit</div>
-                <div class="fw-semibold text-primary">{{ formatCurrency(selectedRoom.price_per_night) }}</div>
-              </div>
-              <div class="col-12">
-                <div class="small text-muted">Statut</div>
-                <span class="badge fs-6" :class="getRoomBadgeClass(selectedRoom)">{{ getRoomStatusLabel(selectedRoom.status) }}</span>
-              </div>
-              <div class="col-12" v-if="selectedRoom.description">
-                <div class="small text-muted">Description</div>
-                <div>{{ selectedRoom.description }}</div>
-              </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="small text-muted">Type</div>
+              <div class="fw-semibold">{{ getRoomTypeLabel(selectedRoom.type) }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Étage</div>
+              <div class="fw-semibold">{{ selectedRoom.floor || 'N/A' }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Capacité</div>
+              <div class="fw-semibold">{{ selectedRoom.capacity }} pers.</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Prix / nuit</div>
+              <div class="fw-semibold text-primary">{{ formatCurrency(selectedRoom.price_per_night) }}</div>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted">Statut</div>
+              <span class="badge fs-6" :class="getRoomBadgeClass(selectedRoom)">{{ getRoomStatusLabel(selectedRoom.status) }}</span>
+            </div>
+            <div class="col-12" v-if="selectedRoom.description">
+              <div class="small text-muted">Description</div>
+              <div>{{ selectedRoom.description }}</div>
             </div>
           </div>
-
           <div class="d-flex gap-2 flex-wrap">
-            <button
-              v-if="selectedRoom.status === 'available'"
-              class="btn btn-success btn-sm"
-              @click="openNewReservation(selectedRoom)"
-            >
+            <button v-if="selectedRoom.status === 'available'" class="btn btn-success btn-sm" @click="openNewReservationForRoom(selectedRoom)">
               <i class="bi bi-calendar-plus me-1"></i> Réserver
             </button>
             <button class="btn btn-outline-primary btn-sm" @click="editRoom(selectedRoom)">
               <i class="bi bi-pencil me-1"></i> Modifier
             </button>
-            <button
-              v-if="selectedRoom.status !== 'occupied'"
-              class="btn btn-outline-secondary btn-sm"
-              @click="toggleMaintenance(selectedRoom)"
-            >
+            <button v-if="selectedRoom.status !== 'occupied'" class="btn btn-outline-secondary btn-sm" @click="toggleMaintenance(selectedRoom)">
               <i class="bi bi-tools me-1"></i>
               {{ selectedRoom.status === 'maintenance' ? 'Fin maintenance' : 'Maintenance' }}
             </button>
@@ -221,9 +359,7 @@
             <h5 class="mb-0">{{ editingRoom ? 'Modifier Chambre' : 'Nouvelle Chambre' }}</h5>
             <button class="btn-close" @click="closeRoomModal"></button>
           </div>
-
           <div v-if="formError" class="alert alert-danger py-2">{{ formError }}</div>
-
           <form @submit.prevent="saveRoom">
             <div class="row g-3">
               <div class="col-md-4">
@@ -260,7 +396,6 @@
                 <textarea v-model="roomForm.description" class="form-control" rows="2"></textarea>
               </div>
             </div>
-
             <div class="d-flex justify-content-end gap-2 mt-3">
               <button type="button" class="btn btn-secondary" @click="closeRoomModal">Annuler</button>
               <button type="submit" class="btn btn-primary" :disabled="savingRoom">
@@ -272,94 +407,7 @@
         </div>
       </div>
 
-      <!-- MODAL: New Reservation -->
-      <div v-if="showReservationModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showReservationModal = false">
-        <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
-          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <h5 class="mb-0">
-              <i class="bi bi-calendar-plus me-2"></i>
-              Nouvelle Réservation — Chambre {{ reservationForm.room?.room_number }}
-            </h5>
-            <button class="btn-close" @click="showReservationModal = false"></button>
-          </div>
-
-          <div v-if="reservationError" class="alert alert-danger py-2">{{ reservationError }}</div>
-
-          <form @submit.prevent="saveReservation">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Nom du client <span class="text-danger">*</span></label>
-                <input v-model="reservationForm.guest_name" type="text" class="form-control" required />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Téléphone</label>
-                <input v-model="reservationForm.guest_phone" type="text" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Email</label>
-                <input v-model="reservationForm.guest_email" type="email" class="form-control" />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Type de pièce d'identité</label>
-                <select v-model="reservationForm.guest_id_type" class="form-select">
-                  <option value="cni">CNI</option>
-                  <option value="passport">Passeport</option>
-                </select>
-              </div>
-              <div class="col-md-8">
-                <label class="form-label small fw-bold">N° {{ reservationForm.guest_id_type === 'passport' ? 'Passeport' : 'CNI' }}</label>
-                <input v-model="reservationForm.guest_id_number" type="text" class="form-control" placeholder="Ex: BU12345678" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Lieu de naissance</label>
-                <input v-model="reservationForm.guest_birthplace" type="text" class="form-control" placeholder="Ex: Bujumbura" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Date de naissance</label>
-                <input v-model="reservationForm.guest_birthdate" type="date" class="form-control" />
-              </div>
-              <div class="col-12">
-                <label class="form-label small fw-bold">Adresse de résidence</label>
-                <input v-model="reservationForm.guest_address" type="text" class="form-control" placeholder="Ex: Avenue de la Paix, Bujumbura" />
-              </div>
-              <div class="col-md-3">
-                <label class="form-label small fw-bold">Check-in <span class="text-danger">*</span></label>
-                <input v-model="reservationForm.check_in_date" type="date" class="form-control" required :min="today" @change="computeNights" />
-              </div>
-              <div class="col-md-3">
-                <label class="form-label small fw-bold">Check-out <span class="text-danger">*</span></label>
-                <input v-model="reservationForm.check_out_date" type="date" class="form-control" required :min="reservationForm.check_in_date" @change="computeNights" />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Nuits</label>
-                <input :value="reservationNights" type="number" class="form-control" readonly />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Total</label>
-                <input :value="reservationTotal" type="text" class="form-control" readonly />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Avance</label>
-                <input v-model.number="reservationForm.advance_payment" type="number" class="form-control" min="0" step="0.01" />
-              </div>
-              <div class="col-12">
-                <label class="form-label small fw-bold">Notes</label>
-                <textarea v-model="reservationForm.notes" class="form-control" rows="2"></textarea>
-              </div>
-            </div>
-
-            <div class="d-flex justify-content-end gap-2 mt-3">
-              <button type="button" class="btn btn-secondary" @click="showReservationModal = false">Annuler</button>
-              <button type="submit" class="btn btn-primary" :disabled="savingReservation">
-                <span v-if="savingReservation" class="spinner-border spinner-border-sm me-1"></span>
-                {{ savingReservation ? 'Enregistrement...' : 'Confirmer la réservation' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- MODAL: Delete Confirm -->
+      <!-- MODAL: Delete Room Confirm -->
       <div v-if="roomToDelete" class="modal-overlay d-flex justify-content-center align-items-center">
         <div class="bg-white rounded shadow-lg p-4" style="max-width: 400px; width: 90%;">
           <h5 class="mb-3">Confirmer la suppression</h5>
@@ -373,6 +421,295 @@
           </div>
         </div>
       </div>
+
+      <!-- ═══ MODALS RÉSERVATIONS ══════════════════════════════════════════ -->
+
+      <!-- MODAL: Add/Edit Reservation -->
+      <div v-if="showResModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showResModal = false">
+        <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 650px; max-height: 90vh; overflow-y: auto;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0">{{ editingReservation ? 'Modifier Réservation' : 'Nouvelle Réservation' }}</h5>
+            <button class="btn-close" @click="showResModal = false"></button>
+          </div>
+          <div v-if="resFormError" class="alert alert-danger py-2">{{ resFormError }}</div>
+          <form @submit.prevent="saveReservation">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Chambre <span class="text-danger">*</span></label>
+                <select v-model="resForm.hotel_room_id" class="form-select" required :disabled="!!editingReservation">
+                  <option :value="null">Sélectionner...</option>
+                  <option v-for="room in availableRooms" :key="room.id" :value="room.id">
+                    {{ room.room_number }} — {{ getRoomTypeLabel(room.type) }} ({{ formatCurrency(room.price_per_night) }}/nuit)
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Nom du client <span class="text-danger">*</span></label>
+                <input v-model="resForm.guest_name" type="text" class="form-control" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Téléphone</label>
+                <input v-model="resForm.guest_phone" type="text" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Email</label>
+                <input v-model="resForm.guest_email" type="email" class="form-control" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Type de pièce d'identité</label>
+                <select v-model="resForm.guest_id_type" class="form-select">
+                  <option value="cni">CNI</option>
+                  <option value="passport">Passeport</option>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label small fw-bold">N° {{ resForm.guest_id_type === 'passport' ? 'Passeport' : 'CNI' }}</label>
+                <input v-model="resForm.guest_id_number" type="text" class="form-control" placeholder="Ex: BU12345678" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Lieu de naissance</label>
+                <input v-model="resForm.guest_birthplace" type="text" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Date de naissance</label>
+                <input v-model="resForm.guest_birthdate" type="date" class="form-control" />
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Adresse de résidence</label>
+                <input v-model="resForm.guest_address" type="text" class="form-control" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Check-in <span class="text-danger">*</span></label>
+                <input v-model="resForm.check_in_date" type="date" class="form-control" required :min="today" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Check-out <span class="text-danger">*</span></label>
+                <input v-model="resForm.check_out_date" type="date" class="form-control" required :min="resForm.check_in_date" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Nuits</label>
+                <input :value="resFormNights" type="number" class="form-control bg-light" readonly />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Montant total</label>
+                <input :value="resFormTotalAmount" type="text" class="form-control bg-light" readonly />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Avance</label>
+                <input v-model.number="resForm.advance_payment" type="number" class="form-control" min="0" step="0.01" />
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Notes</label>
+                <textarea v-model="resForm.notes" class="form-control" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <button type="button" class="btn btn-secondary" @click="showResModal = false">Annuler</button>
+              <button type="submit" class="btn btn-primary" :disabled="savingRes">
+                <span v-if="savingRes" class="spinner-border spinner-border-sm me-1"></span>
+                {{ savingRes ? 'Enregistrement...' : (editingReservation ? 'Mettre à jour' : 'Confirmer') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL: Check-out -->
+      <div v-if="checkOutModal" class="modal-overlay d-flex justify-content-center align-items-center">
+        <div class="bg-white rounded shadow-lg p-4" style="max-width: 420px; width: 90%;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0">Check-out — {{ checkOutModal.guest_name }}</h5>
+            <button class="btn-close" @click="checkOutModal = null"></button>
+          </div>
+          <p class="mb-1">Chambre: <strong>{{ checkOutModal.room?.room_number }}</strong></p>
+          <p class="mb-1">Total: <strong>{{ formatCurrency(checkOutModal.total_amount) }}</strong></p>
+          <p class="mb-3">Avance payée: <strong>{{ formatCurrency(checkOutModal.advance_payment) }}</strong></p>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Montant total reçu</label>
+            <input v-model.number="checkOutPayment" type="number" class="form-control" min="0" step="0.01" />
+            <div class="small text-muted mt-1">
+              Reste à payer: <strong>{{ formatCurrency(checkOutModal.total_amount - checkOutPayment) }}</strong>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary" @click="checkOutModal = null">Annuler</button>
+            <button class="btn btn-warning" @click="doCheckOut" :disabled="checkingOut">
+              <span v-if="checkingOut" class="spinner-border spinner-border-sm me-1"></span>
+              Confirmer le check-out
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Enregistrer paiement restant -->
+      <div v-if="paymentModal" class="modal-overlay d-flex justify-content-center align-items-center">
+        <div class="bg-white rounded shadow-lg p-4" style="max-width: 420px; width: 90%;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0"><i class="bi bi-cash-coin me-2 text-success"></i>Enregistrer le paiement restant</h5>
+            <button class="btn-close" @click="paymentModal = null"></button>
+          </div>
+          <p class="mb-2">Client: <strong>{{ paymentModal.guest_name }}</strong> — Chambre {{ paymentModal.room?.room_number }}</p>
+          <p class="mb-3 text-muted small">Reste à payer: <strong class="text-danger">{{ formatCurrency(paymentModal.balance_due) }}</strong></p>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Montant <span class="text-danger">*</span></label>
+            <input v-model.number="paymentAmount" type="number" class="form-control" min="0.01" step="0.01" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Mode de paiement <span class="text-danger">*</span></label>
+            <select v-model="paymentMethod" class="form-select">
+              <option value="cash">Espèces</option>
+              <option value="bank_transfer">Virement</option>
+              <option value="mobile_money">Mobile money</option>
+              <option value="check">Chèque</option>
+              <option value="card">Carte</option>
+              <option value="other">Autre</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Date du paiement</label>
+            <input v-model="paymentDate" type="date" class="form-control" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Référence</label>
+            <input v-model="paymentReference" type="text" class="form-control" placeholder="Optionnel" />
+          </div>
+          <div v-if="paymentError" class="alert alert-danger py-2 small mb-3">{{ paymentError }}</div>
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary" @click="paymentModal = null">Annuler</button>
+            <button class="btn btn-success" @click="submitRecordPayment" :disabled="savingPayment || !paymentAmount || paymentAmount <= 0">
+              <span v-if="savingPayment" class="spinner-border spinner-border-sm me-1"></span>
+              Enregistrer le paiement
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Prolongation -->
+      <div v-if="showExtendModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showExtendModal = false">
+        <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 420px;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-warning"></i>Prolonger le séjour</h5>
+            <button class="btn-close" @click="showExtendModal = false"></button>
+          </div>
+          <div v-if="extendingReservation" class="alert alert-info py-2 small mb-3">
+            <strong>{{ extendingReservation.guest_name }}</strong> — Chambre {{ extendingReservation.room?.room_number }}<br>
+            Départ prévu : {{ formatDate(extendingReservation.check_out_date) }}<br>
+            Prix/nuit : <strong>{{ formatCurrency(extendingReservation.price_per_night) }}</strong>
+          </div>
+          <div v-if="extendError" class="alert alert-danger py-2 small">{{ extendError }}</div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nuits supplémentaires <span class="text-danger">*</span></label>
+            <input v-model.number="extendForm.extra_nights" type="number" class="form-control" min="1" />
+            <div class="form-text" v-if="extendingReservation && extendForm.extra_nights > 0">
+              Montant supplémentaire :
+              <strong class="text-primary">{{ formatCurrency(extendingReservation.price_per_night * extendForm.extra_nights) }}</strong>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary" @click="showExtendModal = false">Annuler</button>
+            <button class="btn btn-warning" @click="saveExtend" :disabled="savingExtend">
+              <span v-if="savingExtend" class="spinner-border spinner-border-sm me-1"></span>
+              Prolonger
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Room Service -->
+      <div v-if="roomServiceModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="roomServiceModal = null">
+        <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 620px; max-height: 90vh; overflow-y: auto;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0">
+              <i class="bi bi-cup-hot me-2 text-warning"></i>Room Service —
+              Chambre {{ roomServiceModal.room?.room_number }}
+              <span class="small text-muted">({{ roomServiceModal.guest_name }})</span>
+            </h5>
+            <button class="btn-close" @click="roomServiceModal = null"></button>
+          </div>
+          <div v-if="roomServiceError" class="alert alert-danger py-2">{{ roomServiceError }}</div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Ajouter un article</label>
+            <div class="row g-2 mb-2">
+              <div class="col-3">
+                <select v-model="rsNewItem.type" class="form-select form-select-sm">
+                  <option value="menu">Bar</option>
+                  <option value="dish">Cuisine</option>
+                </select>
+              </div>
+              <div class="col-5">
+                <select v-if="rsNewItem.type === 'menu'" v-model="rsNewItem.menu_item_id" class="form-select form-select-sm">
+                  <option value="">— Article bar —</option>
+                  <option v-for="m in rsMenuItems.filter(i => i.available)" :key="m.id" :value="m.id">
+                    {{ m.name }} ({{ formatCurrency(m.price) }})
+                  </option>
+                </select>
+                <select v-else v-model="rsNewItem.dish_id" class="form-select form-select-sm">
+                  <option value="">— Plat cuisine —</option>
+                  <option v-for="d in rsDishes.filter(d => d.available)" :key="d.id" :value="d.id">
+                    {{ d.name }} ({{ formatCurrency(d.price) }})
+                  </option>
+                </select>
+              </div>
+              <div class="col-2">
+                <input v-model.number="rsNewItem.qty" type="number" class="form-control form-select-sm" min="1" />
+              </div>
+              <div class="col-2">
+                <button type="button" class="btn btn-sm btn-primary w-100" @click="rsAddItem">
+                  <i class="bi bi-plus"></i>
+                </button>
+              </div>
+            </div>
+            <div class="list-group">
+              <div v-for="(item, idx) in rsOrderItems" :key="idx" class="list-group-item py-2 d-flex justify-content-between align-items-center">
+                <span>
+                  <span class="badge me-1" :class="item.type === 'dish' ? 'bg-danger' : 'bg-primary'">{{ item.type === 'dish' ? 'Cuisine' : 'Bar' }}</span>
+                  {{ item.name }} × {{ item.qty }}
+                </span>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fw-semibold text-primary">{{ formatCurrency(item.price * item.qty) }}</span>
+                  <button type="button" class="btn btn-sm btn-outline-danger" @click="rsOrderItems.splice(idx, 1)">
+                    <i class="bi bi-x"></i>
+                  </button>
+                </div>
+              </div>
+              <div v-if="rsOrderItems.length === 0" class="list-group-item text-muted text-center py-3">
+                Aucun article ajouté
+              </div>
+            </div>
+            <div v-if="rsOrderItems.length > 0" class="text-end mt-2 fw-bold">
+              Total : {{ formatCurrency(rsOrderItems.reduce((s, i) => s + i.price * i.qty, 0)) }}
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Notes</label>
+            <input v-model="rsNotes" type="text" class="form-control" placeholder="Demandes spéciales..." />
+          </div>
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary" @click="roomServiceModal = null">Annuler</button>
+            <button class="btn btn-warning" @click="submitRoomServiceOrder" :disabled="rsOrderItems.length === 0 || rsSaving">
+              <span v-if="rsSaving" class="spinner-border spinner-border-sm me-1"></span>
+              <i v-else class="bi bi-send me-1"></i>
+              Envoyer la commande
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Cancel Reservation Confirm -->
+      <div v-if="reservationToCancel" class="modal-overlay d-flex justify-content-center align-items-center">
+        <div class="bg-white rounded shadow-lg p-4" style="max-width: 380px; width: 90%;">
+          <h5 class="mb-3">Annuler la réservation ?</h5>
+          <p>Client: <strong>{{ reservationToCancel.guest_name }}</strong></p>
+          <p>Chambre: <strong>{{ reservationToCancel.room?.room_number }}</strong></p>
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-secondary" @click="reservationToCancel = null">Non</button>
+            <button class="btn btn-danger" @click="doCancelReservation" :disabled="cancellingRes">
+              <span v-if="cancellingRes" class="spinner-border spinner-border-sm me-1"></span>
+              Annuler la réservation
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -381,17 +718,16 @@
 import { ref, computed, onMounted, reactive } from 'vue';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
-import HotelReservations from './HotelReservations.vue';
-import HotelInvoice from './HotelInvoice.vue';
 
-const activeTab = ref('Rooms');
+const today = new Date().toISOString().split('T')[0];
+
+// ─── Chambres ────────────────────────────────────────────────────────────────
 
 const loading = ref(false);
 const rooms = ref([]);
 const stats = ref({});
 const filterStatus = ref('all');
 const selectedRoom = ref(null);
-
 const showRoomModal = ref(false);
 const editingRoom = ref(null);
 const savingRoom = ref(false);
@@ -399,37 +735,8 @@ const formError = ref('');
 const roomToDelete = ref(null);
 const deletingRoom = ref(false);
 
-const showReservationModal = ref(false);
-const savingReservation = ref(false);
-const reservationError = ref('');
-
-const today = new Date().toISOString().split('T')[0];
-
 const roomForm = reactive({
-  room_number: '',
-  name: '',
-  type: 'standard',
-  floor: '',
-  capacity: 1,
-  price_per_night: 0,
-  description: '',
-});
-
-const reservationForm = reactive({
-  room: null,
-  hotel_room_id: null,
-  guest_name: '',
-  guest_phone: '',
-  guest_email: '',
-  guest_id_number: '',
-  guest_id_type: 'cni',
-  guest_address: '',
-  guest_birthplace: '',
-  guest_birthdate: '',
-  check_in_date: today,
-  check_out_date: '',
-  advance_payment: 0,
-  notes: '',
+  room_number: '', name: '', type: 'standard', floor: '', capacity: 1, price_per_night: 0, description: '',
 });
 
 const statusFilters = [
@@ -441,26 +748,8 @@ const statusFilters = [
 ];
 
 const filteredRooms = computed(() => {
-  if (filterStatus.value === 'all') {
-    return rooms.value;
-  }
+  if (filterStatus.value === 'all') { return rooms.value; }
   return rooms.value.filter(r => r.status === filterStatus.value);
-});
-
-const reservationNights = computed(() => {
-  if (!reservationForm.check_in_date || !reservationForm.check_out_date) {
-    return 0;
-  }
-  const diff = new Date(reservationForm.check_out_date) - new Date(reservationForm.check_in_date);
-  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-});
-
-const reservationTotal = computed(() => {
-  if (!reservationForm.room) {
-    return '0';
-  }
-  const total = reservationForm.room.price_per_night * reservationNights.value;
-  return formatCurrency(total);
 });
 
 const loadAll = async () => {
@@ -479,9 +768,7 @@ const loadAll = async () => {
   }
 };
 
-const selectRoom = (room) => {
-  selectedRoom.value = room;
-};
+const selectRoom = (room) => { selectedRoom.value = room; };
 
 const openAddRoomModal = () => {
   editingRoom.value = null;
@@ -492,34 +779,22 @@ const openAddRoomModal = () => {
 
 const editRoom = (room) => {
   editingRoom.value = room;
-  Object.assign(roomForm, {
-    room_number: room.room_number,
-    name: room.name || '',
-    type: room.type,
-    floor: room.floor || '',
-    capacity: room.capacity,
-    price_per_night: room.price_per_night,
-    description: room.description || '',
-  });
+  Object.assign(roomForm, { room_number: room.room_number, name: room.name || '', type: room.type, floor: room.floor || '', capacity: room.capacity, price_per_night: room.price_per_night, description: room.description || '' });
   formError.value = '';
   selectedRoom.value = null;
   showRoomModal.value = true;
 };
 
-const closeRoomModal = () => {
-  showRoomModal.value = false;
-  editingRoom.value = null;
-};
+const closeRoomModal = () => { showRoomModal.value = false; editingRoom.value = null; };
 
 const saveRoom = async () => {
   savingRoom.value = true;
   formError.value = '';
   try {
-    const payload = { ...roomForm };
     if (editingRoom.value) {
-      await api.put(`/hotel/rooms/${editingRoom.value.id}`, payload);
+      await api.put(`/hotel/rooms/${editingRoom.value.id}`, roomForm);
     } else {
-      await api.post('/hotel/rooms', payload);
+      await api.post('/hotel/rooms', roomForm);
     }
     closeRoomModal();
     await loadAll();
@@ -530,10 +805,7 @@ const saveRoom = async () => {
   }
 };
 
-const confirmDeleteRoom = (room) => {
-  selectedRoom.value = null;
-  roomToDelete.value = room;
-};
+const confirmDeleteRoom = (room) => { selectedRoom.value = null; roomToDelete.value = room; };
 
 const deleteRoom = async () => {
   deletingRoom.value = true;
@@ -559,99 +831,405 @@ const toggleMaintenance = async (room) => {
   }
 };
 
-const openNewReservation = (room) => {
-  reservationForm.room = room;
-  reservationForm.hotel_room_id = room.id;
-  reservationForm.guest_name = '';
-  reservationForm.guest_phone = '';
-  reservationForm.guest_email = '';
-  reservationForm.guest_id_number = '';
-  reservationForm.guest_id_type = 'cni';
-  reservationForm.guest_address = '';
-  reservationForm.guest_birthplace = '';
-  reservationForm.guest_birthdate = '';
-  reservationForm.check_in_date = today;
-  reservationForm.check_out_date = '';
-  reservationForm.advance_payment = 0;
-  reservationForm.notes = '';
-  reservationError.value = '';
-  selectedRoom.value = null;
-  showReservationModal.value = true;
-};
+// ─── Réservations ────────────────────────────────────────────────────────────
 
-const computeNights = () => {};
+const resLoading = ref(false);
+const reservations = ref([]);
+const allRooms = ref([]);
+const customers = ref([]);
+const generatingInvoiceId = ref(null);
+const paymentModal = ref(null);
+const paymentAmount = ref(0);
+const paymentMethod = ref('cash');
+const paymentDate = ref('');
+const paymentReference = ref('');
+const paymentError = ref('');
+const savingPayment = ref(false);
+const resPagination = ref({ current_page: 1, last_page: 1, total: 0 });
+const resSearch = ref('');
+const resFilterStatus = ref('');
+const resFilterDate = ref('');
 
-const saveReservation = async () => {
-  savingReservation.value = true;
-  reservationError.value = '';
+const showResModal = ref(false);
+const editingReservation = ref(null);
+const savingRes = ref(false);
+const resFormError = ref('');
+
+const checkOutModal = ref(null);
+const checkOutPayment = ref(0);
+const checkingOut = ref(false);
+
+const reservationToCancel = ref(null);
+const cancellingRes = ref(false);
+
+const showExtendModal = ref(false);
+const extendingReservation = ref(null);
+const extendForm = reactive({ extra_nights: 1 });
+const savingExtend = ref(false);
+const extendError = ref('');
+
+let debounceTimer = null;
+
+const resForm = reactive({
+  hotel_room_id: null,
+  guest_name: '', guest_phone: '', guest_email: '',
+  guest_id_number: '', guest_id_type: 'cni',
+  guest_address: '', guest_birthplace: '', guest_birthdate: '',
+  customer_id: null,
+  check_in_date: today, check_out_date: '',
+  advance_payment: 0, notes: '',
+});
+
+const availableRooms = computed(() => rooms.value.filter(r => r.status === 'available'));
+
+const resFormNights = computed(() => {
+  if (!resForm.check_in_date || !resForm.check_out_date) { return 0; }
+  const diff = new Date(resForm.check_out_date) - new Date(resForm.check_in_date);
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+});
+
+const resFormTotalAmount = computed(() => {
+  const room = rooms.value.find((r) => r.id === resForm.hotel_room_id);
+  const nights = resFormNights.value;
+  if (!room || nights <= 0) return '—';
+  const total = parseFloat(room.price_per_night ?? 0) * nights;
+  return formatCurrency(total);
+});
+
+const loadReservations = async (page = 1) => {
+  resLoading.value = true;
   try {
-    const payload = {
-      hotel_room_id: reservationForm.hotel_room_id,
-      guest_name: reservationForm.guest_name,
-      guest_phone: reservationForm.guest_phone,
-      guest_email: reservationForm.guest_email,
-      check_in_date: reservationForm.check_in_date,
-      check_out_date: reservationForm.check_out_date,
-      advance_payment: reservationForm.advance_payment,
-      notes: reservationForm.notes,
-    };
-    await api.post('/hotel/reservations', payload);
-    showReservationModal.value = false;
-    await loadAll();
+    const params = { page };
+    if (resSearch.value) { params.search = resSearch.value; }
+    if (resFilterStatus.value) { params.status = resFilterStatus.value; }
+    if (resFilterDate.value) { params.date = resFilterDate.value; }
+    const res = await api.get('/hotel/reservations', { params });
+    reservations.value = res.data.data.data;
+    const meta = res.data.data;
+    resPagination.value = { current_page: meta.current_page, last_page: meta.last_page, total: meta.total };
   } catch (e) {
-    reservationError.value = e.response?.data?.message || 'Erreur lors de la réservation';
+    console.error('Erreur chargement réservations:', e);
   } finally {
-    savingReservation.value = false;
+    resLoading.value = false;
   }
 };
 
+const debouncedLoad = () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => loadReservations(), 500);
+};
+
+const resetResFilters = () => {
+  resSearch.value = '';
+  resFilterStatus.value = '';
+  resFilterDate.value = '';
+  loadReservations();
+};
+
+const changeResPage = (page) => { loadReservations(page); };
+
+const loadCustomers = async () => {
+  try {
+    const res = await api.get('/customers', { params: { per_page: 500 } });
+    customers.value = res.data?.data?.data ?? res.data?.data ?? [];
+  } catch (e) {
+    console.error('Erreur chargement clients:', e);
+  }
+};
+
+const openAddReservationModal = () => {
+  editingReservation.value = null;
+  Object.assign(resForm, {
+    hotel_room_id: null, guest_name: '', guest_phone: '', guest_email: '',
+    guest_id_number: '', guest_id_type: 'cni', guest_address: '', guest_birthplace: '', guest_birthdate: '',
+    customer_id: null, check_in_date: today, check_out_date: '', advance_payment: 0, notes: '',
+  });
+  resFormError.value = '';
+  showResModal.value = true;
+};
+
+const openNewReservationForRoom = (room) => {
+  selectedRoom.value = null;
+  editingReservation.value = null;
+  Object.assign(resForm, {
+    hotel_room_id: room.id, guest_name: '', guest_phone: '', guest_email: '',
+    guest_id_number: '', guest_id_type: 'cni', guest_address: '', guest_birthplace: '', guest_birthdate: '',
+    customer_id: null, check_in_date: today, check_out_date: '', advance_payment: 0, notes: '',
+  });
+  resFormError.value = '';
+  showResModal.value = true;
+};
+
+const editReservation = (reservation) => {
+  editingReservation.value = reservation;
+  Object.assign(resForm, {
+    hotel_room_id: reservation.hotel_room_id,
+    guest_name: reservation.guest_name,
+    guest_phone: reservation.guest_phone || '',
+    guest_email: reservation.guest_email || '',
+    guest_id_number: reservation.guest_id_number || '',
+    guest_id_type: reservation.guest_id_type || 'cni',
+    guest_address: reservation.guest_address || '',
+    guest_birthplace: reservation.guest_birthplace || '',
+    guest_birthdate: reservation.guest_birthdate || '',
+    customer_id: null,
+    check_in_date: reservation.check_in_date,
+    check_out_date: reservation.check_out_date,
+    advance_payment: reservation.advance_payment,
+    notes: reservation.notes || '',
+  });
+  resFormError.value = '';
+  showResModal.value = true;
+};
+
+const saveReservation = async () => {
+  savingRes.value = true;
+  resFormError.value = '';
+  try {
+    if (editingReservation.value) {
+      await api.put(`/hotel/reservations/${editingReservation.value.id}`, { ...resForm });
+    } else {
+      await api.post('/hotel/reservations', { ...resForm });
+    }
+    showResModal.value = false;
+    await Promise.all([loadAll(), loadReservations()]);
+  } catch (e) {
+    resFormError.value = e.response?.data?.message || 'Erreur lors de l\'enregistrement';
+  } finally {
+    savingRes.value = false;
+  }
+};
+
+const generateInvoice = async (reservation) => {
+  generatingInvoiceId.value = reservation.id;
+  try {
+    await api.post(`/hotel/reservations/${reservation.id}/invoice`);
+    await loadReservations();
+  } catch (e) {
+    alert(e.response?.data?.message || 'Impossible de générer la facture');
+  } finally {
+    generatingInvoiceId.value = null;
+  }
+};
+
+const doCheckIn = async (reservation) => {
+  try {
+    await api.post(`/hotel/reservations/${reservation.id}/check-in`);
+    await Promise.all([loadAll(), loadReservations()]);
+  } catch (e) {
+    alert(e.response?.data?.message || 'Erreur check-in');
+  }
+};
+
+const openCheckOutModal = (reservation) => {
+  checkOutModal.value = reservation;
+  checkOutPayment.value = reservation.advance_payment;
+};
+
+const doCheckOut = async () => {
+  checkingOut.value = true;
+  try {
+    await api.post(`/hotel/reservations/${checkOutModal.value.id}/check-out`, {
+      advance_payment: checkOutPayment.value,
+    });
+    checkOutModal.value = null;
+    await Promise.all([loadAll(), loadReservations()]);
+  } catch (e) {
+    alert(e.response?.data?.message || 'Erreur check-out');
+  } finally {
+    checkingOut.value = false;
+  }
+};
+
+const openRecordPaymentModal = (reservation) => {
+  paymentModal.value = reservation;
+  paymentAmount.value = parseFloat(reservation.balance_due) || 0;
+  paymentMethod.value = 'cash';
+  const d = new Date();
+  paymentDate.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  paymentReference.value = '';
+  paymentError.value = '';
+};
+
+const submitRecordPayment = async () => {
+  if (!paymentModal.value || !paymentAmount.value || paymentAmount.value <= 0) return;
+  savingPayment.value = true;
+  paymentError.value = '';
+  try {
+    await api.post('/payments', {
+      invoice_id: paymentModal.value.invoice_id,
+      amount: paymentAmount.value,
+      payment_date: paymentDate.value,
+      payment_method: paymentMethod.value,
+      reference: paymentReference.value || undefined,
+    });
+    paymentModal.value = null;
+    await loadReservations();
+  } catch (e) {
+    paymentError.value = e.response?.data?.message || 'Erreur lors de l\'enregistrement du paiement';
+  } finally {
+    savingPayment.value = false;
+  }
+};
+
+const confirmCancelReservation = (reservation) => { reservationToCancel.value = reservation; };
+
+const doCancelReservation = async () => {
+  cancellingRes.value = true;
+  try {
+    await api.post(`/hotel/reservations/${reservationToCancel.value.id}/cancel`);
+    reservationToCancel.value = null;
+    await Promise.all([loadAll(), loadReservations()]);
+  } catch (e) {
+    alert(e.response?.data?.message || 'Erreur annulation');
+  } finally {
+    cancellingRes.value = false;
+  }
+};
+
+const isOverdue = (reservation) => {
+  if (!['confirmed', 'checked_in'].includes(reservation.status)) { return false; }
+  const checkOut = new Date(reservation.check_out_date);
+  checkOut.setHours(23, 59, 59);
+  return new Date() > checkOut;
+};
+
+const overdueReservations = computed(() => reservations.value.filter((r) => isOverdue(r)));
+
+const openExtendModal = (reservation) => {
+  extendingReservation.value = reservation;
+  extendForm.extra_nights = 1;
+  extendError.value = '';
+  showExtendModal.value = true;
+};
+
+const saveExtend = async () => {
+  savingExtend.value = true;
+  extendError.value = '';
+  try {
+    await api.post(`/hotel/reservations/${extendingReservation.value.id}/extend`, {
+      extra_nights: extendForm.extra_nights,
+    });
+    showExtendModal.value = false;
+    await loadReservations();
+  } catch (e) {
+    extendError.value = e.response?.data?.message || 'Erreur lors de la prolongation';
+  } finally {
+    savingExtend.value = false;
+  }
+};
+
+// ─── Room Service ────────────────────────────────────────────────────────────
+
+const roomServiceModal = ref(null);
+const rsMenuItems = ref([]);
+const rsDishes = ref([]);
+const rsOrderItems = ref([]);
+const rsNewItem = reactive({ type: 'menu', menu_item_id: '', dish_id: '', qty: 1 });
+const rsNotes = ref('');
+const rsSaving = ref(false);
+const roomServiceError = ref('');
+
+const openRoomServiceModal = async (reservation) => {
+  roomServiceModal.value = reservation;
+  rsOrderItems.value = [];
+  rsNotes.value = '';
+  roomServiceError.value = '';
+  rsNewItem.type = 'menu';
+  rsNewItem.menu_item_id = '';
+  rsNewItem.dish_id = '';
+  rsNewItem.qty = 1;
+  if (rsMenuItems.value.length === 0 || rsDishes.value.length === 0) {
+    const [menuRes, dishRes] = await Promise.all([
+      api.get('/hotel/menu-items'),
+      api.get('/hotel/dishes'),
+    ]);
+    rsMenuItems.value = menuRes.data.data;
+    rsDishes.value = dishRes.data.data;
+  }
+};
+
+const rsAddItem = () => {
+  if (rsNewItem.type === 'dish') {
+    const dish = rsDishes.value.find((d) => d.id === rsNewItem.dish_id);
+    if (!dish) { return; }
+    const existing = rsOrderItems.value.find((i) => i.type === 'dish' && i.dish_id === rsNewItem.dish_id);
+    if (existing) { existing.qty += rsNewItem.qty; } else {
+      rsOrderItems.value.push({ type: 'dish', dish_id: dish.id, name: dish.name, price: dish.price, qty: rsNewItem.qty });
+    }
+    rsNewItem.dish_id = '';
+  } else {
+    const menu = rsMenuItems.value.find((m) => m.id === rsNewItem.menu_item_id);
+    if (!menu) { return; }
+    const existing = rsOrderItems.value.find((i) => i.type !== 'dish' && i.menu_item_id === rsNewItem.menu_item_id);
+    if (existing) { existing.qty += rsNewItem.qty; } else {
+      rsOrderItems.value.push({ type: 'menu', menu_item_id: menu.id, name: menu.name, price: menu.price, qty: rsNewItem.qty });
+    }
+    rsNewItem.menu_item_id = '';
+  }
+  rsNewItem.qty = 1;
+};
+
+const submitRoomServiceOrder = async () => {
+  rsSaving.value = true;
+  roomServiceError.value = '';
+  try {
+    const reservation = roomServiceModal.value;
+    await api.post('/hotel/restaurant-orders', {
+      room_number: reservation.room?.room_number ?? String(reservation.id),
+      client_name: reservation.guest_name,
+      notes: rsNotes.value || null,
+      items: rsOrderItems.value.map((i) =>
+        i.type === 'dish'
+          ? { hotel_dish_id: i.dish_id, qty: i.qty }
+          : { hotel_menu_item_id: i.menu_item_id, qty: i.qty },
+      ),
+    });
+    roomServiceModal.value = null;
+  } catch (e) {
+    roomServiceError.value = e.response?.data?.message || 'Erreur lors de l\'envoi';
+  } finally {
+    rsSaving.value = false;
+  }
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 const getRoomCardClass = (room) => {
-  const classes = {
-    available: 'border-success',
-    occupied: 'border-danger bg-danger bg-opacity-10',
-    reserved: 'border-warning bg-warning bg-opacity-10',
-    maintenance: 'border-secondary bg-secondary bg-opacity-10',
-  };
+  const classes = { available: 'border-success', occupied: 'border-danger bg-danger bg-opacity-10', reserved: 'border-warning bg-warning bg-opacity-10', maintenance: 'border-secondary bg-secondary bg-opacity-10' };
   return classes[room.status] || '';
 };
-
 const getRoomBadgeClass = (room) => {
-  const classes = {
-    available: 'bg-success',
-    occupied: 'bg-danger',
-    reserved: 'bg-warning text-dark',
-    maintenance: 'bg-secondary',
-  };
+  const classes = { available: 'bg-success', occupied: 'bg-danger', reserved: 'bg-warning text-dark', maintenance: 'bg-secondary' };
   return classes[room.status] || 'bg-secondary';
 };
-
 const getRoomStatusLabel = (status) => {
-  const labels = {
-    available: 'Disponible',
-    occupied: 'Occupée',
-    reserved: 'Réservée',
-    maintenance: 'Maintenance',
-  };
+  const labels = { available: 'Disponible', occupied: 'Occupée', reserved: 'Réservée', maintenance: 'Maintenance' };
   return labels[status] || status;
 };
-
 const getRoomTypeLabel = (type) => {
-  const labels = {
-    standard: 'Standard',
-    double: 'Double',
-    suite: 'Suite',
-    vip: 'VIP',
-  };
+  const labels = { standard: 'Standard', double: 'Double', suite: 'Suite', vip: 'VIP' };
   return labels[type] || type;
 };
-
+const getReservationStatusBadgeClass = (status) => {
+  const classes = { pending: 'bg-secondary', confirmed: 'bg-info', checked_in: 'bg-success', checked_out: 'bg-dark', cancelled: 'bg-danger' };
+  return classes[status] || 'bg-secondary';
+};
+const getReservationStatusLabel = (status) => {
+  const labels = { pending: 'En attente', confirmed: 'Confirmée', checked_in: 'En cours', checked_out: 'Terminée', cancelled: 'Annulée' };
+  return labels[status] || status;
+};
+const formatDate = (date) => {
+  if (!date) { return '—'; }
+  return new Date(date).toLocaleDateString('fr-FR');
+};
 const formatCurrency = (value) => {
-  if (!value && value !== 0) return '0 BIF';
+  if (!value && value !== 0) { return '0 BIF'; }
   return new Intl.NumberFormat('fr-BI', { style: 'decimal', minimumFractionDigits: 0 }).format(value) + ' BIF';
 };
 
 onMounted(() => {
-  loadAll();
+  Promise.all([loadAll(), loadReservations()]);
 });
 </script>
 
@@ -662,12 +1240,10 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.5);
   z-index: 9999;
 }
-
 .room-card {
   border-width: 2px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-
 .room-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

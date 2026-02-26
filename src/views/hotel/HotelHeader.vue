@@ -33,13 +33,13 @@ const userHasPermission = (permission) => {
 };
 
 /**
- * hotel_rooms → Chambres, Réservations, Salles de conf., Factures
+ * hotel_rooms → Chambres (+ réservations intégrées), Salles de conf., Salle Réception, Factures
  * hotel_bar   → Restaurant-Bar, Cuisine
  */
 const allTabs = [
   { id: 'Rooms',           label: 'Chambres',        route: '/hotel',                 icon: 'bi-door-closed',     permissions: ['hotel_rooms'] },
-  { id: 'Reservations',    label: 'Réservations',     route: '/hotel/reservations',    icon: 'bi-calendar2-check', permissions: ['hotel_rooms'] },
-  { id: 'ConferenceRooms', label: 'Salles de Conf.',  route: '/hotel/conference-rooms',icon: 'bi-camera-video',    permissions: ['hotel_rooms'] },
+  { id: 'ConferenceRooms', label: 'Salles de Conf.',  route: '/hotel/conference-rooms', icon: 'bi-camera-video',   permissions: ['hotel_rooms'] },
+  { id: 'ReceptionHalls',  label: 'Salle Réception',  route: '/hotel/reception-halls',  icon: 'bi-balloon-heart',  permissions: ['hotel_rooms'] },
   { id: 'RestaurantBar',   label: 'Restaurant-Bar',   route: '/hotel/restaurant-bar',  icon: 'bi-cup-straw',       permissions: ['hotel_bar', 'hotel_bar_order'] },
   { id: 'Kitchen',         label: 'Cuisine',          route: '/hotel/kitchen',         icon: 'bi-fire',            permissions: ['hotel_bar', 'hotel_bar_order'] },
   { id: 'Invoices',        label: 'Factures',         route: '/hotel/invoices',        icon: 'bi-receipt',         permissions: ['hotel_rooms'] },

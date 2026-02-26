@@ -1,11 +1,11 @@
 <template>
   <div class="hotel-page">
-    <HotelHeader modelValue="ConferenceRooms" />
+    <HotelHeader modelValue="ReceptionHalls" />
 
     <div class="px-3 pb-4 mt-3">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h5 class="mb-0 fw-bold">
-          <i class="bi bi-camera-video me-2 text-primary"></i>Salles de Conférences
+          <i class="bi bi-balloon-heart me-2 text-primary"></i>Salles de Réception
         </h5>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-secondary" @click="loadAll">
@@ -64,9 +64,9 @@
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <div class="small fw-semibold">Total salles</div>
-                  <div class="fs-3 fw-bold">{{ rooms.length }}</div>
+                  <div class="fs-3 fw-bold">{{ halls.length }}</div>
                 </div>
-                <i class="bi bi-camera-video fs-2 opacity-75"></i>
+                <i class="bi bi-balloon-heart fs-2 opacity-75"></i>
               </div>
             </div>
           </div>
@@ -107,47 +107,47 @@
       <!-- Grid -->
       <div v-else class="row g-3">
         <div
-          v-for="room in filteredRooms"
-          :key="room.id"
+          v-for="hall in filteredHalls"
+          :key="hall.id"
           class="col-12 col-md-6 col-lg-4"
         >
           <div
-            class="card h-100 conference-card"
-            :class="getCardClass(room.status)"
+            class="card h-100 reception-card"
+            :class="getCardClass(hall.status)"
             style="cursor: pointer;"
-            @click="selectedRoom = room"
+            @click="selectedHall = hall"
           >
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-2">
                 <h5 class="card-title mb-0">
-                  <i class="bi bi-camera-video me-2"></i>{{ room.name }}
+                  <i class="bi bi-balloon-heart me-2"></i>{{ hall.name }}
                 </h5>
-                <span class="badge" :class="getBadgeClass(room.status)">
-                  {{ getStatusLabel(room.status) }}
+                <span class="badge" :class="getBadgeClass(hall.status)">
+                  {{ getStatusLabel(hall.status) }}
                 </span>
               </div>
               <div class="row g-1 text-muted small">
                 <div class="col-6">
-                  <i class="bi bi-people me-1"></i>Capacité : <strong>{{ room.capacity }} pers.</strong>
+                  <i class="bi bi-people me-1"></i>Capacité : <strong>{{ hall.capacity }} pers.</strong>
                 </div>
-                <div class="col-6" v-if="room.floor">
-                  <i class="bi bi-layers me-1"></i>Étage : <strong>{{ room.floor }}</strong>
+                <div class="col-6" v-if="hall.floor">
+                  <i class="bi bi-layers me-1"></i>Étage : <strong>{{ hall.floor }}</strong>
                 </div>
                 <div class="col-12 mt-1">
                   <i class="bi bi-currency-dollar me-1"></i>
-                  <strong class="text-primary">{{ formatCurrency(room.price_per_hour) }}/heure</strong>
+                  <strong class="text-primary">{{ formatCurrency(hall.price_per_hour) }}/heure</strong>
                 </div>
-                <div class="col-12 mt-1" v-if="room.equipment">
-                  <i class="bi bi-tools me-1"></i>{{ room.equipment }}
+                <div class="col-12 mt-1" v-if="hall.equipment">
+                  <i class="bi bi-tools me-1"></i>{{ hall.equipment }}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="filteredRooms.length === 0" class="col-12 text-center py-5 text-muted">
-          <i class="bi bi-camera-video fs-1 d-block mb-2"></i>
-          Aucune salle de conférence trouvée
+        <div v-if="filteredHalls.length === 0" class="col-12 text-center py-5 text-muted">
+          <i class="bi bi-balloon-heart fs-1 d-block mb-2"></i>
+          Aucune salle de réception trouvée
         </div>
       </div>
 
@@ -157,7 +157,7 @@
         <div>
           <strong>{{ overdueBookings.length }} réservation(s) de salle dépassée(s) !</strong>
           <div v-for="b in overdueBookings" :key="b.id" class="small mt-1">
-            Salle <strong>{{ b.conference_room?.name }}</strong> — <strong>{{ b.guest_name }}</strong>
+            Salle <strong>{{ b.reception_hall?.name }}</strong> — <strong>{{ b.guest_name }}</strong>
             (prévu jusqu'à {{ b.end_time?.substring(0,5) }})
             <button class="btn btn-sm btn-warning ms-2 py-0" @click="openExtendModal(b)">
               <i class="bi bi-clock-history me-1"></i>Prolonger
@@ -174,9 +174,9 @@
             <button class="btn-close" @click="showExtendModal = false"></button>
           </div>
           <div v-if="extendingBooking" class="alert alert-info py-2 small mb-3">
-            <strong>{{ extendingBooking.guest_name }}</strong> — {{ extendingBooking.conference_room?.name }}<br>
+            <strong>{{ extendingBooking.guest_name }}</strong> — {{ extendingBooking.reception_hall?.name }}<br>
             Heure de fin prévue : {{ extendingBooking.end_time?.substring(0,5) }}<br>
-            Prix/heure : <strong>{{ formatCurrency(extendingBooking.conference_room?.price_per_hour) }}</strong>
+            Prix/heure : <strong>{{ formatCurrency(extendingBooking.reception_hall?.price_per_hour) }}</strong>
           </div>
           <div v-if="extendError" class="alert alert-danger py-2 small">{{ extendError }}</div>
           <div class="mb-3">
@@ -191,7 +191,7 @@
             </select>
             <div class="form-text" v-if="extendingBooking && extendForm.extra_hours > 0">
               Montant supplémentaire :
-              <strong class="text-primary">{{ formatCurrency(extendingBooking.conference_room?.price_per_hour * extendForm.extra_hours) }}</strong>
+              <strong class="text-primary">{{ formatCurrency(extendingBooking.reception_hall?.price_per_hour * extendForm.extra_hours) }}</strong>
             </div>
           </div>
           <div class="d-flex justify-content-end gap-2">
@@ -241,7 +241,7 @@
                   <div class="fw-semibold">{{ b.guest_name }}</div>
                   <div class="small text-muted">{{ b.guest_phone }}</div>
                 </td>
-                <td>{{ b.conference_room?.name }}</td>
+                <td>{{ b.reception_hall?.name }}</td>
                 <td>{{ formatDate(b.booking_date) }}</td>
                 <td>
                   {{ b.start_time?.substring(0,5) }} – {{ b.end_time?.substring(0,5) }}
@@ -256,18 +256,16 @@
                 </td>
                 <td class="text-center">
                   <div class="d-flex gap-1 justify-content-center">
-                    <!-- Générer facture -->
                     <button
                       v-if="!b.invoice_id && b.status !== 'cancelled'"
                       class="btn btn-sm btn-outline-primary"
                       :disabled="generatingInvoiceId === b.id"
-                      @click="generateConferenceInvoice(b)"
+                      @click="generateInvoice(b)"
                       title="Générer la facture"
                     >
                       <span v-if="generatingInvoiceId === b.id" class="spinner-border spinner-border-sm"></span>
                       <i v-else class="bi bi-receipt"></i>
                     </button>
-                    <!-- Voir facture -->
                     <router-link
                       v-if="b.invoice_id"
                       :to="{ name: 'hotel.invoice', params: { id: b.invoice_id } }"
@@ -276,7 +274,6 @@
                     >
                       <i class="bi bi-eye"></i>
                     </router-link>
-                    <!-- Enregistrer paiement -->
                     <button
                       v-if="b.invoice_id && b.invoice && b.invoice.payment_status !== 'paid'"
                       class="btn btn-sm btn-success"
@@ -285,7 +282,6 @@
                     >
                       <i class="bi bi-cash-coin"></i>
                     </button>
-                    <!-- Prolonger -->
                     <button
                       v-if="b.status === 'confirmed'"
                       class="btn btn-sm btn-outline-warning"
@@ -322,7 +318,7 @@
             <button class="btn-close" @click="showPaymentModal = false"></button>
           </div>
           <div v-if="payingBooking" class="alert alert-info py-2 small mb-3">
-            <strong>{{ payingBooking.guest_name }}</strong> — {{ payingBooking.conference_room?.name }}<br>
+            <strong>{{ payingBooking.guest_name }}</strong> — {{ payingBooking.reception_hall?.name }}<br>
             Total : <strong>{{ formatCurrency(payingBooking.invoice?.invoice_total_amount ?? payingBooking.total_amount) }}</strong> &nbsp;|&nbsp;
             Déjà payé : <strong>{{ formatCurrency(payingBooking.invoice?.total_paid ?? payingBooking.advance_payment) }}</strong><br>
             Reste à payer : <strong class="text-danger">{{ formatCurrency(remainingAmount) }}</strong>
@@ -363,72 +359,72 @@
       </div>
 
       <!-- MODAL: Detail -->
-      <div v-if="selectedRoom" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="selectedRoom = null">
+      <div v-if="selectedHall" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="selectedHall = null">
         <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 480px;">
           <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <h5 class="mb-0"><i class="bi bi-camera-video me-2"></i>{{ selectedRoom.name }}</h5>
-            <button class="btn-close" @click="selectedRoom = null"></button>
+            <h5 class="mb-0"><i class="bi bi-balloon-heart me-2"></i>{{ selectedHall.name }}</h5>
+            <button class="btn-close" @click="selectedHall = null"></button>
           </div>
           <div class="row g-2 mb-3">
             <div class="col-6">
               <div class="small text-muted">Capacité</div>
-              <div class="fw-semibold">{{ selectedRoom.capacity }} personnes</div>
+              <div class="fw-semibold">{{ selectedHall.capacity }} personnes</div>
             </div>
             <div class="col-6">
               <div class="small text-muted">Étage</div>
-              <div class="fw-semibold">{{ selectedRoom.floor || 'N/A' }}</div>
+              <div class="fw-semibold">{{ selectedHall.floor || 'N/A' }}</div>
             </div>
             <div class="col-6">
               <div class="small text-muted">Prix/heure</div>
-              <div class="fw-semibold text-primary">{{ formatCurrency(selectedRoom.price_per_hour) }}</div>
+              <div class="fw-semibold text-primary">{{ formatCurrency(selectedHall.price_per_hour) }}</div>
             </div>
             <div class="col-6">
               <div class="small text-muted">Statut</div>
-              <span class="badge fs-6" :class="getBadgeClass(selectedRoom.status)">{{ getStatusLabel(selectedRoom.status) }}</span>
+              <span class="badge fs-6" :class="getBadgeClass(selectedHall.status)">{{ getStatusLabel(selectedHall.status) }}</span>
             </div>
-            <div class="col-12" v-if="selectedRoom.equipment">
+            <div class="col-12" v-if="selectedHall.equipment">
               <div class="small text-muted">Équipements</div>
-              <div>{{ selectedRoom.equipment }}</div>
+              <div>{{ selectedHall.equipment }}</div>
             </div>
-            <div class="col-12" v-if="selectedRoom.description">
+            <div class="col-12" v-if="selectedHall.description">
               <div class="small text-muted">Description</div>
-              <div>{{ selectedRoom.description }}</div>
+              <div>{{ selectedHall.description }}</div>
             </div>
           </div>
           <div class="d-flex gap-2 flex-wrap">
             <button
-              v-if="selectedRoom.status === 'available'"
+              v-if="selectedHall.status === 'available'"
               class="btn btn-success btn-sm"
-              @click="openBookingModal(selectedRoom)"
+              @click="openBookingModal(selectedHall)"
             >
               <i class="bi bi-calendar-plus me-1"></i> Réserver
             </button>
             <button
-              v-if="selectedRoom.status === 'reserved'"
+              v-if="selectedHall.status === 'reserved'"
               class="btn btn-danger btn-sm"
-              @click="changeRoomStatus(selectedRoom, 'occupied')"
+              @click="changeHallStatus(selectedHall, 'occupied')"
             >
               <i class="bi bi-door-open me-1"></i> Occuper (début)
             </button>
             <button
-              v-if="selectedRoom.status === 'occupied'"
+              v-if="selectedHall.status === 'occupied'"
               class="btn btn-success btn-sm"
-              @click="changeRoomStatus(selectedRoom, 'available')"
+              @click="changeHallStatus(selectedHall, 'available')"
             >
               <i class="bi bi-check-circle me-1"></i> Libérer (fin)
             </button>
-            <button class="btn btn-outline-primary btn-sm" @click="editRoom(selectedRoom)">
+            <button class="btn btn-outline-primary btn-sm" @click="editHall(selectedHall)">
               <i class="bi bi-pencil me-1"></i> Modifier
             </button>
             <button
-              v-if="selectedRoom.status !== 'occupied'"
+              v-if="selectedHall.status !== 'occupied'"
               class="btn btn-outline-secondary btn-sm"
-              @click="toggleMaintenance(selectedRoom)"
+              @click="toggleMaintenance(selectedHall)"
             >
               <i class="bi bi-tools me-1"></i>
-              {{ selectedRoom.status === 'maintenance' ? 'Fin maintenance' : 'Maintenance' }}
+              {{ selectedHall.status === 'maintenance' ? 'Fin maintenance' : 'Maintenance' }}
             </button>
-            <button class="btn btn-outline-danger btn-sm ms-auto" @click="confirmDelete(selectedRoom)">
+            <button class="btn btn-outline-danger btn-sm ms-auto" @click="confirmDelete(selectedHall)">
               <i class="bi bi-trash"></i>
             </button>
           </div>
@@ -439,11 +435,11 @@
       <div v-if="showModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="closeModal">
         <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
           <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <h5 class="mb-0">{{ editingRoom ? 'Modifier Salle' : 'Nouvelle Salle de Conférence' }}</h5>
+            <h5 class="mb-0">{{ editingHall ? 'Modifier Salle' : 'Nouvelle Salle de Réception' }}</h5>
             <button class="btn-close" @click="closeModal"></button>
           </div>
           <div v-if="formError" class="alert alert-danger py-2">{{ formError }}</div>
-          <form @submit.prevent="saveRoom">
+          <form @submit.prevent="saveHall">
             <div class="row g-3">
               <div class="col-md-8">
                 <label class="form-label small fw-bold">Nom de la salle <span class="text-danger">*</span></label>
@@ -472,7 +468,7 @@
               </div>
               <div class="col-12">
                 <label class="form-label small fw-bold">Équipements</label>
-                <input v-model="form.equipment" type="text" class="form-control" placeholder="Projecteur, microphone, climatisation..." />
+                <input v-model="form.equipment" type="text" class="form-control" placeholder="Scène, sonorisation, décoration, climatisation..." />
               </div>
               <div class="col-12">
                 <label class="form-label small fw-bold">Description</label>
@@ -483,7 +479,7 @@
               <button type="button" class="btn btn-secondary" @click="closeModal">Annuler</button>
               <button type="submit" class="btn btn-primary" :disabled="saving">
                 <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
-                {{ saving ? 'Enregistrement...' : (editingRoom ? 'Mettre à jour' : 'Enregistrer') }}
+                {{ saving ? 'Enregistrement...' : (editingHall ? 'Mettre à jour' : 'Enregistrer') }}
               </button>
             </div>
           </form>
@@ -495,7 +491,7 @@
         <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto;">
           <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
             <h5 class="mb-0">
-              <i class="bi bi-calendar-plus me-2"></i>Réserver — {{ bookingForm.room?.name }}
+              <i class="bi bi-calendar-plus me-2"></i>Réserver — {{ bookingForm.hall?.name }}
             </h5>
             <button class="btn-close" @click="showBookingModal = false"></button>
           </div>
@@ -529,8 +525,8 @@
                 </select>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Objet de la réunion</label>
-                <input v-model="bookingForm.purpose" type="text" class="form-control" placeholder="Ex: Réunion de direction" />
+                <label class="form-label small fw-bold">Objet / Type d'événement</label>
+                <input v-model="bookingForm.purpose" type="text" class="form-control" placeholder="Ex: Mariage, anniversaire, baptême..." />
               </div>
               <div class="col-md-3">
                 <label class="form-label small fw-bold">Montant total</label>
@@ -559,13 +555,13 @@
       </div>
 
       <!-- MODAL: Delete Confirm -->
-      <div v-if="roomToDelete" class="modal-overlay d-flex justify-content-center align-items-center">
+      <div v-if="hallToDelete" class="modal-overlay d-flex justify-content-center align-items-center">
         <div class="bg-white rounded shadow-lg p-4" style="max-width: 400px; width: 90%;">
           <h5 class="mb-3">Confirmer la suppression</h5>
-          <p>Supprimer la salle <strong>{{ roomToDelete.name }}</strong> ?</p>
+          <p>Supprimer la salle <strong>{{ hallToDelete.name }}</strong> ?</p>
           <div class="d-flex justify-content-end gap-2">
-            <button class="btn btn-secondary" @click="roomToDelete = null">Annuler</button>
-            <button class="btn btn-danger" @click="deleteRoom" :disabled="deleting">
+            <button class="btn btn-secondary" @click="hallToDelete = null">Annuler</button>
+            <button class="btn btn-danger" @click="deleteHall" :disabled="deleting">
               <span v-if="deleting" class="spinner-border spinner-border-sm me-1"></span>
               Supprimer
             </button>
@@ -582,7 +578,7 @@ import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
 
 const loading = ref(false);
-const rooms = ref([]);
+const halls = ref([]);
 const bookings = ref([]);
 const bookingSearch = ref('');
 const bookingStatusFilter = ref('');
@@ -600,12 +596,12 @@ const paymentForm = reactive({
   reference: '',
 });
 const filterStatus = ref('all');
-const selectedRoom = ref(null);
+const selectedHall = ref(null);
 const showModal = ref(false);
-const editingRoom = ref(null);
+const editingHall = ref(null);
 const saving = ref(false);
 const formError = ref('');
-const roomToDelete = ref(null);
+const hallToDelete = ref(null);
 const deleting = ref(false);
 const showBookingModal = ref(false);
 const savingBooking = ref(false);
@@ -615,7 +611,7 @@ const today = new Date().toISOString().split('T')[0];
 const form = reactive({
   name: '',
   floor: '',
-  capacity: 10,
+  capacity: 50,
   price_per_hour: 0,
   status: 'available',
   equipment: '',
@@ -623,8 +619,8 @@ const form = reactive({
 });
 
 const bookingForm = reactive({
-  room: null,
-  conference_room_id: null,
+  hall: null,
+  reception_hall_id: null,
   guest_name: '',
   guest_phone: '',
   booking_date: today,
@@ -644,9 +640,9 @@ const statusFilters = [
 ];
 
 const stats = computed(() => ({
-  available: rooms.value.filter(r => r.status === 'available').length,
-  occupied: rooms.value.filter(r => r.status === 'occupied').length,
-  reserved: rooms.value.filter(r => r.status === 'reserved').length,
+  available: halls.value.filter(h => h.status === 'available').length,
+  occupied: halls.value.filter(h => h.status === 'occupied').length,
+  reserved: halls.value.filter(h => h.status === 'reserved').length,
 }));
 
 const todayStr = () => {
@@ -660,9 +656,9 @@ const revenueToday = computed(() => {
     .reduce((sum, b) => sum + parseFloat(b.total_amount ?? 0), 0);
 });
 
-const filteredRooms = computed(() => {
-  if (filterStatus.value === 'all') return rooms.value;
-  return rooms.value.filter(r => r.status === filterStatus.value);
+const filteredHalls = computed(() => {
+  if (filterStatus.value === 'all') return halls.value;
+  return halls.value.filter(h => h.status === filterStatus.value);
 });
 
 const timeSlots = computed(() => {
@@ -681,7 +677,7 @@ const bookingTotalLabel = ref('—');
 const computeBookingTotal = () => {
   const startTime = bookingForm.start_time;
   const endTime = bookingForm.end_time;
-  const price = parseFloat(bookingForm.room?.price_per_hour ?? 0);
+  const price = parseFloat(bookingForm.hall?.price_per_hour ?? 0);
 
   if (!startTime || !endTime || !price) {
     bookingTotalAmount.value = 0;
@@ -706,7 +702,7 @@ const computeBookingTotal = () => {
 };
 
 watch(
-  () => [bookingForm.start_time, bookingForm.end_time, bookingForm.room],
+  () => [bookingForm.start_time, bookingForm.end_time, bookingForm.hall],
   computeBookingTotal,
 );
 
@@ -724,11 +720,11 @@ const loadBookings = async (page = 1) => {
     const params = { page };
     if (bookingSearch.value.trim()) params.search = bookingSearch.value.trim();
     if (bookingStatusFilter.value) params.status = bookingStatusFilter.value;
-    const res = await api.get('/hotel/conference-bookings', { params });
+    const res = await api.get('/hotel/reception-bookings', { params });
     bookings.value = res.data.data;
     bookingPagination.value = res.data.meta ?? { current_page: 1, last_page: 1, total: bookings.value.length };
   } catch (e) {
-    console.error('Erreur chargement réservations conférence:', e);
+    console.error('Erreur chargement réservations réception:', e);
   }
 };
 
@@ -754,10 +750,10 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString('fr-FR');
 };
 
-const generateConferenceInvoice = async (booking) => {
+const generateInvoice = async (booking) => {
   generatingInvoiceId.value = booking.id;
   try {
-    await api.post(`/hotel/conference-bookings/${booking.id}/invoice`);
+    await api.post(`/hotel/reception-bookings/${booking.id}/invoice`);
     await loadAll();
   } catch (e) {
     alert(e.response?.data?.message || 'Impossible de générer la facture');
@@ -767,14 +763,12 @@ const generateConferenceInvoice = async (booking) => {
 };
 
 const openPaymentModal = (booking) => {
-  // toRaw() converts the Vue reactive proxy to a plain JS object,
-  // preventing proxy resolution issues when reading invoice_id in savePayment.
   const raw = toRaw(booking);
   payingBooking.value = {
     id: raw.id,
     invoice_id: raw.invoice_id,
     guest_name: raw.guest_name,
-    conference_room: raw.conference_room ? { name: raw.conference_room.name } : null,
+    reception_hall: raw.reception_hall ? { name: raw.reception_hall.name } : null,
     total_amount: raw.total_amount,
     advance_payment: raw.advance_payment,
     invoice: raw.invoice ? {
@@ -786,8 +780,7 @@ const openPaymentModal = (booking) => {
   paymentError.value = '';
   const total = parseFloat(payingBooking.value.invoice?.invoice_total_amount ?? payingBooking.value.total_amount ?? 0);
   const paid = parseFloat(payingBooking.value.invoice?.total_paid ?? payingBooking.value.advance_payment ?? 0);
-  const remaining = total - paid;
-  paymentForm.amount = Math.max(0, remaining);
+  paymentForm.amount = Math.max(0, total - paid);
   paymentForm.payment_method = 'cash';
   paymentForm.payment_date = new Date().toISOString().split('T')[0];
   paymentForm.reference = '';
@@ -821,46 +814,46 @@ const savePayment = async () => {
 const loadAll = async () => {
   loading.value = true;
   try {
-    const [roomsRes] = await Promise.all([
-      api.get('/hotel/conference-rooms'),
+    const [hallsRes] = await Promise.all([
+      api.get('/hotel/reception-halls'),
       loadBookings(1),
     ]);
-    rooms.value = roomsRes.data.data;
+    halls.value = hallsRes.data.data;
   } catch (e) {
-    console.error('Erreur chargement salles de conférence:', e);
+    console.error('Erreur chargement salles de réception:', e);
   } finally {
     loading.value = false;
   }
 };
 
 const openAddModal = () => {
-  editingRoom.value = null;
-  Object.assign(form, { name: '', floor: '', capacity: 10, price_per_hour: 0, status: 'available', equipment: '', description: '' });
+  editingHall.value = null;
+  Object.assign(form, { name: '', floor: '', capacity: 50, price_per_hour: 0, status: 'available', equipment: '', description: '' });
   formError.value = '';
   showModal.value = true;
 };
 
-const editRoom = (room) => {
-  editingRoom.value = room;
-  Object.assign(form, { name: room.name, floor: room.floor || '', capacity: room.capacity, price_per_hour: room.price_per_hour, status: room.status, equipment: room.equipment || '', description: room.description || '' });
+const editHall = (hall) => {
+  editingHall.value = hall;
+  Object.assign(form, { name: hall.name, floor: hall.floor || '', capacity: hall.capacity, price_per_hour: hall.price_per_hour, status: hall.status, equipment: hall.equipment || '', description: hall.description || '' });
   formError.value = '';
-  selectedRoom.value = null;
+  selectedHall.value = null;
   showModal.value = true;
 };
 
 const closeModal = () => {
   showModal.value = false;
-  editingRoom.value = null;
+  editingHall.value = null;
 };
 
-const saveRoom = async () => {
+const saveHall = async () => {
   saving.value = true;
   formError.value = '';
   try {
-    if (editingRoom.value) {
-      await api.put(`/hotel/conference-rooms/${editingRoom.value.id}`, form);
+    if (editingHall.value) {
+      await api.put(`/hotel/reception-halls/${editingHall.value.id}`, form);
     } else {
-      await api.post('/hotel/conference-rooms', form);
+      await api.post('/hotel/reception-halls', form);
     }
     closeModal();
     await loadAll();
@@ -871,16 +864,16 @@ const saveRoom = async () => {
   }
 };
 
-const confirmDelete = (room) => {
-  selectedRoom.value = null;
-  roomToDelete.value = room;
+const confirmDelete = (hall) => {
+  selectedHall.value = null;
+  hallToDelete.value = hall;
 };
 
-const deleteRoom = async () => {
+const deleteHall = async () => {
   deleting.value = true;
   try {
-    await api.delete(`/hotel/conference-rooms/${roomToDelete.value.id}`);
-    roomToDelete.value = null;
+    await api.delete(`/hotel/reception-halls/${hallToDelete.value.id}`);
+    hallToDelete.value = null;
     await loadAll();
   } catch (e) {
     alert(e.response?.data?.message || 'Erreur lors de la suppression');
@@ -889,23 +882,23 @@ const deleteRoom = async () => {
   }
 };
 
-const changeRoomStatus = async (room, newStatus) => {
+const changeHallStatus = async (hall, newStatus) => {
   try {
-    await api.put(`/hotel/conference-rooms/${room.id}`, { status: newStatus });
-    selectedRoom.value = null;
+    await api.put(`/hotel/reception-halls/${hall.id}`, { status: newStatus });
+    selectedHall.value = null;
     await loadAll();
   } catch (e) {
     alert(e.response?.data?.message || 'Erreur');
   }
 };
 
-const toggleMaintenance = async (room) => {
-  await changeRoomStatus(room, room.status === 'maintenance' ? 'available' : 'maintenance');
+const toggleMaintenance = async (hall) => {
+  await changeHallStatus(hall, hall.status === 'maintenance' ? 'available' : 'maintenance');
 };
 
-const openBookingModal = (room) => {
-  bookingForm.room = room;
-  bookingForm.conference_room_id = room.id;
+const openBookingModal = (hall) => {
+  bookingForm.hall = hall;
+  bookingForm.reception_hall_id = hall.id;
   bookingForm.guest_name = '';
   bookingForm.guest_phone = '';
   bookingForm.booking_date = today;
@@ -915,7 +908,7 @@ const openBookingModal = (room) => {
   bookingForm.advance_payment = 0;
   bookingForm.notes = '';
   bookingError.value = '';
-  selectedRoom.value = null;
+  selectedHall.value = null;
   showBookingModal.value = true;
 };
 
@@ -923,8 +916,8 @@ const saveBooking = async () => {
   savingBooking.value = true;
   bookingError.value = '';
   try {
-    await api.post('/hotel/conference-bookings', {
-      hotel_conference_room_id: bookingForm.conference_room_id,
+    await api.post('/hotel/reception-bookings', {
+      hotel_reception_hall_id: bookingForm.reception_hall_id,
       guest_name: bookingForm.guest_name,
       guest_phone: bookingForm.guest_phone,
       booking_date: bookingForm.booking_date,
@@ -983,7 +976,7 @@ const saveExtend = async () => {
   savingExtend.value = true;
   extendError.value = '';
   try {
-    await api.post(`/hotel/conference-bookings/${extendingBooking.value.id}/extend`, {
+    await api.post(`/hotel/reception-bookings/${extendingBooking.value.id}/extend`, {
       extra_hours: extendForm.extra_hours,
     });
     showExtendModal.value = false;
@@ -1010,18 +1003,12 @@ onMounted(() => loadAll());
   background: rgba(0, 0, 0, 0.5);
   z-index: 9999;
 }
-.conference-card {
+.reception-card {
   border-width: 2px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.conference-card:hover {
+.reception-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-.time-24h::-webkit-datetime-edit-ampm-field {
-  display: none;
-}
-.time-24h::-webkit-calendar-picker-indicator {
-  cursor: pointer;
 }
 </style>

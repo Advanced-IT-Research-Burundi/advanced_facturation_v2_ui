@@ -88,7 +88,12 @@
                   <div class="small text-muted">{{ getRoomTypeLabel(reservation.room?.type) }}</div>
                 </td>
                 <td>{{ formatDate(reservation.check_in_date) }}</td>
-                <td>{{ formatDate(reservation.check_out_date) }}</td>
+                <td>
+                  {{ formatDate(reservation.check_out_date) }}
+                  <span v-if="isOverdue(reservation)" class="badge bg-danger ms-1 small" title="Temps d'occupation dépassé">
+                    <i class="bi bi-alarm-fill"></i> Dépassé
+                  </span>
+                </td>
                 <td class="text-center">{{ reservation.nights }}</td>
                 <td>{{ formatCurrency(reservation.total_amount) }}</td>
                 <td>{{ formatCurrency(reservation.advance_payment) }}</td>
@@ -117,6 +122,14 @@
                       @click="openCheckOutModal(reservation)"
                     >
                       <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                    <button
+                      v-if="reservation.status === 'checked_in'"
+                      class="btn btn-sm btn-outline-warning"
+                      title="Prolonger le séjour"
+                      @click="openExtendModal(reservation, 'room')"
+                    >
+                      <i class="bi bi-clock-history"></i>
                     </button>
                     <button
                       v-if="reservation.status === 'checked_in'"
@@ -404,6 +417,52 @@
       </div>
     </div>
 
+    <!-- Alerte : réservations dépassées -->
+    <div v-if="overdueReservations.length > 0" class="alert alert-danger d-flex align-items-start gap-2 mb-3">
+      <i class="bi bi-alarm-fill fs-5 mt-1"></i>
+      <div>
+        <strong>{{ overdueReservations.length }} réservation(s) dépassée(s) !</strong>
+        <div v-for="r in overdueReservations" :key="r.id" class="small mt-1">
+          Chambre <strong>{{ r.room?.room_number }}</strong> — <strong>{{ r.guest_name }}</strong>
+          (prévu jusqu'au {{ formatDate(r.check_out_date) }})
+          <button class="btn btn-sm btn-warning ms-2 py-0" @click="openExtendModal(r, 'room')">
+            <i class="bi bi-clock-history me-1"></i>Prolonger
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Prolongation -->
+    <div v-if="showExtendModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showExtendModal = false">
+      <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 420px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+          <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-warning"></i>Prolonger le séjour</h5>
+          <button class="btn-close" @click="showExtendModal = false"></button>
+        </div>
+        <div v-if="extendingReservation" class="alert alert-info py-2 small mb-3">
+          <strong>{{ extendingReservation.guest_name }}</strong> — Chambre {{ extendingReservation.room?.room_number }}<br>
+          Départ prévu : {{ formatDate(extendingReservation.check_out_date) }}<br>
+          Prix/nuit : <strong>{{ formatCurrency(extendingReservation.price_per_night) }}</strong>
+        </div>
+        <div v-if="extendError" class="alert alert-danger py-2 small">{{ extendError }}</div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Nombre de nuits supplémentaires <span class="text-danger">*</span></label>
+          <input v-model.number="extendForm.extra_nights" type="number" class="form-control" min="1" />
+          <div class="form-text" v-if="extendingReservation && extendForm.extra_nights > 0">
+            Montant supplémentaire :
+            <strong class="text-primary">{{ formatCurrency(extendingReservation.price_per_night * extendForm.extra_nights) }}</strong>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" @click="showExtendModal = false">Annuler</button>
+          <button class="btn btn-warning" @click="saveExtend" :disabled="savingExtend">
+            <span v-if="savingExtend" class="spinner-border spinner-border-sm me-1"></span>
+            Prolonger
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- MODAL: Cancel confirm -->
     <div v-if="reservationToCancel" class="modal-overlay d-flex justify-content-center align-items-center">
       <div class="bg-white rounded shadow-lg p-4" style="max-width: 380px; width: 90%;">
@@ -453,6 +512,12 @@ const checkingOut = ref(false);
 
 const reservationToCancel = ref(null);
 const cancelling = ref(false);
+
+const showExtendModal = ref(false);
+const extendingReservation = ref(null);
+const extendForm = reactive({ extra_nights: 1 });
+const savingExtend = ref(false);
+const extendError = ref('');
 
 let debounceTimer = null;
 
@@ -793,6 +858,42 @@ const submitRoomServiceOrder = async () => {
     roomServiceError.value = e.response?.data?.message || 'Erreur lors de l\'envoi';
   } finally {
     rsSaving.value = false;
+  }
+};
+
+// ─── Alertes et prolongation ────────────────────────────────────────────────
+
+const isOverdue = (reservation) => {
+  if (!['confirmed', 'checked_in'].includes(reservation.status)) { return false; }
+  const checkOut = new Date(reservation.check_out_date);
+  checkOut.setHours(23, 59, 59);
+  return new Date() > checkOut;
+};
+
+const overdueReservations = computed(() =>
+  reservations.value.filter((r) => isOverdue(r)),
+);
+
+const openExtendModal = (reservation) => {
+  extendingReservation.value = reservation;
+  extendForm.extra_nights = 1;
+  extendError.value = '';
+  showExtendModal.value = true;
+};
+
+const saveExtend = async () => {
+  savingExtend.value = true;
+  extendError.value = '';
+  try {
+    await api.post(`/hotel/reservations/${extendingReservation.value.id}/extend`, {
+      extra_nights: extendForm.extra_nights,
+    });
+    showExtendModal.value = false;
+    await loadReservations();
+  } catch (e) {
+    extendError.value = e.response?.data?.message || 'Erreur lors de la prolongation';
+  } finally {
+    savingExtend.value = false;
   }
 };
 

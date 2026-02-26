@@ -16,15 +16,22 @@
       <div class="card mb-3">
         <div class="card-body py-2">
           <div class="row g-2 align-items-center">
-            <div class="col-md-5">
-              <select v-model="filterPayment" class="form-select form-select-sm" @change="loadInvoices">
-                <option value="">Tous les statuts de paiement</option>
+            <div class="col-md-4">
+              <select v-model="filterType" class="form-select form-select-sm" @change="loadInvoices(1)">
+                <option value="">Tous les types</option>
+                <option value="HOTEL">Hôtel (chambres / salles)</option>
+                <option value="RESTAURANT">Restaurant-Bar</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <select v-model="filterPayment" class="form-select form-select-sm" @change="loadInvoices(1)">
+                <option value="">Tous les statuts</option>
                 <option value="unpaid">Non payées</option>
                 <option value="partial">Paiement partiel</option>
                 <option value="paid">Payées</option>
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
               <button class="btn btn-sm btn-outline-secondary w-100" @click="resetFilters">
                 <i class="bi bi-x-circle me-1"></i>Réinitialiser
               </button>
@@ -45,7 +52,8 @@
             <thead class="table-light">
               <tr>
                 <th>N° Facture</th>
-                <th>Réservation</th>
+                <th>Type</th>
+                <th>Référence</th>
                 <th>Client</th>
                 <th>Date</th>
                 <th class="text-end">Montant</th>
@@ -57,10 +65,28 @@
               <tr v-for="invoice in invoices" :key="invoice.id">
                 <td class="fw-semibold">{{ invoice.invoice_number }}</td>
                 <td>
+                  <span v-if="invoice.invoice_identifier === 'RESTAURANT'" class="badge bg-warning text-dark">
+                    <i class="bi bi-cup-hot me-1"></i>Restaurant
+                  </span>
+                  <span v-else class="badge bg-primary">
+                    <i class="bi bi-building me-1"></i>Hôtel
+                  </span>
+                </td>
+                <td>
                   <span v-if="invoice.hotel_reservation">
                     <i class="bi bi-door-closed me-1 text-muted"></i>
                     Chambre {{ invoice.hotel_reservation?.room?.room_number }}
-                    — {{ invoice.hotel_reservation?.guest_name }}
+                  </span>
+                  <span v-else-if="invoice.hotel_reception_booking">
+                    <i class="bi bi-balloon-heart me-1 text-muted"></i>
+                    Salle {{ invoice.hotel_reception_booking?.reception_hall?.name || '—' }}
+                  </span>
+                  <span v-else-if="invoice.hotel_conference_booking">
+                    <i class="bi bi-camera-video me-1 text-muted"></i>
+                    Salle Conf. {{ invoice.hotel_conference_booking?.conference_room?.name || '—' }}
+                  </span>
+                  <span v-else-if="invoice.invoice_identifier === 'RESTAURANT'" class="text-muted small">
+                    <i class="bi bi-cup-hot me-1"></i>Commande
                   </span>
                   <span v-else class="text-muted">—</span>
                 </td>
@@ -82,7 +108,7 @@
                 </td>
               </tr>
               <tr v-if="invoices.length === 0">
-                <td colspan="7" class="text-center py-5 text-muted">
+                <td colspan="8" class="text-center py-5 text-muted">
                   <i class="bi bi-receipt fs-1 d-block mb-2"></i>
                   Aucune facture trouvée
                 </td>
@@ -136,6 +162,7 @@ import HotelHeader from './HotelHeader.vue';
 const loading = ref(false);
 const invoices = ref([]);
 const filterPayment = ref('');
+const filterType = ref('');
 const pagination = ref({
   current_page: 1,
   last_page: 1,
@@ -159,6 +186,7 @@ const loadInvoices = async (page = pagination.value.current_page) => {
   try {
     const params = { page };
     if (filterPayment.value) params.payment_status = filterPayment.value;
+    if (filterType.value) params.invoice_type = filterType.value;
 
     const { data } = await api.get('/hotel/invoices', { params });
     invoices.value = data.data.data;
@@ -183,6 +211,7 @@ const changePage = (page) => {
 
 const resetFilters = () => {
   filterPayment.value = '';
+  filterType.value = '';
   loadInvoices(1);
 };
 

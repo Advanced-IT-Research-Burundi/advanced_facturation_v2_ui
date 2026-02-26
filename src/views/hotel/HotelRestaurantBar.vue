@@ -95,6 +95,11 @@
             <i class="bi bi-box-seam me-1"></i>Stock Bar
           </button>
         </li>
+        <li v-if="canManage" class="nav-item">
+          <button class="nav-link" :class="{ active: activeTab === 'movements' }" @click="activeTab = 'movements'; loadMovements()">
+            <i class="bi bi-arrow-left-right me-1"></i>Entrées / Sorties
+          </button>
+        </li>
       </ul>
 
       <!-- TAB: Tables — visible en lecture pour hotel_bar_order, gestion complète pour hotel_bar -->
@@ -321,6 +326,110 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Mouvements de stock bar -->
+      <div v-if="activeTab === 'movements' && canManage">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0 fw-bold"><i class="bi bi-arrow-left-right me-2 text-primary"></i>Entrées / Sorties — Stock Bar</h6>
+          <button class="btn btn-primary btn-sm" @click="openMovementModal('bar')">
+            <i class="bi bi-plus me-1"></i>Nouveau mouvement
+          </button>
+        </div>
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Article</th>
+                  <th>Type</th>
+                  <th>Qté avant</th>
+                  <th>Qté mouvement</th>
+                  <th>Qté après</th>
+                  <th>Raison</th>
+                  <th>Par</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="stockMovements.length === 0">
+                  <td colspan="8" class="text-center py-4 text-muted">Aucun mouvement</td>
+                </tr>
+                <tr v-for="m in stockMovements" :key="m.id">
+                  <td class="small text-muted">{{ formatDateTime(m.created_at) }}</td>
+                  <td class="fw-semibold">{{ m.stock_item_name }}</td>
+                  <td>
+                    <span class="badge" :class="m.movement_type === 'in' ? 'bg-success' : 'bg-danger'">
+                      {{ m.movement_type === 'in' ? 'Entrée' : 'Sortie' }}
+                    </span>
+                  </td>
+                  <td>{{ parseFloat(m.quantity_before) }}</td>
+                  <td :class="m.movement_type === 'in' ? 'text-success fw-bold' : 'text-danger fw-bold'">
+                    {{ m.movement_type === 'in' ? '+' : '-' }}{{ parseFloat(m.quantity) }}
+                  </td>
+                  <td>{{ parseFloat(m.quantity_after) }}</td>
+                  <td class="small">{{ m.reason || '—' }}</td>
+                  <td class="small text-muted">{{ m.user?.name || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Mouvement de stock -->
+      <div v-if="showMovementModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showMovementModal = false">
+        <div class="bg-white rounded shadow-lg p-4" style="width: 90%; max-width: 480px;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0 fw-bold">
+              <i class="bi bi-arrow-left-right me-2 text-primary"></i>
+              Mouvement de stock — {{ movementForm.stock_type === 'bar' ? 'Bar' : 'Cuisine' }}
+            </h5>
+            <button class="btn-close" @click="showMovementModal = false"></button>
+          </div>
+          <div v-if="movementError" class="alert alert-danger py-2 small">{{ movementError }}</div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Type de mouvement <span class="text-danger">*</span></label>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn flex-fill" :class="movementForm.movement_type === 'in' ? 'btn-success' : 'btn-outline-success'" @click="movementForm.movement_type = 'in'">
+                  <i class="bi bi-arrow-down-circle me-1"></i>Entrée (réception)
+                </button>
+                <button type="button" class="btn flex-fill" :class="movementForm.movement_type === 'out' ? 'btn-danger' : 'btn-outline-danger'" @click="movementForm.movement_type = 'out'">
+                  <i class="bi bi-arrow-up-circle me-1"></i>Sortie (perte/ajust.)
+                </button>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Article <span class="text-danger">*</span></label>
+              <select v-model="movementForm.stock_item_id" class="form-select">
+                <option value="">Sélectionner...</option>
+                <option v-for="item in movementForm.stock_type === 'bar' ? barStockItems : []" :key="item.id" :value="item.id">
+                  {{ item.name }} ({{ parseFloat(item.quantity) }} {{ item.unit }})
+                </option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Quantité <span class="text-danger">*</span></label>
+              <input v-model.number="movementForm.quantity" type="number" class="form-control" min="0.001" step="any" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Référence</label>
+              <input v-model="movementForm.reference" type="text" class="form-control" placeholder="N° bon livraison..." />
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Raison</label>
+              <input v-model="movementForm.reason" type="text" class="form-control" placeholder="Ex: Livraison fournisseur, perte, ajustement..." />
+            </div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button class="btn btn-secondary" @click="showMovementModal = false">Annuler</button>
+            <button class="btn btn-primary" @click="saveMovement" :disabled="savingMovement">
+              <span v-if="savingMovement" class="spinner-border spinner-border-sm me-1"></span>
+              Enregistrer
+            </button>
           </div>
         </div>
       </div>
@@ -670,6 +779,19 @@ const showBarStockModal = ref(false);
 const editingBarStock = ref(null);
 const barStockForm = reactive({ name: '', quantity: 0, unit: 'bouteille', alert_threshold: 5 });
 
+const stockMovements = ref([]);
+const showMovementModal = ref(false);
+const savingMovement = ref(false);
+const movementError = ref('');
+const movementForm = reactive({
+  stock_type: 'bar',
+  stock_item_id: '',
+  movement_type: 'in',
+  quantity: 1,
+  reason: '',
+  reference: '',
+});
+
 const newItem = reactive({ type: 'menu', menu_item_id: '', dish_id: '', qty: 1 });
 
 const orderForm = reactive({
@@ -927,6 +1049,53 @@ const saveBarStock = async () => {
   } catch (e) {
     alert(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
   }
+};
+
+const loadMovements = async () => {
+  try {
+    const res = await api.get('/hotel/stock-movements', { params: { stock_type: 'bar' } });
+    stockMovements.value = res.data.data?.data ?? res.data.data ?? [];
+  } catch (e) {
+    console.error('Erreur chargement mouvements:', e);
+  }
+};
+
+const openMovementModal = (type) => {
+  movementForm.stock_type = type;
+  movementForm.stock_item_id = '';
+  movementForm.movement_type = 'in';
+  movementForm.quantity = 1;
+  movementForm.reason = '';
+  movementForm.reference = '';
+  movementError.value = '';
+  showMovementModal.value = true;
+};
+
+const saveMovement = async () => {
+  savingMovement.value = true;
+  movementError.value = '';
+  try {
+    await api.post('/hotel/stock-movements', {
+      stock_type: movementForm.stock_type,
+      stock_item_id: movementForm.stock_item_id,
+      movement_type: movementForm.movement_type,
+      quantity: movementForm.quantity,
+      reason: movementForm.reason || null,
+      reference: movementForm.reference || null,
+    });
+    showMovementModal.value = false;
+    await loadAll();
+    await loadMovements();
+  } catch (e) {
+    movementError.value = e.response?.data?.message || 'Erreur lors de l\'enregistrement';
+  } finally {
+    savingMovement.value = false;
+  }
+};
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) { return ''; }
+  return new Date(dateStr).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 onMounted(() => loadAll());
