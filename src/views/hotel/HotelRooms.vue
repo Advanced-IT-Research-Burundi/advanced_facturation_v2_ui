@@ -299,6 +299,29 @@
                 <label class="form-label small fw-bold">Email</label>
                 <input v-model="reservationForm.guest_email" type="email" class="form-control" />
               </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Type de pièce d'identité</label>
+                <select v-model="reservationForm.guest_id_type" class="form-select">
+                  <option value="cni">CNI</option>
+                  <option value="passport">Passeport</option>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label small fw-bold">N° {{ reservationForm.guest_id_type === 'passport' ? 'Passeport' : 'CNI' }}</label>
+                <input v-model="reservationForm.guest_id_number" type="text" class="form-control" placeholder="Ex: BU12345678" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Lieu de naissance</label>
+                <input v-model="reservationForm.guest_birthplace" type="text" class="form-control" placeholder="Ex: Bujumbura" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Date de naissance</label>
+                <input v-model="reservationForm.guest_birthdate" type="date" class="form-control" />
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Adresse de résidence</label>
+                <input v-model="reservationForm.guest_address" type="text" class="form-control" placeholder="Ex: Avenue de la Paix, Bujumbura" />
+              </div>
               <div class="col-md-3">
                 <label class="form-label small fw-bold">Check-in <span class="text-danger">*</span></label>
                 <input v-model="reservationForm.check_in_date" type="date" class="form-control" required :min="today" @change="computeNights" />
@@ -398,6 +421,11 @@ const reservationForm = reactive({
   guest_name: '',
   guest_phone: '',
   guest_email: '',
+  guest_id_number: '',
+  guest_id_type: 'cni',
+  guest_address: '',
+  guest_birthplace: '',
+  guest_birthdate: '',
   check_in_date: today,
   check_out_date: '',
   advance_payment: 0,
@@ -537,6 +565,11 @@ const openNewReservation = (room) => {
   reservationForm.guest_name = '';
   reservationForm.guest_phone = '';
   reservationForm.guest_email = '';
+  reservationForm.guest_id_number = '';
+  reservationForm.guest_id_type = 'cni';
+  reservationForm.guest_address = '';
+  reservationForm.guest_birthplace = '';
+  reservationForm.guest_birthdate = '';
   reservationForm.check_in_date = today;
   reservationForm.check_out_date = '';
   reservationForm.advance_payment = 0;

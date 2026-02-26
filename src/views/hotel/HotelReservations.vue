@@ -223,6 +223,29 @@
               <label class="form-label small fw-bold">Email</label>
               <input v-model="form.guest_email" type="email" class="form-control" />
             </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Type de pièce d'identité</label>
+              <select v-model="form.guest_id_type" class="form-select">
+                <option value="cni">CNI</option>
+                <option value="passport">Passeport</option>
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small fw-bold">N° {{ form.guest_id_type === 'passport' ? 'Passeport' : 'CNI' }}</label>
+              <input v-model="form.guest_id_number" type="text" class="form-control" placeholder="Ex: BU12345678" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Lieu de naissance</label>
+              <input v-model="form.guest_birthplace" type="text" class="form-control" placeholder="Ex: Bujumbura" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Date de naissance</label>
+              <input v-model="form.guest_birthdate" type="date" class="form-control" />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">Adresse de résidence</label>
+              <input v-model="form.guest_address" type="text" class="form-control" placeholder="Ex: Avenue de la Paix, Bujumbura" />
+            </div>
             <div class="col-md-6">
               <label class="form-label small fw-bold">Client (pour facturation)</label>
               <select v-model="form.customer_id" class="form-select">
@@ -438,6 +461,11 @@ const form = reactive({
   guest_name: '',
   guest_phone: '',
   guest_email: '',
+  guest_id_number: '',
+  guest_id_type: 'cni',
+  guest_address: '',
+  guest_birthplace: '',
+  guest_birthdate: '',
   customer_id: null,
   check_in_date: today,
   check_out_date: '',
@@ -515,6 +543,11 @@ const openAddModal = () => {
     guest_name: '',
     guest_phone: '',
     guest_email: '',
+    guest_id_number: '',
+    guest_id_type: 'cni',
+    guest_address: '',
+    guest_birthplace: '',
+    guest_birthdate: '',
     customer_id: null,
     check_in_date: today,
     check_out_date: '',
@@ -532,6 +565,11 @@ const editReservation = (reservation) => {
     guest_name: reservation.guest_name,
     guest_phone: reservation.guest_phone || '',
     guest_email: reservation.guest_email || '',
+    guest_id_number: reservation.guest_id_number || '',
+    guest_id_type: reservation.guest_id_type || 'cni',
+    guest_address: reservation.guest_address || '',
+    guest_birthplace: reservation.guest_birthplace || '',
+    guest_birthdate: reservation.guest_birthdate || '',
     customer_id: reservation.customer_id ?? null,
     check_in_date: reservation.check_in_date,
     check_out_date: reservation.check_out_date,
