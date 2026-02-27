@@ -226,6 +226,9 @@
                 </td>
                 <td class="text-center">
                   <div class="d-flex gap-1 justify-content-center">
+                    <button class="btn btn-sm btn-outline-info" title="Voir détails" @click="detailReservation = reservation">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
                     <button v-if="reservation.status === 'confirmed'" class="btn btn-sm btn-success" title="Check-in" @click="doCheckIn(reservation)">
                       <i class="bi bi-box-arrow-in-right"></i>
                     </button>
@@ -541,6 +544,65 @@
         </div>
       </div>
 
+      <!-- MODAL: Détail réservation chambre -->
+      <div v-if="detailReservation" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="detailReservation = null">
+        <div class="bg-white rounded shadow-lg p-4" style="max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0"><i class="bi bi-door-closed me-2 text-primary"></i>Détail de la réservation</h5>
+            <button class="btn-close" @click="detailReservation = null"></button>
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge fs-6" :class="getReservationStatusBadgeClass(detailReservation.status)">{{ getReservationStatusLabel(detailReservation.status) }}</span>
+                <span class="badge bg-dark">Chambre {{ detailReservation.room?.room_number }}</span>
+                <span class="text-muted small">{{ getRoomTypeLabel(detailReservation.room?.type) }}</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border-0 bg-light h-100">
+                <div class="card-body py-2 px-3">
+                  <div class="small text-muted fw-semibold mb-2"><i class="bi bi-person me-1"></i>Informations client</div>
+                  <div class="mb-1"><span class="text-muted small">Nom :</span> <strong>{{ detailReservation.guest_name }}</strong></div>
+                  <div class="mb-1" v-if="detailReservation.guest_phone"><span class="text-muted small">Téléphone :</span> {{ detailReservation.guest_phone }}</div>
+                  <div class="mb-1" v-if="detailReservation.guest_email"><span class="text-muted small">Email :</span> {{ detailReservation.guest_email }}</div>
+                  <div class="mb-1" v-if="detailReservation.guest_id_type"><span class="text-muted small">Pièce d'identité :</span> {{ detailReservation.guest_id_type === 'cni' ? 'CNI' : 'Passeport' }} — {{ detailReservation.guest_id_number }}</div>
+                  <div class="mb-1" v-if="detailReservation.guest_birthdate"><span class="text-muted small">Date naissance :</span> {{ formatDate(detailReservation.guest_birthdate) }}</div>
+                  <div class="mb-1" v-if="detailReservation.guest_birthplace"><span class="text-muted small">Lieu naissance :</span> {{ detailReservation.guest_birthplace }}</div>
+                  <div class="mb-1" v-if="detailReservation.guest_address"><span class="text-muted small">Adresse :</span> {{ detailReservation.guest_address }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border-0 bg-light h-100">
+                <div class="card-body py-2 px-3">
+                  <div class="small text-muted fw-semibold mb-2"><i class="bi bi-calendar me-1"></i>Séjour</div>
+                  <div class="mb-1"><span class="text-muted small">Check-in :</span> <strong>{{ formatDate(detailReservation.check_in_date) }}</strong></div>
+                  <div class="mb-1"><span class="text-muted small">Check-out :</span> <strong>{{ formatDate(detailReservation.check_out_date) }}</strong></div>
+                  <div class="mb-1"><span class="text-muted small">Nuits :</span> {{ detailReservation.nights }}</div>
+                  <hr class="my-2" />
+                  <div class="small text-muted fw-semibold mb-2"><i class="bi bi-cash me-1"></i>Finances</div>
+                  <div class="mb-1"><span class="text-muted small">Total :</span> <strong class="text-primary">{{ formatCurrency(detailReservation.total_amount) }}</strong></div>
+                  <div class="mb-1"><span class="text-muted small">Avance :</span> {{ formatCurrency(detailReservation.advance_payment) }}</div>
+                  <div class="mb-1"><span class="text-muted small">Reste :</span> <span :class="detailReservation.balance_due > 0 ? 'text-danger fw-semibold' : 'text-success'">{{ formatCurrency(detailReservation.balance_due) }}</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12" v-if="detailReservation.notes">
+              <div class="card border-0 bg-light">
+                <div class="card-body py-2 px-3">
+                  <div class="small text-muted fw-semibold mb-1"><i class="bi bi-chat-left-text me-1"></i>Notes</div>
+                  <div>{{ detailReservation.notes }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-secondary" @click="detailReservation = null">Fermer</button>
+          </div>
+        </div>
+      </div>
+
       <!-- MODAL: Enregistrer paiement restant -->
       <div v-if="paymentModal" class="modal-overlay d-flex justify-content-center align-items-center">
         <div class="bg-white rounded shadow-lg p-4" style="max-width: 420px; width: 90%;">
@@ -839,6 +901,7 @@ const allRooms = ref([]);
 const customers = ref([]);
 const generatingInvoiceId = ref(null);
 const paymentModal = ref(null);
+const detailReservation = ref(null);
 const paymentAmount = ref(0);
 const paymentMethod = ref('cash');
 const paymentDate = ref('');

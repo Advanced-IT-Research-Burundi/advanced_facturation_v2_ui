@@ -256,6 +256,10 @@
                 </td>
                 <td class="text-center">
                   <div class="d-flex gap-1 justify-content-center">
+                    <!-- Voir détails -->
+                    <button class="btn btn-sm btn-outline-info" title="Voir détails" @click="detailBooking = b">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
                     <!-- Générer facture -->
                     <button
                       v-if="!b.invoice_id && b.status !== 'cancelled'"
@@ -310,6 +314,64 @@
             <button class="btn btn-sm btn-outline-secondary" :disabled="bookingPagination.current_page === bookingPagination.last_page" @click="loadBookings(bookingPagination.current_page + 1)">
               <i class="bi bi-chevron-right"></i>
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: Détail réservation salle de conférence -->
+      <div v-if="detailBooking" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="detailBooking = null">
+        <div class="bg-white rounded shadow-lg p-4" style="max-width: 560px; width: 95%; max-height: 90vh; overflow-y: auto;">
+          <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="mb-0"><i class="bi bi-camera-video me-2 text-primary"></i>Détail de la réservation</h5>
+            <button class="btn-close" @click="detailBooking = null"></button>
+          </div>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge fs-6" :class="getBookingBadgeClass(detailBooking.status)">{{ getBookingStatusLabel(detailBooking.status) }}</span>
+                <span class="text-muted small">Salle : <strong>{{ detailBooking.conference_room?.name }}</strong></span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border-0 bg-light h-100">
+                <div class="card-body py-2 px-3">
+                  <div class="small text-muted fw-semibold mb-2"><i class="bi bi-person me-1"></i>Client</div>
+                  <div class="mb-1"><span class="text-muted small">Nom :</span> <strong>{{ detailBooking.guest_name }}</strong></div>
+                  <div class="mb-1" v-if="detailBooking.guest_phone"><span class="text-muted small">Téléphone :</span> {{ detailBooking.guest_phone }}</div>
+                  <hr class="my-2" />
+                  <div class="small text-muted fw-semibold mb-2"><i class="bi bi-calendar me-1"></i>Réservation</div>
+                  <div class="mb-1"><span class="text-muted small">Date :</span> <strong>{{ formatDate(detailBooking.booking_date) }}</strong></div>
+                  <div class="mb-1"><span class="text-muted small">Horaire :</span> {{ detailBooking.start_time?.substring(0,5) }} – {{ detailBooking.end_time?.substring(0,5) }}</div>
+                  <div class="mb-1" v-if="detailBooking.purpose"><span class="text-muted small">Objet :</span> {{ detailBooking.purpose }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border-0 bg-light h-100">
+                <div class="card-body py-2 px-3">
+                  <div class="small text-muted fw-semibold mb-2"><i class="bi bi-cash me-1"></i>Finances</div>
+                  <div class="mb-1"><span class="text-muted small">Total :</span> <strong class="text-primary">{{ formatCurrency(detailBooking.invoice?.invoice_total_amount ?? detailBooking.total_amount) }}</strong></div>
+                  <div class="mb-1"><span class="text-muted small">Avance :</span> {{ formatCurrency(detailBooking.advance_payment) }}</div>
+                  <div class="mb-1">
+                    <span class="text-muted small">Reste :</span>
+                    <span :class="(detailBooking.invoice?.invoice_total_amount ?? detailBooking.total_amount) - detailBooking.advance_payment > 0 ? 'text-danger fw-semibold' : 'text-success'">
+                      {{ formatCurrency((detailBooking.invoice?.invoice_total_amount ?? detailBooking.total_amount) - detailBooking.advance_payment) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12" v-if="detailBooking.notes">
+              <div class="card border-0 bg-light">
+                <div class="card-body py-2 px-3">
+                  <div class="small text-muted fw-semibold mb-1"><i class="bi bi-chat-left-text me-1"></i>Notes</div>
+                  <div>{{ detailBooking.notes }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-secondary" @click="detailBooking = null">Fermer</button>
           </div>
         </div>
       </div>
@@ -590,6 +652,7 @@ const bookingPagination = ref({ current_page: 1, last_page: 1, total: 0 });
 let bookingSearchTimer = null;
 const generatingInvoiceId = ref(null);
 const showPaymentModal = ref(false);
+const detailBooking = ref(null);
 const savingPayment = ref(false);
 const payingBooking = ref(null);
 const paymentError = ref('');
