@@ -361,55 +361,100 @@ export function useInvoicePrint() {
    * Ticket cuisine A4 — bon de commande interne pour la cuisine.
    */
   const printKitchenTicketA4 = (order, company = null) => {
+    const location = order.location_label
+      || (order.room_number ? `Chambre N°${order.room_number}` : (order.table_number ? `Table N°${order.table_number}` : '—'));
+
     const itemsHtml = (order.items ?? [])
       .map(
-        (item) => `<tr>
+        (item, i) => `<tr>
+          <td class="text-center">${i + 1}</td>
           <td>${item.name ?? ''}</td>
-          <td class="center">${item.qty ?? 1}</td>
+          <td class="text-center">${item.qty ?? 1}</td>
         </tr>`,
       )
       .join('');
+
+    const now = formatDate(new Date());
 
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Bon Cuisine — Table ${order.table_number ?? ''}</title>
+  <title>Bon de Cuisine — ${location}</title>
   <style>
     @page { size: A4; margin: 15mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 13px; line-height: 1.5; color: #222; }
-    h1 { font-size: 22px; color: #c0392b; margin-bottom: 4px; }
-    .meta { margin-bottom: 16px; font-size: 12px; color: #555; }
-    .meta span { margin-right: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    th, td { border: 1px solid #ccc; padding: 8px 12px; }
-    th { background: #c0392b; color: white; font-size: 13px; }
-    .center { text-align: center; }
-    .note-box { background: #fff9c4; border: 1px solid #f0c040; padding: 10px; border-radius: 4px; font-size: 12px; }
-    .footer { margin-top: 30px; font-size: 11px; color: #888; border-top: 1px dashed #ccc; padding-top: 8px; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 12px; line-height: 1.4; color: #333; }
+    .invoice-container { max-width: 780px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 15px; }
+    .company-info h1 { font-size: 20px; color: #007bff; margin-bottom: 5px; }
+    .company-info p { font-size: 11px; color: #666; margin: 2px 0; }
+    .invoice-info { text-align: right; }
+    .invoice-info h2 { font-size: 16px; color: #333; }
+    .invoice-number { font-size: 14px; font-weight: bold; color: #007bff; }
+    .invoice-info p { margin: 2px 0; font-size: 11px; color: #555; }
+    .parties { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .party { width: 48%; }
+    .party h3 { font-size: 12px; background: #f5f5f5; padding: 5px 10px; margin-bottom: 8px; border-left: 3px solid #007bff; }
+    .party p { padding-left: 10px; font-size: 11px; margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
+    th { background: #007bff; color: white; font-weight: 600; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .note-box { margin-bottom: 15px; padding: 10px; background: #fffde7; border: 1px solid #f9a825; border-radius: 4px; font-size: 11px; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #666; text-align: center; }
+    .footer p { margin: 2px 0; }
   </style>
 </head>
 <body>
-  <h1>🍳 Bon de Cuisine</h1>
-  <div class="meta">
-    <span><strong>Table :</strong> ${order.table_number ?? '—'}</span>
-    <span><strong>Client :</strong> ${order.client_name || '—'}</span>
-    <span><strong>Heure :</strong> ${order.time ?? formatDate(new Date())}</span>
-    ${company?.name ? `<span><strong>Établissement :</strong> ${company.name}</span>` : ''}
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Article / Plat</th>
-        <th class="center" style="width:80px">Quantité</th>
-      </tr>
-    </thead>
-    <tbody>${itemsHtml}</tbody>
-  </table>
-  ${order.notes ? `<div class="note-box"><strong>📝 Note :</strong> ${order.notes}</div>` : ''}
-  <div class="footer">
-    Imprimé le ${formatDate(new Date())} — Cuisine interne
+  <div class="invoice-container">
+    <div class="header">
+      <div class="company-info">
+        <h1>${company?.name ?? 'Établissement'}</h1>
+        <p>NIF : ${company?.tp_TIN ?? company?.nif ?? ''}</p>
+        <p>RC : ${company?.tp_trade_number ?? ''}</p>
+        <p>Tél : ${company?.phone ?? ''}</p>
+        <p>Centre Fiscal : ${company?.tp_fiscal_center ?? ''}</p>
+      </div>
+      <div class="invoice-info">
+        <h2>Bon de Cuisine</h2>
+        <p class="invoice-number">N° : ${order.id ?? '—'}</p>
+        <p>Date : ${formatDate(order.created_at ?? new Date())}</p>
+        <p>Devise : BIF</p>
+      </div>
+    </div>
+
+    <div class="parties">
+      <div class="party">
+        <h3>EMPLACEMENT</h3>
+        <p><strong>${location}</strong></p>
+        ${order.is_room_service ? '<p>⚑ Service Chambre</p>' : ''}
+      </div>
+      <div class="party">
+        <h3>STATUT</h3>
+        <p><strong>${order.status ?? '—'}</strong></p>
+        <p>Imprimé le : ${now}</p>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Article / Plat</th>
+          <th class="text-center" style="width:80px">Quantité</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+
+    ${order.notes ? `<div class="note-box"><strong>Note :</strong> ${order.notes}</div>` : ''}
+
+    <div class="footer">
+      <p>Document généré le ${now} — Usage interne cuisine</p>
+    </div>
   </div>
 </body>
 </html>`;
@@ -420,6 +465,9 @@ export function useInvoicePrint() {
    * Ticket cuisine POS — bon thermique 80 mm pour la cuisine.
    */
   const printKitchenTicketPOS = (order, company = null) => {
+    const location = order.location_label
+      || (order.room_number ? `Chambre N°${order.room_number}` : (order.table_number ? `Table N°${order.table_number}` : '—'));
+
     const itemsHtml = (order.items ?? [])
       .map(
         (item) => `<tr>
@@ -433,7 +481,7 @@ export function useInvoicePrint() {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Cuisine — Table ${order.table_number ?? ''}</title>
+  <title>Bon Cuisine — ${location}</title>
   <style>
     @page { size: 80mm auto; margin: 3mm 2mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -442,27 +490,31 @@ export function useInvoicePrint() {
     .right { text-align: right; }
     .bold { font-weight: bold; }
     .sep { border-top: 1px dashed #000; margin: 5px 0; }
-    .title { font-size: 15px; font-weight: bold; }
+    .title { font-size: 15px; font-weight: bold; letter-spacing: 1px; }
     table { width: 100%; border-collapse: collapse; }
-    td { font-size: 11px; padding: 1px 0; }
+    td { font-size: 11px; padding: 2px 0; }
+    .highlight { background: #000; color: #fff; padding: 2px 4px; }
   </style>
 </head>
 <body>
   <div class="center">
-    ${company?.name ? `<div class="bold">${company.name}</div>` : ''}
+    ${company?.name ? `<div class="bold" style="font-size:13px">${company.name}</div>` : ''}
+    <div class="sep"></div>
     <div class="title">BON DE CUISINE</div>
-    <div>${formatDate(order.time ?? new Date())}</div>
+    <div style="font-size:10px">N° ${order.id ?? '—'}</div>
   </div>
   <div class="sep"></div>
-  <div><span class="bold">Table : </span>${order.table_number ?? '—'}</div>
-  <div><span class="bold">Client : </span>${order.client_name || '—'}</div>
+  <div><span class="bold">Lieu : </span><span class="bold">${location}</span></div>
+  ${order.is_room_service ? '<div style="font-size:10px">⚑ SERVICE CHAMBRE</div>' : ''}
+  <div><span class="bold">Heure : </span>${formatDate(order.created_at ?? new Date())}</div>
   <div class="sep"></div>
   <table>
     <tbody>${itemsHtml}</tbody>
   </table>
   ${order.notes ? `<div class="sep"></div><div><span class="bold">Note : </span>${order.notes}</div>` : ''}
   <div class="sep"></div>
-  <div class="center" style="font-size:9px;">${formatDate(new Date())}</div>
+  <div class="center" style="font-size:9px">Imprimé le ${formatDate(new Date())}</div>
+  <div class="center" style="font-size:9px">Usage interne — Cuisine</div>
 </body>
 </html>`;
     openPrint(html);
