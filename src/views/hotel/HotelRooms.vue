@@ -1053,6 +1053,15 @@ const saveReservation = async () => {
       await api.put(`/hotel/reservations/${editingReservation.value.id}`, { ...resForm });
     } else {
       await api.post('/hotel/reservations', { ...resForm });
+      if (resForm.advance_payment > 0) {
+        const room = rooms.value.find((r) => r.id === resForm.hotel_room_id);
+        const roomNum = room?.room_number ?? '?';
+        await registerPaymentInCaisse(
+          resForm.advance_payment,
+          `Avance chambre N°${roomNum} — ${resForm.guest_name}`,
+          `CHAMBRE N°${roomNum}`,
+        );
+      }
     }
     showResModal.value = false;
     await Promise.all([loadAll(), loadReservations()]);
@@ -1114,6 +1123,23 @@ const openRecordPaymentModal = (reservation) => {
   paymentError.value = '';
 };
 
+const registerPaymentInCaisse = async (amount, description, reference) => {
+  try {
+    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: 'rooms' } });
+    const register = res.data?.data?.register;
+    if (register?.id) {
+      await api.post(`/hotel/caisse/${register.id}/movements`, {
+        type: 'income',
+        amount,
+        description,
+        reference,
+      });
+    }
+  } catch {
+    // Pas de caisse ouverte — on ignore
+  }
+};
+
 const submitRecordPayment = async () => {
   if (!paymentModal.value || !paymentAmount.value || paymentAmount.value <= 0) return;
   savingPayment.value = true;
@@ -1126,6 +1152,12 @@ const submitRecordPayment = async () => {
       payment_method: paymentMethod.value,
       reference: paymentReference.value || undefined,
     });
+    const roomNum = paymentModal.value.room?.room_number ?? '';
+    await registerPaymentInCaisse(
+      paymentAmount.value,
+      `Paiement chambre N°${roomNum} — ${paymentModal.value.guest_name ?? ''}`.trim(),
+      `CHAMBRE N°${roomNum}`,
+    );
     paymentModal.value = null;
     await loadReservations();
   } catch (e) {

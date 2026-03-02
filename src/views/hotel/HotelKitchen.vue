@@ -283,7 +283,8 @@
 
       <!-- TAB: Stock Cuisine -->
       <div v-if="activeTab === 'stock'">
-        <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex gap-2 justify-content-between mb-3 align-items-center">
+          <input v-model="stockSearch" type="text" class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un ingrédient..." />
           <button class="btn btn-sm btn-outline-primary" @click="openStockModal(null)">
             <i class="bi bi-plus me-1"></i>Ajouter un ingrédient
           </button>
@@ -297,16 +298,18 @@
                   <th>Quantité</th>
                   <th>Unité</th>
                   <th>Seuil d'alerte</th>
+                  <th>Prix d'achat</th>
                   <th>Statut</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in stockItems" :key="item.id">
+                <tr v-for="item in filteredStockItems" :key="item.id">
                   <td class="fw-semibold">{{ item.name }}</td>
                   <td>{{ parseFloat(item.quantity) }}</td>
                   <td>{{ item.unit }}</td>
                   <td>{{ parseFloat(item.alert_threshold) }}</td>
+                  <td>{{ parseFloat(item.purchase_price || 0).toLocaleString('fr-FR') }} BIF</td>
                   <td>
                     <span class="badge" :class="parseFloat(item.quantity) <= parseFloat(item.alert_threshold) ? 'bg-danger' : 'bg-success'">
                       {{ parseFloat(item.quantity) <= parseFloat(item.alert_threshold) ? 'Stock faible' : 'OK' }}
@@ -318,7 +321,7 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="stockItems.length === 0">
+                <tr v-if="filteredStockItems.length === 0">
                   <td colspan="6" class="text-center py-5 text-muted">
                     <i class="bi bi-box-seam fs-1 d-block mb-2"></i>Aucun ingrédient enregistré
                   </td>
@@ -516,6 +519,10 @@
                 <label class="form-label small fw-bold">Seuil alerte</label>
                 <input v-model.number="stockForm.alert_threshold" type="number" class="form-control" min="0" />
               </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Prix d'achat (BIF)</label>
+                <input v-model.number="stockForm.purchase_price" type="number" class="form-control" min="0" step="0.01" placeholder="0" />
+              </div>
             </div>
             <div class="d-flex justify-content-end gap-2 mt-3">
               <button type="button" class="btn btn-secondary" @click="showStockModal = false">Annuler</button>
@@ -560,6 +567,12 @@ const loading = ref(false);
 const kitchenOrders = ref([]);
 const dishes = ref([]);
 const stockItems = ref([]);
+const stockSearch = ref('');
+const filteredStockItems = computed(() =>
+  stockSearch.value.trim()
+    ? stockItems.value.filter((i) => i.name.toLowerCase().includes(stockSearch.value.toLowerCase()))
+    : stockItems.value,
+);
 
 const showDishModal = ref(false);
 const editingDish = ref(null);
@@ -585,7 +598,7 @@ const dishForm = reactive({
   ingredients: '', description: '', available: true,
 });
 
-const stockForm = reactive({ name: '', quantity: 0, unit: 'kg', alert_threshold: 5 });
+const stockForm = reactive({ name: '', quantity: 0, unit: 'kg', alert_threshold: 5, purchase_price: 0 });
 
 const stats = computed(() => ({
   pending: kitchenOrders.value.filter(o => o.status === 'pending').length,
@@ -675,9 +688,9 @@ const deleteDish = async (dish) => {
 const openStockModal = (item) => {
   editingStock.value = item;
   if (item) {
-    Object.assign(stockForm, { name: item.name, quantity: item.quantity, unit: item.unit, alert_threshold: item.alert_threshold });
+    Object.assign(stockForm, { name: item.name, quantity: item.quantity, unit: item.unit, alert_threshold: item.alert_threshold, purchase_price: item.purchase_price || 0 });
   } else {
-    Object.assign(stockForm, { name: '', quantity: 0, unit: 'kg', alert_threshold: 5 });
+    Object.assign(stockForm, { name: '', quantity: 0, unit: 'kg', alert_threshold: 5, purchase_price: 0 });
   }
   showStockModal.value = true;
 };

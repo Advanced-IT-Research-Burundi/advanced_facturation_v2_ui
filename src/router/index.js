@@ -327,6 +327,18 @@ const router = createRouter({
           component: () => import("../views/hotel/HotelInvoice.vue"),
           meta: { permission: "hotel_rooms" },
         },
+        {
+          path: "hotel/caisse",
+          name: "hotel.caisse",
+          component: () => import("../views/hotel/HotelCaisse.vue"),
+          meta: { permissions: ["hotel_rooms", "hotel_bar"] },
+        },
+        {
+          path: "hotel/depenses",
+          name: "hotel.depenses",
+          component: () => import("../views/hotel/HotelDepenses.vue"),
+          meta: { permissions: ["hotel_rooms", "hotel_bar"] },
+        },
         // Routes Restaurant
         {
           path: "restaurant",

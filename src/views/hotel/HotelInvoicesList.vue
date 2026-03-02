@@ -16,14 +16,17 @@
       <div class="card mb-3">
         <div class="card-body py-2">
           <div class="row g-2 align-items-center">
-            <div class="col-md-4">
+            <div class="col-md-3">
+              <input v-model="searchInvoice" type="text" class="form-control form-control-sm" placeholder="Rechercher (client, ref...)" @input="onInvoiceSearchChange" />
+            </div>
+            <div class="col-md-3">
               <select v-model="filterType" class="form-select form-select-sm" @change="loadInvoices(1)">
                 <option value="">Tous les types</option>
                 <option value="HOTEL">Hôtel (chambres / salles)</option>
                 <option value="RESTAURANT">Restaurant-Bar</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <select v-model="filterPayment" class="form-select form-select-sm" @change="loadInvoices(1)">
                 <option value="">Tous les statuts</option>
                 <option value="unpaid">Non payées</option>
@@ -31,7 +34,7 @@
                 <option value="paid">Payées</option>
               </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <button class="btn btn-sm btn-outline-secondary w-100" @click="resetFilters">
                 <i class="bi bi-x-circle me-1"></i>Réinitialiser
               </button>
@@ -163,6 +166,12 @@ const loading = ref(false);
 const invoices = ref([]);
 const filterPayment = ref('');
 const filterType = ref('');
+const searchInvoice = ref('');
+let invoiceSearchTimer = null;
+const onInvoiceSearchChange = () => {
+  clearTimeout(invoiceSearchTimer);
+  invoiceSearchTimer = setTimeout(() => loadInvoices(1), 400);
+};
 const pagination = ref({
   current_page: 1,
   last_page: 1,
@@ -187,6 +196,7 @@ const loadInvoices = async (page = pagination.value.current_page) => {
     const params = { page };
     if (filterPayment.value) params.payment_status = filterPayment.value;
     if (filterType.value) params.invoice_type = filterType.value;
+    if (searchInvoice.value.trim()) params.search = searchInvoice.value.trim();
 
     const { data } = await api.get('/hotel/invoices', { params });
     invoices.value = data.data.data;
@@ -212,6 +222,7 @@ const changePage = (page) => {
 const resetFilters = () => {
   filterPayment.value = '';
   filterType.value = '';
+  searchInvoice.value = '';
   loadInvoices(1);
 };
 

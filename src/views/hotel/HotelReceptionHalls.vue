@@ -850,6 +850,23 @@ const openPaymentModal = (booking) => {
   showPaymentModal.value = true;
 };
 
+const registerPaymentInCaisse = async (amount, description) => {
+  try {
+    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: 'reception' } });
+    const register = res.data?.data?.register;
+    if (register?.id) {
+      await api.post(`/hotel/caisse/${register.id}/movements`, {
+        type: 'income',
+        amount,
+        description,
+        reference: 'SALLE RÉCEPTION',
+      });
+    }
+  } catch {
+    // Pas de caisse ouverte — on ignore
+  }
+};
+
 const savePayment = async () => {
   if (!payingBooking.value?.invoice_id) {
     paymentError.value = 'Erreur : facture introuvable. Veuillez rafraîchir la page.';
@@ -865,6 +882,10 @@ const savePayment = async () => {
       payment_method: paymentForm.payment_method,
       reference: paymentForm.reference || null,
     });
+    await registerPaymentInCaisse(
+      paymentForm.amount,
+      `Réservation salle ${payingBooking.value.hall?.name ?? ''}`.trim(),
+    );
     showPaymentModal.value = false;
     await loadAll();
   } catch (e) {
@@ -990,6 +1011,12 @@ const saveBooking = async () => {
       advance_payment: bookingForm.advance_payment,
       notes: bookingForm.notes,
     });
+    if (bookingForm.advance_payment > 0) {
+      await registerPaymentInCaisse(
+        bookingForm.advance_payment,
+        `Avance réservation salle réception — ${bookingForm.guest_name}`,
+      );
+    }
     showBookingModal.value = false;
     await loadAll();
   } catch (e) {

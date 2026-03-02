@@ -286,7 +286,8 @@
 
       <!-- TAB: Stock Bar -->
       <div v-if="activeTab === 'stock' && canManage">
-        <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex gap-2 justify-content-between mb-3 align-items-center">
+          <input v-model="barStockSearch" type="text" class="form-control form-control-sm" style="max-width:260px" placeholder="Rechercher un article..." />
           <button class="btn btn-sm btn-outline-primary" @click="openBarStockModal(null)">
             <i class="bi bi-plus me-1"></i>Ajouter un article en stock
           </button>
@@ -300,16 +301,18 @@
                   <th>Quantité</th>
                   <th>Unité</th>
                   <th>Seuil d'alerte</th>
+                  <th>Prix d'achat</th>
                   <th>Statut</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in barStockItems" :key="item.id">
+                <tr v-for="item in filteredBarStockItems" :key="item.id">
                   <td class="fw-semibold">{{ item.name }}</td>
                   <td>{{ parseFloat(item.quantity) }}</td>
                   <td>{{ item.unit }}</td>
                   <td>{{ parseFloat(item.alert_threshold) }}</td>
+                  <td>{{ parseFloat(item.purchase_price || 0).toLocaleString('fr-FR') }} BIF</td>
                   <td>
                     <span class="badge" :class="parseFloat(item.quantity) <= parseFloat(item.alert_threshold) ? 'bg-danger' : 'bg-success'">
                       {{ parseFloat(item.quantity) <= parseFloat(item.alert_threshold) ? 'Stock faible' : 'OK' }}
@@ -321,7 +324,7 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="barStockItems.length === 0">
+                <tr v-if="filteredBarStockItems.length === 0">
                   <td colspan="6" class="text-center py-4 text-muted">Aucun article en stock</td>
                 </tr>
               </tbody>
@@ -718,6 +721,10 @@
                 <label class="form-label small fw-bold">Seuil d'alerte</label>
                 <input v-model.number="barStockForm.alert_threshold" type="number" class="form-control" min="0" step="0.01" />
               </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Prix d'achat (BIF)</label>
+                <input v-model.number="barStockForm.purchase_price" type="number" class="form-control" min="0" step="0.01" placeholder="0" />
+              </div>
             </div>
             <div class="d-flex justify-content-end gap-2 mt-3">
               <button type="button" class="btn btn-secondary" @click="showBarStockModal = false">Annuler</button>
@@ -766,6 +773,12 @@ const orders = ref([]);
 const menuItems = ref([]);
 const dishes = ref([]);
 const barStockItems = ref([]);
+const barStockSearch = ref('');
+const filteredBarStockItems = computed(() =>
+  barStockSearch.value.trim()
+    ? barStockItems.value.filter((i) => i.name.toLowerCase().includes(barStockSearch.value.toLowerCase()))
+    : barStockItems.value,
+);
 const selectedTable = ref(null);
 const viewingOrder = ref(null);
 
@@ -777,7 +790,7 @@ const showMenuModal = ref(false);
 const editingMenuItem = ref(null);
 const showBarStockModal = ref(false);
 const editingBarStock = ref(null);
-const barStockForm = reactive({ name: '', quantity: 0, unit: 'bouteille', alert_threshold: 5 });
+const barStockForm = reactive({ name: '', quantity: 0, unit: 'bouteille', alert_threshold: 5, purchase_price: 0 });
 
 const stockMovements = ref([]);
 const showMovementModal = ref(false);
@@ -924,9 +937,82 @@ const updateOrderStatus = async (order, status) => {
 
 const viewOrder = (order) => { viewingOrder.value = order; };
 
+const registerOrderInCaisse = async (amount, description, section, reference) => {
+  try {
+    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: section } });
+    const register = res.data?.data?.register;
+    if (register?.id) {
+      await api.post(`/hotel/caisse/${register.id}/movements`, {
+        type: 'income',
+        amount,
+        description,
+        reference,
+      });
+    }
+  } catch {
+    // Pas de caisse ouverte — on ignore
+  }
+};
+
+const itemLabel = (i) => `${i.name || ''} x${i.qty ?? i.quantity ?? 1}`;
+
+const buildOrderDescription = (order, itemsSubset = null) => {
+  const items = itemsSubset ?? (Array.isArray(order.items) ? order.items : []);
+  const itemStr = items.length ? ` | ${items.map(itemLabel).join(', ')}` : '';
+
+  if (order.room_number) {
+    return `Service chambre — Chambre N°${order.room_number}${itemStr}`;
+  }
+  const table = order.table?.number ? `Table N°${order.table.number}` : `Commande #${order.id}`;
+  return `${table}${itemStr}`;
+};
+
 const closeOrder = async (order) => {
   try {
     await api.put(`/hotel/restaurant-orders/${order.id}/status`, { status: 'paid' });
+
+    const items = Array.isArray(order.items) ? order.items : [];
+
+    if (order.room_number) {
+      // Room service — tout dans caisse Chambres
+      await registerOrderInCaisse(
+        order.total,
+        buildOrderDescription(order),
+        'rooms',
+        `CHAMBRE N°${order.room_number}`,
+      );
+    } else {
+      // Table — séparer cuisine (restaurant) et boissons (bar)
+      const kitchenItems = items.filter((i) => i.hotel_dish_id);
+      const barItems = items.filter((i) => i.hotel_menu_item_id);
+
+      const kitchenTotal = kitchenItems.reduce((sum, i) => sum + parseFloat(i.price) * (i.qty ?? 1), 0);
+      const barTotal = barItems.reduce((sum, i) => sum + parseFloat(i.price) * (i.qty ?? 1), 0);
+
+      const tableRef = `TABLE N°${order.table?.number ?? order.id}`;
+
+      if (kitchenTotal > 0) {
+        await registerOrderInCaisse(
+          kitchenTotal,
+          `Cuisine — ${buildOrderDescription(order, kitchenItems)}`,
+          'restaurant',
+          tableRef,
+        );
+      }
+      if (barTotal > 0) {
+        await registerOrderInCaisse(
+          barTotal,
+          `Bar — ${buildOrderDescription(order, barItems)}`,
+          'bar',
+          tableRef,
+        );
+      }
+      // Fallback si les items ne sont pas distincts (montant total non ventilé)
+      if (kitchenTotal === 0 && barTotal === 0 && order.total > 0) {
+        await registerOrderInCaisse(order.total, buildOrderDescription(order), 'restaurant', tableRef);
+      }
+    }
+
     viewingOrder.value = null;
     await loadAll();
   } catch (e) {
@@ -1029,9 +1115,9 @@ const formatCurrency = (value) => {
 const openBarStockModal = (item) => {
   editingBarStock.value = item;
   if (item) {
-    Object.assign(barStockForm, { name: item.name, quantity: item.quantity, unit: item.unit, alert_threshold: item.alert_threshold });
+    Object.assign(barStockForm, { name: item.name, quantity: item.quantity, unit: item.unit, alert_threshold: item.alert_threshold, purchase_price: item.purchase_price || 0 });
   } else {
-    Object.assign(barStockForm, { name: '', quantity: 0, unit: 'bouteille', alert_threshold: 5 });
+    Object.assign(barStockForm, { name: '', quantity: 0, unit: 'bouteille', alert_threshold: 5, purchase_price: 0 });
   }
   showBarStockModal.value = true;
 };

@@ -43,6 +43,8 @@ const allTabs = [
   { id: 'RestaurantBar',   label: 'Restaurant-Bar',   route: '/hotel/restaurant-bar',  icon: 'bi-cup-straw',       permissions: ['hotel_bar', 'hotel_bar_order'] },
   { id: 'Kitchen',         label: 'Cuisine',          route: '/hotel/kitchen',         icon: 'bi-fire',            permissions: ['hotel_bar', 'hotel_bar_order'] },
   { id: 'Invoices',        label: 'Factures',         route: '/hotel/invoices',        icon: 'bi-receipt',         permissions: ['hotel_rooms'] },
+  { id: 'Caisse',          label: 'Caisse',           route: '/hotel/caisse',          icon: 'bi-cash-register',   permissions: ['hotel_rooms', 'hotel_bar'] },
+  { id: 'Depenses',        label: 'Dépenses',         route: '/hotel/depenses',        icon: 'bi-wallet2',         permissions: ['hotel_rooms', 'hotel_bar'] },
 ];
 
 const hotelTabs = computed(() =>
