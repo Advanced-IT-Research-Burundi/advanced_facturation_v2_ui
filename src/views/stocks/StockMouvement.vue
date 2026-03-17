@@ -246,11 +246,15 @@
                 />
               </div>
             </div>
-            <!-- <div class="mt-3">
-              <label class="form-label">Référence facture</label>
-              <input type="text" class="form-control" v-model="quickEntryForm.invoice_ref" 
-                     placeholder="Ex: FAC-2024-001">
-            </div> -->
+            <div v-if="quickEntryForm.quantity && quickEntryForm.unit_price" class="alert alert-success mt-3 mb-0">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Montant Total :</span>
+                <span class="fw-bold fs-5">
+                  {{ new Intl.NumberFormat('fr-FR').format(quickEntryForm.quantity * quickEntryForm.unit_price) }}
+                  {{ quickEntryForm.currency }}
+                </span>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button
@@ -319,23 +323,54 @@
                 <option value="SAU">SAU - Sortie Autre</option>
               </select>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Quantité *</label>
-              <input
-                type="number"
-                step="0.01"
-                class="form-control"
-                v-model="quickExitForm.quantity"
-                required
-                min="0.01"
-                :max="selectedStock?.quantity"
-              />
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Quantité *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  v-model="quickExitForm.quantity"
+                  required
+                  min="0.01"
+                  :max="selectedStock?.quantity"
+                />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Prix Unitaire</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  v-model="quickExitForm.unit_price"
+                  min="0"
+                />
+              </div>
             </div>
-            <!-- <div class="mb-3">
-              <label class="form-label">Référence facture</label>
-              <input type="text" class="form-control" v-model="quickExitForm.invoice_ref"
-                     placeholder="Ex: FAC-2024-001">
-            </div> -->
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <label class="form-label">Devise</label>
+                <select class="form-select" v-model="quickExitForm.currency">
+                  <option value="BIF">BIF</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+            <div v-if="['SP', 'SD'].includes(quickExitForm.movement_type)" class="alert alert-warning mt-3 mb-0">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              <strong>Perte de stock</strong> — Le montant sera automatiquement enregistré comme perte en caisse.
+            </div>
+            <div v-if="quickExitForm.quantity && quickExitForm.unit_price" class="alert mt-3 mb-0"
+                 :class="['SP', 'SD'].includes(quickExitForm.movement_type) ? 'alert-warning' : 'alert-danger'">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Montant Total {{ ['SP', 'SD'].includes(quickExitForm.movement_type) ? '(Perte)' : '' }} :</span>
+                <span class="fw-bold fs-5">
+                  {{ new Intl.NumberFormat('fr-FR').format(quickExitForm.quantity * quickExitForm.unit_price) }}
+                  {{ quickExitForm.currency }}
+                </span>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button
@@ -411,6 +446,8 @@ const quickEntryForm = ref({
 const quickExitForm = ref({
   product_id: "",
   quantity: "",
+  unit_price: "",
+  currency: "BIF",
   movement_type: "SN",
   invoice_ref: "",
 });
@@ -490,6 +527,8 @@ const openQuickExit = (stock) => {
   quickExitForm.value = {
     product_id: stock.product_id,
     quantity: "",
+    unit_price: stock.unit_price,
+    currency: stock.currency || "BIF",
     movement_type: "SN",
     invoice_ref: "",
   };
@@ -501,6 +540,8 @@ const closeQuickExit = () => {
   quickExitForm.value = {
     product_id: "",
     quantity: "",
+    unit_price: "",
+    currency: "BIF",
     movement_type: "SN",
     invoice_ref: "",
   };

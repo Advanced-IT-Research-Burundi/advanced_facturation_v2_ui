@@ -44,6 +44,7 @@ const allTabs = [
   { id: 'Kitchen',         label: 'Cuisine',          route: '/hotel/kitchen',         icon: 'bi-fire',            permissions: ['hotel_bar', 'hotel_bar_order'] },
   { id: 'Invoices',        label: 'Factures',         route: '/hotel/invoices',        icon: 'bi-receipt',         permissions: ['hotel_rooms'] },
   { id: 'Caisse',          label: 'Caisse',           route: '/hotel/caisse',          icon: 'bi-cash-register',   permissions: ['hotel_rooms', 'hotel_bar'] },
+  { id: 'CaisseGlobale',   label: 'Caisse Globale',   route: '/hotel/caisse-globale',  icon: 'bi-bank',            permissions: ['hotel_rooms', 'hotel_bar'] },
   { id: 'Depenses',        label: 'Dépenses',         route: '/hotel/depenses',        icon: 'bi-wallet2',         permissions: ['hotel_rooms', 'hotel_bar'] },
 ];
 

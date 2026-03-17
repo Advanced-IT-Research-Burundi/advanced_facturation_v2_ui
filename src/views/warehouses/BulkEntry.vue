@@ -116,6 +116,11 @@
                 </button>
               </div>
             </div>
+            <div v-if="item.quantity && item.unit_price" class="mt-2">
+              <span class="badge bg-success fs-6">
+                Montant : {{ new Intl.NumberFormat('fr-FR').format(item.quantity * item.unit_price) }} {{ item.currency }}
+              </span>
+            </div>
           </div>
         </div>
       </div>

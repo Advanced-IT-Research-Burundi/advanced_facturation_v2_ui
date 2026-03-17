@@ -352,13 +352,14 @@
                   <th>Qté avant</th>
                   <th>Qté mouvement</th>
                   <th>Qté après</th>
+                  <th class="text-end">Montant</th>
                   <th>Raison</th>
                   <th>Par</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="stockMovements.length === 0">
-                  <td colspan="8" class="text-center py-4 text-muted">Aucun mouvement</td>
+                  <td colspan="9" class="text-center py-4 text-muted">Aucun mouvement</td>
                 </tr>
                 <tr v-for="m in stockMovements" :key="m.id">
                   <td class="small text-muted">{{ formatDateTime(m.created_at) }}</td>
@@ -373,6 +374,9 @@
                     {{ m.movement_type === 'in' ? '+' : '-' }}{{ parseFloat(m.quantity) }}
                   </td>
                   <td>{{ parseFloat(m.quantity_after) }}</td>
+                  <td class="text-end fw-semibold" :class="m.movement_type === 'in' ? 'text-success' : 'text-danger'">
+                    {{ m.unit_price ? new Intl.NumberFormat('fr-FR').format(parseFloat(m.quantity) * parseFloat(m.unit_price)) + ' ' + (m.currency || 'BIF') : '—' }}
+                  </td>
                   <td class="small">{{ m.reason || '—' }}</td>
                   <td class="small text-muted">{{ m.user?.name || '—' }}</td>
                 </tr>
@@ -406,10 +410,10 @@
               </div>
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Article <span class="text-danger">*</span></label>
-              <select v-model="movementForm.stock_item_id" class="form-select">
+              <label class="form-label fw-semibold">Ingrédient <span class="text-danger">*</span></label>
+              <select v-model="movementForm.stock_item_id" class="form-select" @change="onMovementItemChange">
                 <option value="">Sélectionner...</option>
-                <option v-for="item in movementForm.stock_type === 'bar' ? barStockItems : []" :key="item.id" :value="item.id">
+                <option v-for="item in movementStockList" :key="item.id" :value="item.id">
                   {{ item.name }} ({{ parseFloat(item.quantity) }} {{ item.unit }})
                 </option>
               </select>
@@ -419,12 +423,46 @@
               <input v-model.number="movementForm.quantity" type="number" class="form-control" min="0.001" step="any" />
             </div>
             <div class="col-md-6">
+              <label class="form-label fw-semibold">Prix Unitaire (BIF)</label>
+              <input v-model.number="movementForm.unit_price" type="number" class="form-control" min="0" step="0.01" />
+            </div>
+            <div class="col-md-6">
               <label class="form-label fw-semibold">Référence</label>
               <input v-model="movementForm.reference" type="text" class="form-control" placeholder="N° bon livraison..." />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Devise</label>
+              <select v-model="movementForm.currency" class="form-select">
+                <option value="BIF">BIF</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Raison</label>
               <input v-model="movementForm.reason" type="text" class="form-control" placeholder="Ex: Livraison fournisseur, perte, ajustement..." />
+            </div>
+            <div v-if="movementForm.movement_type === 'out'" class="col-12">
+              <div class="form-check form-switch">
+                <input v-model="movementForm.is_loss" type="checkbox" class="form-check-input" id="isLossBar" />
+                <label class="form-check-label fw-semibold" for="isLossBar">
+                  <i class="bi bi-exclamation-triangle text-warning me-1"></i>Perte de stock (enregistrer en caisse)
+                </label>
+              </div>
+              <small v-if="movementForm.is_loss" class="text-warning">
+                Le montant sera enregistré comme dépense/perte dans la caisse {{ movementForm.stock_type === 'bar' ? 'Bar' : 'Restaurant' }}
+              </small>
+            </div>
+            <div v-if="movementForm.quantity && movementForm.unit_price" class="col-12">
+              <div class="alert py-2 mb-0" :class="movementForm.movement_type === 'in' ? 'alert-success' : (movementForm.is_loss ? 'alert-warning' : 'alert-danger')">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold">Montant Total {{ movementForm.is_loss ? '(Perte)' : '' }} :</span>
+                  <span class="fw-bold fs-5">
+                    {{ new Intl.NumberFormat('fr-FR').format(movementForm.quantity * movementForm.unit_price) }}
+                    {{ movementForm.currency }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="d-flex justify-content-end gap-2 mt-3">
@@ -801,6 +839,9 @@ const movementForm = reactive({
   stock_item_id: '',
   movement_type: 'in',
   quantity: 1,
+  unit_price: 0,
+  currency: 'BIF',
+  is_loss: false,
   reason: '',
   reference: '',
 });
@@ -1146,11 +1187,26 @@ const loadMovements = async () => {
   }
 };
 
+const movementStockList = computed(() => {
+  return movementForm.stock_type === 'bar' ? barStockItems.value : [];
+});
+
+const onMovementItemChange = () => {
+  const list = movementForm.stock_type === 'bar' ? barStockItems.value : [];
+  const item = list.find(i => i.id === movementForm.stock_item_id);
+  if (item) {
+    movementForm.unit_price = parseFloat(item.purchase_price || 0);
+  }
+};
+
 const openMovementModal = (type) => {
   movementForm.stock_type = type;
   movementForm.stock_item_id = '';
   movementForm.movement_type = 'in';
   movementForm.quantity = 1;
+  movementForm.unit_price = 0;
+  movementForm.currency = 'BIF';
+  movementForm.is_loss = false;
   movementForm.reason = '';
   movementForm.reference = '';
   movementError.value = '';
@@ -1166,6 +1222,9 @@ const saveMovement = async () => {
       stock_item_id: movementForm.stock_item_id,
       movement_type: movementForm.movement_type,
       quantity: movementForm.quantity,
+      unit_price: movementForm.unit_price || null,
+      currency: movementForm.currency || 'BIF',
+      is_loss: movementForm.is_loss || false,
       reason: movementForm.reason || null,
       reference: movementForm.reference || null,
     });

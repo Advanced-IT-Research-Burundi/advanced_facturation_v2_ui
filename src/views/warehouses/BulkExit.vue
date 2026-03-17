@@ -46,11 +46,11 @@
               <option value="SAU">SAU - Sortie Autre</option>
             </select>
           </div>
-          <!-- <div class="col-md-6">
-            <label class="form-label fw-bold">Référence facture</label>
-            <input type="text" class="form-control" v-model="form.invoice_ref"
-                   placeholder="Ex: FAC-2024-001">
-          </div> -->
+        </div>
+
+        <div v-if="['SP', 'SD'].includes(form.movement_type)" class="alert alert-warning mb-4">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <strong>Perte de stock</strong> — Les montants seront automatiquement enregistrés comme pertes en caisse.
         </div>
 
         <!-- Liste des produits -->
@@ -64,7 +64,7 @@
         <div v-for="(item, index) in form.items" :key="index" class="card mb-3 border">
           <div class="card-body">
             <div class="row g-3 align-items-end">
-              <div class="col-md-7">
+              <div class="col-md-4">
                 <label class="form-label small fw-bold">Produit *</label>
                 <Select
                   v-model="item.product_id"
@@ -76,6 +76,7 @@
                   class="w-100"
                   showClear
                   :pt="{ panel: { class: 'select-panel-high' } }"
+                  @change="onExitProductChange(item)"
                 >
                   <template #value="slotProps">
                     <div v-if="slotProps.value">
@@ -91,13 +92,35 @@
                   </template>
                 </Select>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-2">
                 <label class="form-label small fw-bold">Quantité *</label>
                 <input type="number" step="0.01" class="form-control" 
                        v-model="item.quantity" min="0.01"
                        :max="getStockQuantity(item.product_id)"
                        placeholder="0.00">
                 <small class="text-muted">Max: {{ getStockQuantity(item.product_id) }}</small>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold">Prix Unitaire</label>
+                <input type="number" step="0.01" class="form-control"
+                       v-model="item.unit_price" min="0"
+                       placeholder="0.00">
+              </div>
+              <div class="col-md-1">
+                <label class="form-label small fw-bold">Devise</label>
+                <select class="form-select" v-model="item.currency">
+                  <option value="BIF">BIF</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <div v-if="item.quantity && item.unit_price">
+                  <label class="form-label small fw-bold">Montant</label>
+                  <div class="form-control-plaintext fw-bold text-danger">
+                    {{ new Intl.NumberFormat('fr-FR').format(item.quantity * item.unit_price) }} {{ item.currency }}
+                  </div>
+                </div>
               </div>
               <div class="col-md-1 text-end">
                 <button type="button" class="btn btn-sm btn-outline-danger" 
@@ -148,7 +171,7 @@ const stocks = ref([]);
 const form = ref({
   movement_type: 'SN',
   invoice_ref: '',
-  items: [{ product_id: '', quantity: '' }]
+  items: [{ product_id: '', quantity: '', unit_price: '', currency: 'BIF' }]
 });
 
 const availableStocksFiltered = computed(() => {
@@ -176,6 +199,14 @@ const getStockQuantity = (productId) => {
   return stock ? stock.quantity : 0;
 };
 
+const onExitProductChange = (item) => {
+  const stock = stocks.value.find(s => s.product_id === item.product_id);
+  if (stock) {
+    item.unit_price = stock.unit_price;
+    item.currency = stock.currency || 'BIF';
+  }
+};
+
 const addItem = () => {
   const lastItem = form.value.items[form.value.items.length - 1];
   if (!lastItem.product_id || !lastItem.quantity) {
@@ -183,7 +214,7 @@ const addItem = () => {
     setTimeout(() => error.value = null, 3000);
     return;
   }
-  form.value.items.push({ product_id: '', quantity: '' });
+  form.value.items.push({ product_id: '', quantity: '', unit_price: '', currency: 'BIF' });
 };
 
 const removeItem = (index) => {
