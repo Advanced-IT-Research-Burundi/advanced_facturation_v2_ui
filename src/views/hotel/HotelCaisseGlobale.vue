@@ -18,20 +18,20 @@
           <div class="row g-2 align-items-end">
             <div class="col-auto">
               <label class="form-label small mb-1 fw-semibold">Du</label>
-              <input type="date" class="form-control form-control-sm" v-model="filters.start_date" @change="loadData" />
+              <input type="date" class="form-control form-control-sm" v-model="filters.start_date" @change="onManualDateChange" />
             </div>
             <div class="col-auto">
               <label class="form-label small mb-1 fw-semibold">Au</label>
-              <input type="date" class="form-control form-control-sm" v-model="filters.end_date" @change="loadData" />
+              <input type="date" class="form-control form-control-sm" v-model="filters.end_date" @change="onManualDateChange" />
             </div>
             <div class="col-auto">
-              <button class="btn btn-sm btn-outline-primary" @click="setToday">Aujourd'hui</button>
+              <button class="btn btn-sm" :class="activeFilter === 'today' ? 'btn-primary' : 'btn-outline-primary'" @click="setToday">Aujourd'hui</button>
             </div>
             <div class="col-auto">
-              <button class="btn btn-sm btn-outline-secondary" @click="setThisMonth">Ce mois</button>
+              <button class="btn btn-sm" :class="activeFilter === 'month' ? 'btn-secondary' : 'btn-outline-secondary'" @click="setThisMonth">Ce mois</button>
             </div>
             <div class="col-auto">
-              <button class="btn btn-sm btn-outline-dark" @click="clearFilters">Tout</button>
+              <button class="btn btn-sm" :class="activeFilter === 'all' ? 'btn-dark' : 'btn-outline-dark'" @click="clearFilters">Tout</button>
             </div>
           </div>
         </div>
@@ -42,7 +42,7 @@
         <div class="spinner-border text-primary"></div>
       </div>
 
-      <div v-else-if="data">
+      <div v-else-if="summary">
         <!-- Global summary cards -->
         <div class="row g-3 mb-4">
           <div class="col-6 col-md-3">
@@ -50,20 +50,20 @@
               <div class="card-body text-center">
                 <i class="bi bi-arrow-down-circle fs-4 text-success d-block mb-1"></i>
                 <div class="small text-muted">Argent Collecté</div>
-                <div class="fw-bold fs-5 text-success">{{ formatCurrency(data.global.total_income) }}</div>
+                <div class="fw-bold fs-5 text-success">{{ formatCurrency(summary.total_income) }}</div>
               </div>
             </div>
           </div>
           <div class="col-6 col-md-3">
             <div
               class="card border-0 h-100 text-white"
-              :style="data.global.total_profit >= 0 ? 'background:#16a34a' : 'background:#dc2626'"
+              :style="summary.total_profit >= 0 ? 'background:#16a34a' : 'background:#dc2626'"
             >
               <div class="card-body text-center">
                 <i class="bi bi-graph-up-arrow fs-4 d-block mb-1 opacity-75"></i>
                 <div class="small opacity-90">Bénéfices</div>
                 <div class="fw-bold fs-5">
-                  {{ data.global.total_profit >= 0 ? '+' : '' }}{{ formatCurrency(data.global.total_profit) }}
+                  {{ summary.total_profit >= 0 ? '+' : '' }}{{ formatCurrency(summary.total_profit) }}
                 </div>
               </div>
             </div>
@@ -73,7 +73,7 @@
               <div class="card-body text-center">
                 <i class="bi bi-arrow-up-circle fs-4 text-danger d-block mb-1"></i>
                 <div class="small text-muted">Dépenses</div>
-                <div class="fw-bold fs-5 text-danger">{{ formatCurrency(data.global.total_expense) }}</div>
+                <div class="fw-bold fs-5 text-danger">{{ formatCurrency(summary.total_expense) }}</div>
               </div>
             </div>
           </div>
@@ -81,8 +81,8 @@
             <div class="card border-0 h-100" style="background: #fef3c7">
               <div class="card-body text-center">
                 <i class="bi bi-exclamation-triangle fs-4 text-warning d-block mb-1"></i>
-                <div class="small text-muted">Pertes</div>
-                <div class="fw-bold fs-5 text-warning">{{ formatCurrency(data.global.total_losses) }}</div>
+                <div class="small text-muted">Pertes Stock</div>
+                <div class="fw-bold fs-5 text-warning">{{ formatCurrency(summary.total_losses) }}</div>
               </div>
             </div>
           </div>
@@ -91,10 +91,10 @@
         <!-- Info badges -->
         <div class="d-flex gap-2 mb-4 flex-wrap">
           <span class="badge bg-primary fs-6">
-            <i class="bi bi-journal-text me-1"></i>{{ data.global.registers_count }} caisse(s) au total
+            <i class="bi bi-journal-text me-1"></i>{{ summary.registers_count }} caisse(s) au total
           </span>
           <span class="badge bg-success fs-6">
-            <i class="bi bi-unlock me-1"></i>{{ data.global.open_registers }} ouverte(s)
+            <i class="bi bi-unlock me-1"></i>{{ summary.open_registers }} ouverte(s)
           </span>
         </div>
 
@@ -116,13 +116,15 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="s in data.sections" :key="s.section">
+                <tr v-for="s in sections" :key="s.section">
                   <td>
                     <i :class="['bi me-1', sectionIcon(s.section)]"></i>
                     {{ sectionLabel(s.section) }}
                   </td>
                   <td class="text-end text-success fw-semibold">+ {{ formatCurrency(s.total_income) }}</td>
-                  <td class="text-end text-danger fw-semibold">- {{ formatCurrency(s.total_expense) }}</td>
+                  <td class="text-end text-danger fw-semibold">
+                    {{ s.total_expense > 0 ? '- ' + formatCurrency(s.total_expense) : '—' }}
+                  </td>
                   <td class="text-end fw-semibold" style="color: #b45309">
                     {{ s.total_losses > 0 ? '- ' + formatCurrency(s.total_losses) : '—' }}
                   </td>
@@ -135,25 +137,30 @@
                 </tr>
                 <tr class="table-dark fw-bold">
                   <td>TOTAL</td>
-                  <td class="text-end text-success">+ {{ formatCurrency(data.global.total_income) }}</td>
-                  <td class="text-end text-danger">- {{ formatCurrency(data.global.total_expense) }}</td>
+                  <td class="text-end text-success">+ {{ formatCurrency(summary.total_income) }}</td>
+                  <td class="text-end text-danger">- {{ formatCurrency(summary.total_expense) }}</td>
                   <td class="text-end" style="color: #fbbf24">
-                    {{ data.global.total_losses > 0 ? '- ' + formatCurrency(data.global.total_losses) : '—' }}
+                    {{ summary.total_losses > 0 ? '- ' + formatCurrency(summary.total_losses) : '—' }}
                   </td>
-                  <td class="text-end" :class="data.global.total_profit >= 0 ? 'text-success' : 'text-danger'">
-                    {{ data.global.total_profit >= 0 ? '+' : '' }}{{ formatCurrency(data.global.total_profit) }}
+                  <td class="text-end" :class="summary.total_profit >= 0 ? 'text-success' : 'text-danger'">
+                    {{ summary.total_profit >= 0 ? '+' : '' }}{{ formatCurrency(summary.total_profit) }}
                   </td>
-                  <td class="text-center">{{ data.global.registers_count }}</td>
+                  <td class="text-center">{{ summary.registers_count }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Recent movements -->
+        <!-- Movements with pagination -->
         <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white fw-semibold">
-            <i class="bi bi-list-ul me-2 text-muted"></i>Derniers Mouvements (toutes sections)
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">
+              <i class="bi bi-list-ul me-2 text-muted"></i>Mouvements (toutes sections)
+            </span>
+            <small v-if="pagination.total" class="text-muted">
+              {{ pagination.total }} mouvement(s)
+            </small>
           </div>
           <div class="table-responsive">
             <table class="table table-hover mb-0 small">
@@ -167,24 +174,67 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="data.recent_movements.length === 0">
+                <tr v-if="movements.length === 0">
                   <td colspan="5" class="text-center py-4 text-muted">Aucun mouvement</td>
                 </tr>
-                <tr v-for="m in data.recent_movements" :key="m.id">
+                <tr v-for="m in movements" :key="m.id">
                   <td>{{ formatDateTime(m.created_at) }}</td>
                   <td>
                     <span class="badge" :class="sectionBadgeClass(m.hotel_section)">
                       {{ sectionLabel(m.hotel_section) }}
                     </span>
                   </td>
-                  <td>{{ m.description }}</td>
+                  <td>
+                    <span v-if="isLossMovement(m)" class="badge bg-warning text-dark me-1">Perte</span>
+                    {{ m.description }}
+                  </td>
                   <td class="text-muted">{{ m.reference || '—' }}</td>
-                  <td class="text-end fw-semibold" :class="m.type === 'income' ? 'text-success' : 'text-danger'">
+                  <td class="text-end fw-semibold" :class="movementAmountClass(m)">
                     {{ m.type === 'income' ? '+' : '-' }} {{ formatCurrency(m.amount) }}
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="pagination.last_page > 1" class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+              Page {{ pagination.current_page }} / {{ pagination.last_page }}
+              — {{ pagination.from }}-{{ pagination.to }} sur {{ pagination.total }}
+            </small>
+            <nav>
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="{ disabled: pagination.current_page <= 1 }">
+                  <button class="page-link" @click="goToPage(1)" :disabled="pagination.current_page <= 1">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                </li>
+                <li class="page-item" :class="{ disabled: pagination.current_page <= 1 }">
+                  <button class="page-link" @click="goToPage(pagination.current_page - 1)" :disabled="pagination.current_page <= 1">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                </li>
+                <li
+                  v-for="p in visiblePages"
+                  :key="p"
+                  class="page-item"
+                  :class="{ active: p === pagination.current_page }"
+                >
+                  <button class="page-link" @click="goToPage(p)">{{ p }}</button>
+                </li>
+                <li class="page-item" :class="{ disabled: pagination.current_page >= pagination.last_page }">
+                  <button class="page-link" @click="goToPage(pagination.current_page + 1)" :disabled="pagination.current_page >= pagination.last_page">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </li>
+                <li class="page-item" :class="{ disabled: pagination.current_page >= pagination.last_page }">
+                  <button class="page-link" @click="goToPage(pagination.last_page)" :disabled="pagination.current_page >= pagination.last_page">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </li>
+              </ul>
+            </nav>
           </div>
         </div>
       </div>
@@ -193,20 +243,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import HotelHeader from '@/views/hotel/HotelHeader.vue';
 import api from '@/services/api';
 
 const loading = ref(false);
-const data = ref(null);
+const summary = ref(null);
+const sections = ref([]);
+const movements = ref([]);
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0,
+  from: 0,
+  to: 0,
+  per_page: 20,
+});
 
 const filters = ref({
   start_date: '',
   end_date: '',
 });
+const activeFilter = ref('all');
 
 const formatCurrency = (v) => new Intl.NumberFormat('fr-FR').format(v || 0) + ' BIF';
 const formatDateTime = (d) => d ? new Date(d).toLocaleString('fr-FR') : '—';
+
+const isLossMovement = (m) =>
+  m.type === 'expense' && (m.description || '').toLowerCase().includes('perte');
+
+const movementAmountClass = (m) => {
+  if (m.type === 'income') return 'text-success';
+  if (isLossMovement(m)) return 'text-warning';
+  return 'text-danger';
+};
 
 const sectionLabels = {
   restaurant: 'Restaurant',
@@ -238,15 +308,39 @@ const sectionBadgeClass = (section) => {
   return map[section] || 'bg-light text-dark';
 };
 
-const loadData = async () => {
+const visiblePages = computed(() => {
+  const current = pagination.value.current_page;
+  const last = pagination.value.last_page;
+  const delta = 2;
+  const pages = [];
+  for (let i = Math.max(1, current - delta); i <= Math.min(last, current + delta); i++) {
+    pages.push(i);
+  }
+  return pages;
+});
+
+const loadData = async (page = 1) => {
   loading.value = true;
   try {
-    const params = {};
+    const params = { page, per_page: 20 };
     if (filters.value.start_date) params.start_date = filters.value.start_date;
     if (filters.value.end_date) params.end_date = filters.value.end_date;
 
     const res = await api.get('/hotel/caisse/global-summary', { params });
-    data.value = res.data.data;
+    const d = res.data.data;
+
+    summary.value = d.global;
+    sections.value = d.sections;
+
+    movements.value = d.movements.data;
+    pagination.value = {
+      current_page: d.movements.current_page,
+      last_page: d.movements.last_page,
+      total: d.movements.total,
+      from: d.movements.from || 0,
+      to: d.movements.to || 0,
+      per_page: d.movements.per_page,
+    };
   } catch (e) {
     console.error(e);
   } finally {
@@ -254,10 +348,21 @@ const loadData = async () => {
   }
 };
 
+const goToPage = (page) => {
+  if (page < 1 || page > pagination.value.last_page) return;
+  loadData(page);
+};
+
+const onManualDateChange = () => {
+  activeFilter.value = '';
+  loadData();
+};
+
 const setToday = () => {
   const today = new Date().toISOString().slice(0, 10);
   filters.value.start_date = today;
   filters.value.end_date = today;
+  activeFilter.value = 'today';
   loadData();
 };
 
@@ -267,11 +372,13 @@ const setThisMonth = () => {
   const end = now.toISOString().slice(0, 10);
   filters.value.start_date = start;
   filters.value.end_date = end;
+  activeFilter.value = 'month';
   loadData();
 };
 
 const clearFilters = () => {
   filters.value = { start_date: '', end_date: '' };
+  activeFilter.value = 'all';
   loadData();
 };
 
@@ -279,10 +386,7 @@ onMounted(loadData);
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1050;
+.pagination .page-link {
+  padding: 0.25rem 0.5rem;
 }
 </style>

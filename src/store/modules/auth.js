@@ -23,6 +23,12 @@ export default {
         localStorage.removeItem("user");
       }
     },
+    UPDATE_USER_COMPANY(state, company) {
+      if (state.user) {
+        state.user = { ...state.user, company };
+        localStorage.setItem("user", JSON.stringify(state.user));
+      }
+    },
     SET_LOADING(state, status) {
       state.loading = status;
     },

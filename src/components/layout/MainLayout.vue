@@ -72,7 +72,7 @@ const companyName = computed(() => {
 
 const loadCompanyInfo = async () => {
   const user = store.state.auth.user;
-  if (user && user.company_id && !user.company && !user.company_name) {
+  if (user && user.company_id) {
     try {
       const result = await store.dispatch(
         "companies/fetchCompany",
@@ -80,6 +80,7 @@ const loadCompanyInfo = async () => {
       );
       if (result.success && result.data) {
         fetchedCompany.value = result.data;
+        store.commit("auth/UPDATE_USER_COMPANY", result.data);
       }
     } catch (error) {
       console.error("Failed to fetch company info", error);

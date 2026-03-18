@@ -122,7 +122,7 @@ const companiesModule = {
         commit("SET_LOADING", false);
       }
     },
-    async updateCompany({ commit }, { id, data }) {
+    async updateCompany({ commit, rootState }, { id, data }) {
       commit("SET_LOADING", true);
       commit("SET_ERROR", null);
       try {
@@ -131,18 +131,23 @@ const companiesModule = {
         let url = `/companies/${id}`;
         let method = "put";
 
-        // Laravel requires POST with _method=PUT for multipart updates
         if (hasFiles(data)) {
           payload = objectToFormData(data, "PUT");
           config.headers = { "Content-Type": "multipart/form-data" };
-          // We use POST here because we are spoofing PUT via FormData
           method = "post";
         }
 
         const response = await api[method](url, payload, config);
 
         if (response.data.success) {
-          commit("UPDATE_COMPANY", response.data.data);
+          const updatedCompany = response.data.data;
+          commit("UPDATE_COMPANY", updatedCompany);
+
+          const currentUser = rootState.auth.user;
+          if (currentUser && currentUser.company_id === updatedCompany.id) {
+            commit("auth/UPDATE_USER_COMPANY", updatedCompany, { root: true });
+          }
+
           return { success: true };
         }
         return {
