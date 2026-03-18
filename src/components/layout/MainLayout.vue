@@ -112,10 +112,13 @@ const userName = computed(() => store.state.auth.user?.name || "Utilisateur");
 
 const userRole = computed(() => {
   const roles = store.state.auth.user?.roles;
-  if (roles && roles.length > 0) {
-    return roles.map((r) => r.name).join(", ");
-  }
-  return "Rôle inconnu";
+  if (!roles || roles.length === 0) return "Rôle inconnu";
+
+  const priorityOrder = ["super_admin", "admin", "manager", "hotel_manager", "accountant", "cashier", "sales", "stock_manager", "hotel_bar_manager", "user"];
+  const roleNames = roles.map((r) => r.name);
+  const primary = priorityOrder.find((p) => roleNames.includes(p)) || roleNames[0];
+
+  return primary.replace(/_/g, " ");
 });
 
 const currentUser = computed(() => store.state.auth.user);
