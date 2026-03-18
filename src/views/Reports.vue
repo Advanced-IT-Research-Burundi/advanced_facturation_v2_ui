@@ -3,7 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import api from '@/services/api';
 import {
   Printer, FileText, Package, ArrowDownCircle, ArrowUpCircle,
-  CreditCard, FileCheck, History, Download, Eye, FileSpreadsheet
+  CreditCard, FileCheck, History, Download, Eye, FileSpreadsheet, Wallet
 } from 'lucide-vue-next';
 
 // Active tab
@@ -18,7 +18,8 @@ const filters = ref({
   date_to: new Date().toISOString().slice(0, 10),
   warehouse_id: 'all',
   invoice_type: 'all',
-  movement_type: 'all'
+  movement_type: 'all',
+  hotel_section: 'all',
 });
 
 // Data
@@ -29,6 +30,7 @@ const selectedInvoices = ref([]);
 // Tabs configuration
 const tabs = [
   { id: 'invoices-history', label: 'Historique Factures', icon: History },
+  { id: 'cash-balance', label: 'Balance Caisse', icon: Wallet },
   { id: 'stock-sheet', label: 'Fiche de Stock', icon: FileText },
   { id: 'stock-movements', label: 'Mouvements Stock', icon: ArrowUpCircle },
   { id: 'stock-entries', label: 'Entrées Stock', icon: ArrowDownCircle },
@@ -49,6 +51,16 @@ const movementTypes = [
   { value: 'all', label: 'Tous' },
   { value: 'entry', label: 'Entrées' },
   { value: 'exit', label: 'Sorties' },
+];
+
+const hotelSections = [
+  { value: 'all', label: 'Toutes les caisses' },
+  { value: 'general', label: 'Caisse Générale' },
+  { value: 'restaurant', label: 'Restaurant' },
+  { value: 'bar', label: 'Bar' },
+  { value: 'rooms', label: 'Chambres' },
+  { value: 'conference', label: 'Salles Conf.' },
+  { value: 'reception', label: 'Salle Réception' },
 ];
 
 // Formatters
@@ -80,6 +92,7 @@ const fetchReport = async () => {
     'stock-entries': '/reports/stock-entries',
     'credit-invoices': '/reports/credit-invoices',
     'proformas': '/reports/proformas',
+    'cash-balance': '/reports/cash-balance',
   };
 
   try {
@@ -301,6 +314,24 @@ const getExportData = () => {
         ['Montant Total', reportData.value.summary.total_amount],
       ]
     },
+    'cash-balance': {
+      filename: 'balance_caisse',
+      headers: ['#', 'Date', 'Solde Reportée', 'Entrées', 'Dépenses', 'Pertes', 'Total Sorties', 'Solde Actuel'],
+      getData: () => reportData.value.rows.map((r, i) => [
+        i + 1, r.date, r.carried_balance, r.income,
+        r.expenses, r.losses, r.total_out, r.current_balance
+      ]),
+      getSummary: () => [
+        [],
+        ['RÉSUMÉ'],
+        ['Période', `${reportData.value.summary.date_from} - ${reportData.value.summary.date_to}`],
+        ['Solde Initiale', reportData.value.summary.initial_balance],
+        ['Total Entrées', reportData.value.summary.total_income],
+        ['Total Dépenses', reportData.value.summary.total_expenses],
+        ['Total Pertes', reportData.value.summary.total_losses],
+        ['Solde Finale', reportData.value.summary.final_balance],
+      ]
+    },
   };
 
   const config = tabConfig[activeTab.value];
@@ -460,6 +491,16 @@ const printReport = () => {
           <span><strong>Montant:</strong> ${formatCurrency(s.total_amount)}</span>
         </div>
       `;
+    } else if (activeTab.value === 'cash-balance') {
+      summaryHTML = `
+        <div class="summary">
+          <span><strong>Solde Initiale:</strong> ${formatCurrency(s.initial_balance)}</span>
+          <span><strong>Entrées:</strong> ${formatCurrency(s.total_income)}</span>
+          <span><strong>Dépenses:</strong> ${formatCurrency(s.total_expenses)}</span>
+          <span><strong>Pertes:</strong> ${formatCurrency(s.total_losses)}</span>
+          <span><strong>Solde Finale:</strong> ${formatCurrency(s.final_balance)}</span>
+        </div>
+      `;
     }
   }
 
@@ -530,8 +571,40 @@ const printReport = () => {
   }, 250);
 };
 
+// Cash balance pagination
+const cashBalancePage = ref(1);
+const cashBalancePerPage = 20;
+
+const cashBalancePaginatedRows = computed(() => {
+  if (!reportData.value?.rows) return [];
+  const start = (cashBalancePage.value - 1) * cashBalancePerPage;
+  return reportData.value.rows.slice(start, start + cashBalancePerPage);
+});
+
+const cashBalanceTotalPages = computed(() => {
+  if (!reportData.value?.rows) return 1;
+  return Math.ceil(reportData.value.rows.length / cashBalancePerPage) || 1;
+});
+
+const cashBalanceVisiblePages = computed(() => {
+  const current = cashBalancePage.value;
+  const last = cashBalanceTotalPages.value;
+  const pages = [];
+  for (let i = Math.max(1, current - 2); i <= Math.min(last, current + 2); i++) {
+    pages.push(i);
+  }
+  return pages;
+});
+
+const cashBalanceGoTo = (page) => {
+  if (page >= 1 && page <= cashBalanceTotalPages.value) {
+    cashBalancePage.value = page;
+  }
+};
+
 // Watch tab changes
 watch(activeTab, () => {
+  cashBalancePage.value = 1;
   fetchReport();
 });
 
@@ -621,6 +694,14 @@ onMounted(() => {
               <option v-for="type in movementTypes" :key="type.value" :value="type.value">
                 {{ type.label }}
               </option>
+            </select>
+          </div>
+
+          <!-- Hotel section filter for cash balance -->
+          <div class="col-6 col-md-2" v-if="activeTab === 'cash-balance'">
+            <label class="form-label small text-muted">Section</label>
+            <select v-model="filters.hotel_section" class="form-select form-select-sm">
+              <option v-for="s in hotelSections" :key="s.value" :value="s.value">{{ s.label }}</option>
             </select>
           </div>
 
@@ -1023,6 +1104,160 @@ onMounted(() => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- CASH BALANCE TAB -->
+      <template v-if="activeTab === 'cash-balance'">
+        <!-- Summary cards -->
+        <div class="row g-3 mb-4" v-if="reportData.summary">
+          <div class="col-6 col-md">
+            <div class="card border-0 shadow-sm h-100" style="background: #f0f9ff">
+              <div class="card-body text-center py-3">
+                <div class="small text-muted">Solde Initiale</div>
+                <div class="fw-bold fs-5" :class="reportData.summary.initial_balance >= 0 ? 'text-primary' : 'text-danger'">
+                  {{ formatCurrency(reportData.summary.initial_balance) }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md">
+            <div class="card border-0 shadow-sm h-100" style="background: #d1fae5">
+              <div class="card-body text-center py-3">
+                <div class="small text-muted">Total Entrées</div>
+                <div class="fw-bold fs-5 text-success">+ {{ formatCurrency(reportData.summary.total_income) }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md">
+            <div class="card border-0 shadow-sm h-100" style="background: #fee2e2">
+              <div class="card-body text-center py-3">
+                <div class="small text-muted">Total Dépenses</div>
+                <div class="fw-bold fs-5 text-danger">- {{ formatCurrency(reportData.summary.total_expenses) }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md">
+            <div class="card border-0 shadow-sm h-100" style="background: #fef3c7">
+              <div class="card-body text-center py-3">
+                <div class="small text-muted">Total Pertes</div>
+                <div class="fw-bold fs-5 text-warning">- {{ formatCurrency(reportData.summary.total_losses) }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md">
+            <div class="card border-0 shadow-sm h-100" :style="reportData.summary.final_balance >= 0 ? 'background: #d1fae5' : 'background: #fee2e2'">
+              <div class="card-body text-center py-3">
+                <div class="small text-muted">Solde Finale</div>
+                <div class="fw-bold fs-5" :class="reportData.summary.final_balance >= 0 ? 'text-success' : 'text-danger'">
+                  {{ formatCurrency(reportData.summary.final_balance) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Balance table -->
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">
+              <Wallet :size="18" class="me-2 text-muted" />Balance Journalière de Caisse
+            </span>
+            <small v-if="reportData.rows.length" class="text-muted">
+              {{ reportData.rows.length }} jour(s)
+            </small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th class="text-end">Solde Reportée</th>
+                  <th class="text-end">Montant Entrée</th>
+                  <th class="text-end">Dépenses</th>
+                  <th class="text-end">Pertes</th>
+                  <th class="text-end">Total Sorties</th>
+                  <th class="text-end">Solde Actuel</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="reportData.rows.length === 0">
+                  <td colspan="8" class="text-center py-4 text-muted">Aucune donnée pour cette période</td>
+                </tr>
+                <tr v-for="(row, index) in cashBalancePaginatedRows" :key="row.date">
+                  <td>{{ (cashBalancePage - 1) * cashBalancePerPage + index + 1 }}</td>
+                  <td class="fw-medium">{{ row.date }}</td>
+                  <td class="text-end" :class="row.carried_balance >= 0 ? 'text-primary' : 'text-danger'">
+                    {{ formatCurrency(row.carried_balance) }}
+                  </td>
+                  <td class="text-end text-success fw-semibold">
+                    {{ row.income > 0 ? '+ ' + formatCurrency(row.income) : '—' }}
+                  </td>
+                  <td class="text-end text-danger">
+                    {{ row.expenses > 0 ? '- ' + formatCurrency(row.expenses) : '—' }}
+                  </td>
+                  <td class="text-end" style="color: #b45309">
+                    {{ row.losses > 0 ? '- ' + formatCurrency(row.losses) : '—' }}
+                  </td>
+                  <td class="text-end text-danger fw-semibold">
+                    {{ row.total_out > 0 ? '- ' + formatCurrency(row.total_out) : '—' }}
+                  </td>
+                  <td class="text-end fw-bold" :class="row.current_balance >= 0 ? 'text-success' : 'text-danger'">
+                    {{ formatCurrency(row.current_balance) }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot v-if="reportData.rows.length > 0" class="table-dark">
+                <tr class="fw-bold">
+                  <td colspan="2">TOTAL</td>
+                  <td class="text-end">{{ formatCurrency(reportData.summary.initial_balance) }}</td>
+                  <td class="text-end text-success">+ {{ formatCurrency(reportData.summary.total_income) }}</td>
+                  <td class="text-end text-danger">- {{ formatCurrency(reportData.summary.total_expenses) }}</td>
+                  <td class="text-end" style="color: #fbbf24">- {{ formatCurrency(reportData.summary.total_losses) }}</td>
+                  <td class="text-end text-danger">- {{ formatCurrency(reportData.summary.total_expenses + reportData.summary.total_losses) }}</td>
+                  <td class="text-end" :class="reportData.summary.final_balance >= 0 ? 'text-success' : 'text-danger'">
+                    {{ formatCurrency(reportData.summary.final_balance) }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="cashBalanceTotalPages > 1" class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+              Page {{ cashBalancePage }} / {{ cashBalanceTotalPages }}
+              — {{ (cashBalancePage - 1) * cashBalancePerPage + 1 }}-{{ Math.min(cashBalancePage * cashBalancePerPage, reportData.rows.length) }} sur {{ reportData.rows.length }}
+            </small>
+            <nav>
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="{ disabled: cashBalancePage <= 1 }">
+                  <button class="page-link" @click="cashBalanceGoTo(1)" :disabled="cashBalancePage <= 1">
+                    <i class="bi bi-chevron-double-left"></i>
+                  </button>
+                </li>
+                <li class="page-item" :class="{ disabled: cashBalancePage <= 1 }">
+                  <button class="page-link" @click="cashBalanceGoTo(cashBalancePage - 1)" :disabled="cashBalancePage <= 1">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                </li>
+                <li v-for="p in cashBalanceVisiblePages" :key="p" class="page-item" :class="{ active: p === cashBalancePage }">
+                  <button class="page-link" @click="cashBalanceGoTo(p)">{{ p }}</button>
+                </li>
+                <li class="page-item" :class="{ disabled: cashBalancePage >= cashBalanceTotalPages }">
+                  <button class="page-link" @click="cashBalanceGoTo(cashBalancePage + 1)" :disabled="cashBalancePage >= cashBalanceTotalPages">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </li>
+                <li class="page-item" :class="{ disabled: cashBalancePage >= cashBalanceTotalPages }">
+                  <button class="page-link" @click="cashBalanceGoTo(cashBalanceTotalPages)" :disabled="cashBalancePage >= cashBalanceTotalPages">
+                    <i class="bi bi-chevron-double-right"></i>
+                  </button>
+                </li>
+              </ul>
+            </nav>
           </div>
         </div>
       </template>
