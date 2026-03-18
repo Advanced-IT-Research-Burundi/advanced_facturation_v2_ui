@@ -104,7 +104,7 @@ const actions = {
     }
   },
 
-  async updateUser({ dispatch, commit }, userData) {
+  async updateUser({ dispatch, commit, rootState }, userData) {
     commit('setLoading', true);
     commit('setError', null);
     
@@ -113,6 +113,15 @@ const actions = {
       
       if (response.data.success) {
         await dispatch('fetchUsers');
+
+        const currentUser = rootState.auth.user;
+        if (currentUser && currentUser.id === userData.id) {
+          const updatedUser = response.data.data;
+          if (updatedUser) {
+            commit('auth/UPDATE_USER_DATA', updatedUser, { root: true });
+          }
+        }
+
         return response.data;
       }
     } catch (error) {

@@ -29,6 +29,12 @@ export default {
         localStorage.setItem("user", JSON.stringify(state.user));
       }
     },
+    UPDATE_USER_DATA(state, userData) {
+      if (state.user) {
+        state.user = { ...state.user, ...userData };
+        localStorage.setItem("user", JSON.stringify(state.user));
+      }
+    },
     SET_LOADING(state, status) {
       state.loading = status;
     },
