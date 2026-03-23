@@ -447,7 +447,9 @@ const getImageUrl = (path) => {
   // Adjust base URL as needed based on where Laravel stores public files
   // e.g., if storing in 'public/storage', then URL is 'http://api-url/storage/...'
   // Assuming the API returns a relative path or full URL. If relative:
-  return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${path}`;
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const storageBase = baseUrl.replace(/\/api\/?$/, '');
+  return `${storageBase}/storage/${path}`;
 };
 
 const handleFileUpload = (event) => {

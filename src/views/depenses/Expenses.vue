@@ -344,8 +344,9 @@ const formatDate = (date) => {
 
 const getFileUrl = (path) => {
     if (!path) return "#";
-    // Adjust base URL logic as needed
-    return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/storage/${path}`;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const storageBase = baseUrl.replace(/\/api\/?$/, '');
+    return `${storageBase}/storage/${path}`;
 };
 </script>
 
