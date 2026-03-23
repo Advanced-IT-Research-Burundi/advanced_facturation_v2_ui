@@ -93,9 +93,9 @@
                     <span class="text-muted small" v-else>-</span>
                 </td>
                 <td>
-                    <a v-if="expense.justification_file" :href="getFileUrl(expense.justification_file)" target="_blank" class="btn btn-sm btn-link text-decoration-none p-0">
+                    <button v-if="expense.justification_file" @click="viewJustification(expense.id)" class="btn btn-sm btn-link text-decoration-none p-0">
                         <i class="bi bi-paperclip me-1"></i>Voir
-                    </a>
+                    </button>
                     <span v-else class="text-muted small">-</span>
                 </td>
                 <td class="text-muted small">{{ formatDate(expense.created_at) }}</td>
@@ -173,7 +173,7 @@
                  <label class="form-label small text-muted text-uppercase fw-bold">Justificatif (PDF/Image)</label>
                  <input type="file" class="form-control" @change="handleFileUpload" accept="image/*,.pdf">
                  <div v-if="isEditing && form.existing_file" class="form-text">
-                     Fichier actuel: <a :href="getFileUrl(form.existing_file)" target="_blank">Voir</a>
+                     Fichier actuel: <button type="button" class="btn btn-link btn-sm p-0" @click="viewJustification(form.id)">Voir</button>
                  </div>
               </div>
               
@@ -342,11 +342,15 @@ const formatDate = (date) => {
     return new Date(date).toLocaleDateString("fr-FR");
 };
 
-const getFileUrl = (path) => {
-    if (!path) return "#";
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
-    const storageBase = baseUrl.replace(/\/api\/?$/, '');
-    return `${storageBase}/storage/${path}`;
+const viewJustification = async (expenseId) => {
+    try {
+        const response = await api.get(`/depenses/${expenseId}/justification`, { responseType: 'blob' });
+        const blob = new Blob([response.data], { type: response.headers['content-type'] });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    } catch (e) {
+        alert('Impossible de charger le justificatif.');
+    }
 };
 </script>
 
