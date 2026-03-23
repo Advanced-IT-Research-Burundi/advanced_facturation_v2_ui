@@ -91,7 +91,6 @@ const form = reactive({
 });
 
 const saveClient = async () => {
-  // Petite validation avant envoi
   if (!form.customer_name || !form.type) {
     alert("Veuillez remplir les champs obligatoires.");
     return;
@@ -99,10 +98,16 @@ const saveClient = async () => {
 
   isSaving.value = true;
   try {
-    await store.dispatch('clients/addClient', form);
-    emit('close');
+    const result = await store.dispatch('clients/addClient', form);
+    if (result.success) {
+      emit('close');
+    } else {
+      const errorMsg = result.errors
+        ? Object.values(result.errors).flat().join('\n')
+        : (result.message || "Erreur lors de l'enregistrement");
+      alert(errorMsg);
+    }
   } catch (e) {
-   
     const errorMsg = e.errors ? Object.values(e.errors).flat().join('\n') : "Erreur lors de l'enregistrement";
     alert(errorMsg);
   } finally {
