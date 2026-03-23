@@ -196,6 +196,7 @@
 import { onMounted, computed, ref, reactive } from "vue";
 import { useStore } from "vuex";
 import DepenseHeader from "./DepenseHeader.vue";
+import api from "@/services/api";
 
 const store = useStore();
 
@@ -344,12 +345,24 @@ const formatDate = (date) => {
 
 const viewJustification = async (expenseId) => {
     try {
-        const response = await api.get(`/depenses/${expenseId}/justification`, { responseType: 'blob' });
+        const response = await api.apiClient.get(`/depenses/${expenseId}/justification`, {
+            responseType: 'blob',
+            headers: { Accept: '*/*' },
+        });
         const blob = new Blob([response.data], { type: response.headers['content-type'] });
         const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        const newTab = window.open(url, '_blank');
+        if (!newTab) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `justificatif_${expenseId}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     } catch (e) {
-        alert('Impossible de charger le justificatif.');
+        console.error('Justificatif error:', e);
+        alert('Impossible de charger le justificatif: ' + (e.response?.status || e.message));
     }
 };
 </script>
