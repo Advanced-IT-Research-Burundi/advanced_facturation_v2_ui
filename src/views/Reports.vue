@@ -316,10 +316,10 @@ const getExportData = () => {
     },
     'cash-balance': {
       filename: 'balance_caisse',
-      headers: ['#', 'Date', 'Solde Reportée', 'Entrées', 'Dépenses', 'Pertes', 'Total Sorties', 'Solde Actuel'],
+      headers: ['#', 'Date', 'Solde Reportée', 'Entrées', 'Dépenses Caisse', 'Dépenses Enregistrées', 'Pertes', 'Total Sorties', 'Solde Actuel'],
       getData: () => reportData.value.rows.map((r, i) => [
         i + 1, r.date, r.carried_balance, r.income,
-        r.expenses, r.losses, r.total_out, r.current_balance
+        r.expenses, r.depenses || 0, r.losses, r.total_out, r.current_balance
       ]),
       getSummary: () => [
         [],
@@ -327,7 +327,8 @@ const getExportData = () => {
         ['Période', `${reportData.value.summary.date_from} - ${reportData.value.summary.date_to}`],
         ['Solde Initiale', reportData.value.summary.initial_balance],
         ['Total Entrées', reportData.value.summary.total_income],
-        ['Total Dépenses', reportData.value.summary.total_expenses],
+        ['Total Dépenses Caisse', reportData.value.summary.total_expenses],
+        ['Total Dépenses Enregistrées', reportData.value.summary.total_depenses || 0],
         ['Total Pertes', reportData.value.summary.total_losses],
         ['Solde Finale', reportData.value.summary.final_balance],
       ]
@@ -496,7 +497,8 @@ const printReport = () => {
         <div class="summary">
           <span><strong>Solde Initiale:</strong> ${formatCurrency(s.initial_balance)}</span>
           <span><strong>Entrées:</strong> ${formatCurrency(s.total_income)}</span>
-          <span><strong>Dépenses:</strong> ${formatCurrency(s.total_expenses)}</span>
+          <span><strong>Dép. Caisse:</strong> ${formatCurrency(s.total_expenses)}</span>
+          <span><strong>Dép. Enreg.:</strong> ${formatCurrency(s.total_depenses || 0)}</span>
           <span><strong>Pertes:</strong> ${formatCurrency(s.total_losses)}</span>
           <span><strong>Solde Finale:</strong> ${formatCurrency(s.final_balance)}</span>
         </div>
@@ -1133,8 +1135,16 @@ onMounted(() => {
           <div class="col-6 col-md">
             <div class="card border-0 shadow-sm h-100" style="background: #fee2e2">
               <div class="card-body text-center py-3">
-                <div class="small text-muted">Total Dépenses</div>
+                <div class="small text-muted">Dépenses Caisse</div>
                 <div class="fw-bold fs-5 text-danger">- {{ formatCurrency(reportData.summary.total_expenses) }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md">
+            <div class="card border-0 shadow-sm h-100" style="background: #fce7f3">
+              <div class="card-body text-center py-3">
+                <div class="small text-muted">Dépenses Enregistrées</div>
+                <div class="fw-bold fs-5" style="color: #be185d">- {{ formatCurrency(reportData.summary.total_depenses || 0) }}</div>
               </div>
             </div>
           </div>
@@ -1176,7 +1186,8 @@ onMounted(() => {
                   <th>Date</th>
                   <th class="text-end">Solde Reportée</th>
                   <th class="text-end">Montant Entrée</th>
-                  <th class="text-end">Dépenses</th>
+                  <th class="text-end">Dépenses Caisse</th>
+                  <th class="text-end">Dépenses Enregistrées</th>
                   <th class="text-end">Pertes</th>
                   <th class="text-end">Total Sorties</th>
                   <th class="text-end">Solde Actuel</th>
@@ -1184,7 +1195,7 @@ onMounted(() => {
               </thead>
               <tbody>
                 <tr v-if="reportData.rows.length === 0">
-                  <td colspan="8" class="text-center py-4 text-muted">Aucune donnée pour cette période</td>
+                  <td colspan="9" class="text-center py-4 text-muted">Aucune donnée pour cette période</td>
                 </tr>
                 <tr v-for="(row, index) in cashBalancePaginatedRows" :key="row.date">
                   <td>{{ (cashBalancePage - 1) * cashBalancePerPage + index + 1 }}</td>
@@ -1197,6 +1208,9 @@ onMounted(() => {
                   </td>
                   <td class="text-end text-danger">
                     {{ row.expenses > 0 ? '- ' + formatCurrency(row.expenses) : '—' }}
+                  </td>
+                  <td class="text-end" style="color: #be185d">
+                    {{ (row.depenses || 0) > 0 ? '- ' + formatCurrency(row.depenses) : '—' }}
                   </td>
                   <td class="text-end" style="color: #b45309">
                     {{ row.losses > 0 ? '- ' + formatCurrency(row.losses) : '—' }}
@@ -1215,8 +1229,9 @@ onMounted(() => {
                   <td class="text-end">{{ formatCurrency(reportData.summary.initial_balance) }}</td>
                   <td class="text-end text-success">+ {{ formatCurrency(reportData.summary.total_income) }}</td>
                   <td class="text-end text-danger">- {{ formatCurrency(reportData.summary.total_expenses) }}</td>
+                  <td class="text-end" style="color: #f9a8d4">- {{ formatCurrency(reportData.summary.total_depenses || 0) }}</td>
                   <td class="text-end" style="color: #fbbf24">- {{ formatCurrency(reportData.summary.total_losses) }}</td>
-                  <td class="text-end text-danger">- {{ formatCurrency(reportData.summary.total_expenses + reportData.summary.total_losses) }}</td>
+                  <td class="text-end text-danger">- {{ formatCurrency(reportData.summary.total_expenses + (reportData.summary.total_depenses || 0) + reportData.summary.total_losses) }}</td>
                   <td class="text-end" :class="reportData.summary.final_balance >= 0 ? 'text-success' : 'text-danger'">
                     {{ formatCurrency(reportData.summary.final_balance) }}
                   </td>
