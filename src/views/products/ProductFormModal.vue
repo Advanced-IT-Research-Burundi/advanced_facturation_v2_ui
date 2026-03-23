@@ -37,6 +37,7 @@ const defaultForm = {
   image: "",
   type: "",
   description: "",
+  is_production: false,
   // Champs pharmaceutiques
   is_pharmaceutical: false,
   dci: "",
@@ -331,6 +332,23 @@ watch(
                       v-model="form.marque"
                       maxlength="255"
                     />
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check form-switch mt-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="is_production"
+                        v-model="form.is_production"
+                      />
+                      <label class="form-check-label fw-bold" for="is_production">
+                        Produit de Production (Boulangerie / Pâtisserie)
+                      </label>
+                      <div class="form-text">
+                        Activez si ce produit est fabriqué en boulangerie. Il apparaîtra dans le module Production.
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
