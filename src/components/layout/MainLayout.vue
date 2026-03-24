@@ -72,19 +72,23 @@ const companyName = computed(() => {
 
 const loadCompanyInfo = async () => {
   const user = store.state.auth.user;
-  if (user && user.company_id) {
-    try {
-      const result = await store.dispatch(
-        "companies/fetchCompany",
-        user.company_id,
-      );
-      if (result.success && result.data) {
-        fetchedCompany.value = result.data;
-        store.commit("auth/UPDATE_USER_COMPANY", result.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch company info", error);
+  if (!user || !user.company_id) {
+    return;
+  }
+  if (fetchedCompany.value && fetchedCompany.value.id === user.company_id) {
+    return;
+  }
+  try {
+    const result = await store.dispatch(
+      "companies/fetchCompany",
+      user.company_id,
+    );
+    if (result.success && result.data) {
+      fetchedCompany.value = result.data;
+      store.commit("auth/UPDATE_USER_COMPANY", result.data);
     }
+  } catch (error) {
+    console.error("Failed to fetch company info", error);
   }
 };
 
@@ -92,11 +96,13 @@ onMounted(() => {
   loadCompanyInfo();
 });
 
-// Watch for user changes (e.g. login/logout or refresh)
 watch(
-  () => store.state.auth.user,
-  () => {
-    loadCompanyInfo();
+  () => store.state.auth.user?.company_id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      fetchedCompany.value = null;
+      loadCompanyInfo();
+    }
   },
 );
 
