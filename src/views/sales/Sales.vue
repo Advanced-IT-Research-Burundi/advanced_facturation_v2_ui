@@ -220,26 +220,30 @@ const handleInvoiceSubmit = async (payload) => {
 
 const handleProformaSave = async (payload) => {
   isSubmitting.value = true;
-  let result;
-  
-  if (payload.id) {
-      // Update
-      result = await store.dispatch("proformats/updateProforma", {
-          id: payload.id, 
-          data: payload.data || payload // payload might be {id, data} or just data depending on emitter
-      });
-  } else {
-      // Create
-      result = await store.dispatch("proformats/createProforma", payload);
-  }
+  try {
+    let result;
 
-  isSubmitting.value = false;
-  
-  if (result.success) {
+    if (payload.id && payload.data) {
+      result = await store.dispatch("proformats/updateProforma", {
+        id: payload.id,
+        data: payload.data,
+      });
+    } else {
+      result = await store.dispatch("proformats/createProforma", payload);
+    }
+
+    if (result.success) {
       showProformaForm.value = false;
-      // Alert is optional, maybe just close modal
-  } else {
-      alert(result.message || "Erreur lors de l'enregistrement");
+      isEditingProforma.value = false;
+      editingProformaData.value = null;
+    } else {
+      alert(result.message || "Erreur lors de l'enregistrement de la proforma");
+    }
+  } catch (e) {
+    console.error("Proforma save error:", e);
+    alert("Erreur lors de l'enregistrement: " + (e.message || "Erreur inconnue"));
+  } finally {
+    isSubmitting.value = false;
   }
 };
 

@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from "vue";
 import { Eye, Pencil, Trash, Search } from "lucide-vue-next";
 
 const props = defineProps({
@@ -24,6 +25,16 @@ const formatPrice = (price) => {
   return !isNaN(num) ? num.toLocaleString() : "0";
 };
 
+const filteredProformas = computed(() => {
+  if (!props.searchText) return props.proformas;
+  const term = props.searchText.toLowerCase();
+  return props.proformas.filter(
+    (p) =>
+      (p.invoice_number || "").toLowerCase().includes(term) ||
+      (p.customer_name || "").toLowerCase().includes(term)
+  );
+});
+
 const confirmDelete = (proforma) => {
   if (confirm("Êtes-vous sûr de vouloir supprimer cette proforma ?")) {
     emit("delete", proforma);
@@ -35,12 +46,12 @@ const confirmDelete = (proforma) => {
   <div class="d-flex flex-column bg-white p-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h4 class="mb-0">Gestion des Proformas Service</h4>
-      <!-- <button
+      <button
         @click="$emit('create')"
         class="btn btn-primary d-flex align-items-center gap-2"
       >
         Nouveau Proforma
-      </button> -->
+      </button>
     </div>
 
     <div class="mb-3">
@@ -75,7 +86,12 @@ const confirmDelete = (proforma) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="proforma in proformas" :key="proforma.id">
+          <tr v-if="filteredProformas.length === 0">
+            <td colspan="8" class="text-center text-muted py-4">
+              Aucune proforma trouvée
+            </td>
+          </tr>
+          <tr v-for="proforma in filteredProformas" :key="proforma.id">
             <td class="fw-bold">{{ proforma.invoice_number }}</td>
             <td>{{ new Date(proforma.invoice_date).toLocaleDateString() }}</td>
             <td>

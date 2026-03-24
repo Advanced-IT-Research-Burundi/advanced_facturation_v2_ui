@@ -18,6 +18,7 @@ const emit = defineEmits(["close", "save", "preview"]);
 const form = reactive({
   customer_id: "",
   currency: "BIF",
+  payment_type: "cash",
   date: new Date().toISOString().split("T")[0],
   items: [{ item_designation: "", item_quantity: 1, item_price: 0, vat: 18 }],
 });
@@ -30,9 +31,14 @@ watch(
       // If editing, map the incoming data to the form structure
       // Note: we might not have customer_id if it wasn't returned or if we are mapping from a view model.
       // We'll rely on what's passed.
-      form.customer_id = newVal.customer_id || ""; // Handle mapping in parent if needed
-      form.currency = newVal.currency || "BIF";
-      form.date = newVal.date ? newVal.date.split("T")[0] : new Date().toISOString().split("T")[0];
+      form.customer_id = newVal.customer_id || "";
+      form.currency = newVal.currency || newVal.invoice_currency || "BIF";
+      form.payment_type = newVal.payment_type || "cash";
+      form.date = newVal.date
+        ? newVal.date.split("T")[0]
+        : newVal.invoice_date
+          ? newVal.invoice_date.split("T")[0]
+          : new Date().toISOString().split("T")[0];
       
       const itemsSource = newVal.items || newVal.invoice_items;
       if (itemsSource && itemsSource.length) {
@@ -73,18 +79,30 @@ const save = () => {
     alert("Veuillez sélectionner un client.");
     return;
   }
-  
-  // Construct payload for API
+
+  const validItems = form.items.filter(i => i.item_designation && i.item_designation.trim() !== '');
+  if (validItems.length === 0) {
+    alert("Veuillez ajouter au moins un article avec une description.");
+    return;
+  }
+
   const payload = {
       invoice_type: 'FP',
       invoice_action: 'SERVICE',
       invoice_currency: form.currency,
       customer_id: form.customer_id,
-      items: form.items
+      payment_type: form.payment_type,
+      items: validItems.map(item => ({
+          item_designation: item.item_designation,
+          item_quantity: item.item_quantity,
+          item_price: item.item_price,
+          vat: item.vat,
+          item_ct: 0,
+          item_tl: 0,
+      })),
   };
-  
+
   if (props.isEditing && props.initialData?.id) {
-      // pass ID for update
       emit("save", { id: props.initialData.id, data: payload });
   } else {
       emit("save", payload);
@@ -112,10 +130,8 @@ const save = () => {
         </div>
         <div class="modal-body p-4">
           <div class="row g-3 mb-4">
-            <div class="col-md-6">
-              <label class="form-label small text-muted text-uppercase"
-                >Client</label
-              >
+            <div class="col-md-5">
+              <label class="form-label small text-muted text-uppercase">Client</label>
               <select v-model="form.customer_id" class="form-select">
                   <option value="" disabled>Sélectionner un client</option>
                   <option v-for="c in customers" :key="c.id" :value="c.id">
@@ -124,10 +140,23 @@ const save = () => {
               </select>
             </div>
             <div class="col-md-3">
-              <label class="form-label small text-muted text-uppercase"
-                >Date</label
-              >
+              <label class="form-label small text-muted text-uppercase">Date</label>
               <input v-model="form.date" type="date" class="form-control" disabled />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted text-uppercase">Devise</label>
+              <select v-model="form.currency" class="form-select">
+                <option value="BIF">BIF</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted text-uppercase">Paiement</label>
+              <select v-model="form.payment_type" class="form-select">
+                <option value="cash">Espèces</option>
+                <option value="banque">Banque</option>
+                <option value="mobile">Mobile Money</option>
+              </select>
             </div>
           </div>
 
@@ -207,13 +236,13 @@ const save = () => {
             <div class="text-muted small">
               TOTAL HT:
               <span class="text-dark fw-bold"
-                >{{ totals.total_ht.toLocaleString() }} BIF</span
+                >{{ totals.total_ht.toLocaleString() }} {{ form.currency }}</span
               >
             </div>
             <div class="text-muted small">
               TOTAL TTC:
               <span class="text-primary fw-bold"
-                >{{ totals.total_ttc.toLocaleString() }} BIF</span
+                >{{ totals.total_ttc.toLocaleString() }} {{ form.currency }}</span
               >
             </div>
           </div>
