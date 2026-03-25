@@ -295,10 +295,35 @@
             <button class="btn-close btn-close-white" @click="closeQuickTransfer"></button>
           </div>
           <div class="modal-body">
-            <div class="alert alert-success">
-              <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
-              <small>Stock disponible: {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}</small>
-            </div>
+            <div class="row g-2 mb-2">
+                <div class="col">
+                  <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
+                  <small class="text-muted">{{ selectedStock?.product?.item_code }}</small>
+                </div>
+                <div class="col">
+                  <strong>Stock disponible:</strong><br>
+                  <small class="text-muted">{{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}</small>
+                </div>
+              </div>
+              <hr />
+            <!-- <div class="alert alert-success">
+              <div class="row g-2 mb-2">
+                <div class="col">
+                  <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
+                  <small class="text-muted">{{ selectedStock?.product?.item_code }}</small>
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <small><strong>Stock disponible:</strong></small><br>
+                  {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}
+                </div>
+                <div class="col-md-6">
+                  <small><strong>Prix Unitaire:</strong></small><br>
+                  {{ selectedStock?.unit_price || 0 }} {{ selectedStock?.currency }}
+                </div>
+              </div>
+            </div> -->
             <div class="mb-3">
               <label class="form-label">Entrepôt de destination *</label>
               <select class="form-select" v-model="quickTransferForm.destination_warehouse_id" required>
@@ -309,10 +334,25 @@
               </select>
             </div>
             <div class="mb-3">
-              <label class="form-label">Quantité *</label>
-              <input type="number" step="0.01" class="form-control" 
+              <label class="form-label">Quantité à transférer *</label>
+              <div class="btn-group w-100 mb-2" role="group">
+                <button type="button" @click="setTransferAll" 
+                        :class="['btn', transferMode === 'all' ? 'btn-primary' : 'btn-outline-primary']">
+                  <i class="bi bi-check-all me-1"></i>Tout Transférer
+                </button>
+                <button type="button" @click="setTransferCustom" 
+                        :class="['btn', transferMode === 'custom' ? 'btn-primary' : 'btn-outline-primary']">
+                  <i class="bi bi-pencil me-1"></i>Quantité Précise
+                </button>
+              </div>
+              <input v-if="transferMode === 'custom'" type="number" step="0.01" class="form-control" 
                      v-model="quickTransferForm.quantity" required min="0.01" 
-                     :max="selectedStock?.quantity">
+                     :max="selectedStock?.quantity"
+                     placeholder="Entrez la quantité">
+              <div v-else class="alert alert-info mb-0">
+                <i class="bi bi-info-circle me-2"></i>
+                Transférer: <strong>{{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}</strong>
+              </div>
             </div>
             <div class="mb-3">
               <label class="form-label">Notes</label>
@@ -435,6 +475,7 @@ const showQuickTransferModal = ref(false);
 const showMarkAsFinishedModal = ref(false);
 const showMarkAsRawModal = ref(false);
 const selectedStock = ref(null);
+const transferMode = ref('all'); // 'all' or 'custom'
 
 const quickEntryForm = ref({
   movement_type: 'EN',
@@ -595,6 +636,7 @@ const submitQuickExit = async () => {
 
 const openQuickTransfer = (stock) => {
   selectedStock.value = stock;
+  transferMode.value = 'all';
   quickTransferForm.value = {
     destination_warehouse_id: '',
     quantity: stock.quantity,
@@ -606,12 +648,35 @@ const openQuickTransfer = (stock) => {
 const closeQuickTransfer = () => {
   showQuickTransferModal.value = false;
   selectedStock.value = null;
+  transferMode.value = 'all';
+};
+
+const setTransferAll = () => {
+  transferMode.value = 'all';
+  quickTransferForm.value.quantity = selectedStock.value.quantity;
+};
+
+const setTransferCustom = () => {
+  transferMode.value = 'custom';
+  quickTransferForm.value.quantity = '';
 };
 
 const submitQuickTransfer = async () => {
   submitting.value = true;
   error.value = null;
   try {
+    // Valider la quantité avant soumission
+    if (!quickTransferForm.value.quantity || quickTransferForm.value.quantity <= 0) {
+      error.value = 'Veuillez entrer une quantité valide';
+      submitting.value = false;
+      return;
+    }
+    if (quickTransferForm.value.quantity > selectedStock.value.quantity) {
+      error.value = 'La quantité ne peut pas dépasser le stock disponible';
+      submitting.value = false;
+      return;
+    }
+    
     const resp = await api.post('bakery/production/quick-transfer', {
       product_id: selectedStock.value.product_id,
       ...quickTransferForm.value
