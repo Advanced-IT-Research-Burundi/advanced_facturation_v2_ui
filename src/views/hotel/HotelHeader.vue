@@ -46,6 +46,7 @@ const allTabs = [
   { id: 'Caisse',          label: 'Caisse',           route: '/hotel/caisse',          icon: 'bi-cash-register',   permissions: ['hotel_rooms', 'hotel_bar'] },
   { id: 'CaisseGlobale',   label: 'Caisse Globale',   route: '/hotel/caisse-globale',  icon: 'bi-bank',            permissions: ['hotel_rooms', 'hotel_bar'] },
   { id: 'Depenses',        label: 'Dépenses',         route: '/hotel/depenses',        icon: 'bi-wallet2',         permissions: ['hotel_rooms', 'hotel_bar'] },
+  { id: 'Rapports',        label: 'Rapports',         route: '/hotel/rapports',        icon: 'bi-graph-up',        permissions: ['hotel_rooms'] },
 ];
 
 const hotelTabs = computed(() =>

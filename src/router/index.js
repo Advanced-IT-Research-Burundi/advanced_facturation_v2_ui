@@ -345,6 +345,12 @@ const router = createRouter({
           component: () => import("../views/hotel/HotelDepenses.vue"),
           meta: { permissions: ["hotel_rooms", "hotel_bar"] },
         },
+        {
+          path: "hotel/rapports",
+          name: "hotel.rapports",
+          component: () => import("../views/hotel/HotelRapports.vue"),
+          meta: { permission: "hotel_rooms" },
+        },
         // Routes Restaurant
         {
           path: "restaurant",
