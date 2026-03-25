@@ -19,24 +19,30 @@
             <div class="col-md-3">
               <input v-model="searchInvoice" type="text" class="form-control form-control-sm" placeholder="Rechercher (client, ref...)" @input="onInvoiceSearchChange" />
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <select v-model="filterType" class="form-select form-select-sm" @change="loadInvoices(1)">
                 <option value="">Tous les types</option>
-                <option value="HOTEL">Hôtel (chambres / salles)</option>
-                <option value="RESTAURANT">Restaurant-Bar</option>
+                <option value="HOTEL">Hôtel</option>
+                <option value="RESTAURANT">Restaurant</option>
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <select v-model="filterPayment" class="form-select form-select-sm" @change="loadInvoices(1)">
-                <option value="">Tous les statuts</option>
+                <option value="">Paiement</option>
                 <option value="unpaid">Non payées</option>
-                <option value="partial">Paiement partiel</option>
+                <option value="partial">Partiel</option>
                 <option value="paid">Payées</option>
               </select>
             </div>
-            <div class="col-md-3">
-              <button class="btn btn-sm btn-outline-secondary w-100" @click="resetFilters">
-                <i class="bi bi-x-circle me-1"></i>Réinitialiser
+            <div class="col-auto">
+              <input v-model="filterDateFrom" type="date" class="form-control form-control-sm" @change="loadInvoices(1)" title="Date début" />
+            </div>
+            <div class="col-auto">
+              <input v-model="filterDateTo" type="date" class="form-control form-control-sm" @change="loadInvoices(1)" title="Date fin" />
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-sm btn-outline-secondary" @click="resetFilters">
+                <i class="bi bi-x-circle"></i>
               </button>
             </div>
           </div>
@@ -166,6 +172,8 @@ const loading = ref(false);
 const invoices = ref([]);
 const filterPayment = ref('');
 const filterType = ref('');
+const filterDateFrom = ref('');
+const filterDateTo = ref('');
 const searchInvoice = ref('');
 let invoiceSearchTimer = null;
 const onInvoiceSearchChange = () => {
@@ -197,6 +205,8 @@ const loadInvoices = async (page = pagination.value.current_page) => {
     if (filterPayment.value) params.payment_status = filterPayment.value;
     if (filterType.value) params.invoice_type = filterType.value;
     if (searchInvoice.value.trim()) params.search = searchInvoice.value.trim();
+    if (filterDateFrom.value) params.date_from = filterDateFrom.value;
+    if (filterDateTo.value) params.date_to = filterDateTo.value;
 
     const { data } = await api.get('/hotel/invoices', { params });
     invoices.value = data.data.data;
@@ -222,6 +232,8 @@ const changePage = (page) => {
 const resetFilters = () => {
   filterPayment.value = '';
   filterType.value = '';
+  filterDateFrom.value = '';
+  filterDateTo.value = '';
   searchInvoice.value = '';
   loadInvoices(1);
 };

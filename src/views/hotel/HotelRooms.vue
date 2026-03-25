@@ -1513,6 +1513,9 @@ const submitWalkIn = async () => {
     });
     showWalkInModal.value = false;
     showToast(res.data.message || 'Walk-in effectué avec succès', 'success');
+    if (res.data.errors?.length > 0) {
+      showToast(res.data.errors.join('; '), 'warning', 6000);
+    }
 
     for (const guest of walkInGuests.value) {
       if (guest.advance_payment > 0) {

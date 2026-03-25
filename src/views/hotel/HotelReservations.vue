@@ -168,6 +168,14 @@
                       <span v-if="generatingInvoiceId === reservation.id" class="spinner-border spinner-border-sm"></span>
                       <i v-else class="bi bi-receipt"></i>
                     </button>
+                    <button
+                      v-if="reservation.invoice_id && reservation.balance_due > 0"
+                      class="btn btn-sm btn-success"
+                      title="Enregistrer le paiement restant"
+                      @click="openRecordPaymentModal(reservation)"
+                    >
+                      <i class="bi bi-cash-coin"></i>
+                    </button>
                     <router-link
                       v-if="reservation.invoice_id"
                       :to="{ name: 'hotel.invoice', params: { id: reservation.invoice_id } }"
@@ -176,6 +184,9 @@
                     >
                       <i class="bi bi-file-earmark-text"></i>
                     </router-link>
+                    <button class="btn btn-sm btn-outline-info" title="Détails" @click="detailReservation = reservation">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -482,6 +493,104 @@
       </div>
     </div>
 
+    <!-- MODAL: Détail réservation -->
+    <div v-if="detailReservation" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="detailReservation = null">
+      <div class="bg-white rounded shadow-lg p-4" style="max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+          <h5 class="mb-0"><i class="bi bi-door-closed me-2 text-primary"></i>Détail de la réservation</h5>
+          <button class="btn-close" @click="detailReservation = null"></button>
+        </div>
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge fs-6" :class="getStatusBadgeClass(detailReservation.status)">{{ getStatusLabel(detailReservation.status) }}</span>
+              <span class="badge bg-dark">Chambre {{ detailReservation.room?.room_number }}</span>
+              <span class="text-muted small">{{ getRoomTypeLabel(detailReservation.room?.type) }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card border-0 bg-light h-100">
+              <div class="card-body py-2 px-3">
+                <div class="small text-muted fw-semibold mb-2"><i class="bi bi-person me-1"></i>Informations client</div>
+                <div class="mb-1"><span class="text-muted small">Nom :</span> <strong>{{ detailReservation.guest_name }}</strong></div>
+                <div class="mb-1" v-if="detailReservation.guest_phone"><span class="text-muted small">Téléphone :</span> {{ detailReservation.guest_phone }}</div>
+                <div class="mb-1" v-if="detailReservation.guest_email"><span class="text-muted small">Email :</span> {{ detailReservation.guest_email }}</div>
+                <div class="mb-1" v-if="detailReservation.guest_id_type"><span class="text-muted small">Pièce d'identité :</span> {{ detailReservation.guest_id_type === 'cni' ? 'CNI' : 'Passeport' }} — {{ detailReservation.guest_id_number }}</div>
+                <div class="mb-1" v-if="detailReservation.guest_birthdate"><span class="text-muted small">Date naissance :</span> {{ formatDate(detailReservation.guest_birthdate) }}</div>
+                <div class="mb-1" v-if="detailReservation.guest_birthplace"><span class="text-muted small">Lieu naissance :</span> {{ detailReservation.guest_birthplace }}</div>
+                <div class="mb-1" v-if="detailReservation.guest_address"><span class="text-muted small">Adresse :</span> {{ detailReservation.guest_address }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card border-0 bg-light h-100">
+              <div class="card-body py-2 px-3">
+                <div class="small text-muted fw-semibold mb-2"><i class="bi bi-calendar me-1"></i>Séjour</div>
+                <div class="mb-1"><span class="text-muted small">Check-in :</span> <strong>{{ formatDate(detailReservation.check_in_date) }}</strong></div>
+                <div class="mb-1"><span class="text-muted small">Check-out :</span> <strong>{{ formatDate(detailReservation.check_out_date) }}</strong></div>
+                <div class="mb-1"><span class="text-muted small">Nuits :</span> {{ detailReservation.nights }}</div>
+                <hr class="my-2" />
+                <div class="small text-muted fw-semibold mb-2"><i class="bi bi-cash me-1"></i>Finances</div>
+                <div class="mb-1"><span class="text-muted small">Total :</span> <strong class="text-primary">{{ formatCurrency(detailReservation.total_amount) }}</strong></div>
+                <div class="mb-1"><span class="text-muted small">Avance :</span> {{ formatCurrency(detailReservation.advance_payment) }}</div>
+                <div class="mb-1"><span class="text-muted small">Reste :</span> <span :class="detailReservation.balance_due > 0 ? 'text-danger fw-semibold' : 'text-success'">{{ formatCurrency(detailReservation.balance_due) }}</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-12" v-if="detailReservation.notes">
+            <div class="card border-0 bg-light">
+              <div class="card-body py-2 px-3">
+                <div class="small text-muted fw-semibold mb-1"><i class="bi bi-chat-left-text me-1"></i>Notes</div>
+                <div>{{ detailReservation.notes }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end mt-3">
+          <button class="btn btn-secondary" @click="detailReservation = null">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Enregistrer paiement restant -->
+    <div v-if="paymentModal" class="modal-overlay d-flex justify-content-center align-items-center">
+      <div class="bg-white rounded shadow-lg p-4" style="max-width: 420px; width: 90%;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+          <h5 class="mb-0"><i class="bi bi-cash-coin me-2 text-success"></i>Enregistrer le paiement</h5>
+          <button class="btn-close" @click="paymentModal = null"></button>
+        </div>
+        <p class="mb-2">Client: <strong>{{ paymentModal.guest_name }}</strong> — Chambre {{ paymentModal.room?.room_number }}</p>
+        <p class="mb-3 text-muted small">Reste à payer: <strong class="text-danger">{{ formatCurrency(paymentModal.balance_due) }}</strong></p>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Montant <span class="text-danger">*</span></label>
+          <input v-model.number="paymentAmount" type="number" class="form-control" min="0.01" step="0.01" />
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Mode de paiement <span class="text-danger">*</span></label>
+          <select v-model="paymentMethod" class="form-select">
+            <option value="cash">Espèces</option>
+            <option value="bank_transfer">Virement</option>
+            <option value="mobile_money">Mobile money</option>
+            <option value="check">Chèque</option>
+            <option value="card">Carte</option>
+            <option value="other">Autre</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Date du paiement</label>
+          <input v-model="paymentDate" type="date" class="form-control" />
+        </div>
+        <div v-if="paymentError" class="alert alert-danger py-2 small mb-3">{{ paymentError }}</div>
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-secondary" @click="paymentModal = null">Annuler</button>
+          <button class="btn btn-success" @click="submitRecordPayment" :disabled="savingPayment || !paymentAmount || paymentAmount <= 0">
+            <span v-if="savingPayment" class="spinner-border spinner-border-sm me-1"></span>
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ MODAL: WALK-IN (Entrée directe) ════════════════════════════════ -->
     <div v-if="showWalkInModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showWalkInModal = false">
       <div class="bg-white rounded shadow-lg p-4" style="width: 95%; max-width: 800px; max-height: 90vh; overflow-y: auto;">
@@ -651,6 +760,14 @@ const checkingOut = ref(false);
 const reservationToCancel = ref(null);
 const cancelling = ref(false);
 
+const detailReservation = ref(null);
+const paymentModal = ref(null);
+const paymentAmount = ref(0);
+const paymentMethod = ref('cash');
+const paymentDate = ref('');
+const paymentError = ref('');
+const savingPayment = ref(false);
+
 const showExtendModal = ref(false);
 const extendingReservation = ref(null);
 const extendForm = reactive({ extra_nights: 1 });
@@ -790,8 +907,19 @@ const saveReservation = async () => {
     const payload = { ...form };
     if (editingReservation.value) {
       await api.put(`/hotel/reservations/${editingReservation.value.id}`, payload);
+      showToast('Réservation mise à jour', 'success');
     } else {
       await api.post('/hotel/reservations', payload);
+      showToast('Réservation créée avec succès', 'success');
+      if (form.advance_payment > 0) {
+        const room = allRooms.value.find((r) => r.id === form.hotel_room_id);
+        const roomNum = room?.room_number ?? '?';
+        await registerPaymentInCaisse(
+          form.advance_payment,
+          `Avance chambre N°${roomNum} — ${form.guest_name}`,
+          `CHAMBRE N°${roomNum}`,
+        );
+      }
     }
     showModal.value = false;
     await loadReservations();
@@ -870,6 +998,59 @@ const doCancel = async () => {
     showToast(e.response?.data?.message || 'Erreur annulation', 'error');
   } finally {
     cancelling.value = false;
+  }
+};
+
+const openRecordPaymentModal = (reservation) => {
+  paymentModal.value = reservation;
+  paymentAmount.value = parseFloat(reservation.balance_due) || 0;
+  paymentMethod.value = 'cash';
+  const d = new Date();
+  paymentDate.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  paymentError.value = '';
+};
+
+const registerPaymentInCaisse = async (amount, description, reference) => {
+  try {
+    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: 'rooms' } });
+    const register = res.data?.data?.register;
+    if (register?.id) {
+      await api.post(`/hotel/caisse/${register.id}/movements`, {
+        type: 'income',
+        amount,
+        description,
+        reference,
+      });
+    }
+  } catch {
+    // silent
+  }
+};
+
+const submitRecordPayment = async () => {
+  if (!paymentModal.value || !paymentAmount.value || paymentAmount.value <= 0) { return; }
+  savingPayment.value = true;
+  paymentError.value = '';
+  try {
+    await api.post('/payments', {
+      invoice_id: paymentModal.value.invoice_id,
+      amount: paymentAmount.value,
+      payment_date: paymentDate.value,
+      payment_method: paymentMethod.value,
+    });
+    const roomNum = paymentModal.value.room?.room_number ?? '';
+    await registerPaymentInCaisse(
+      paymentAmount.value,
+      `Paiement chambre N°${roomNum} — ${paymentModal.value.guest_name ?? ''}`.trim(),
+      `CHAMBRE N°${roomNum}`,
+    );
+    paymentModal.value = null;
+    showToast('Paiement enregistré avec succès', 'success');
+    await loadReservations();
+  } catch (e) {
+    paymentError.value = e.response?.data?.message || 'Erreur lors de l\'enregistrement du paiement';
+  } finally {
+    savingPayment.value = false;
   }
 };
 
@@ -1031,6 +1212,7 @@ const saveExtend = async () => {
       extra_nights: extendForm.extra_nights,
     });
     showExtendModal.value = false;
+    showToast('Séjour prolongé avec succès', 'success');
     await loadReservations();
   } catch (e) {
     extendError.value = e.response?.data?.message || 'Erreur lors de la prolongation';
@@ -1104,6 +1286,9 @@ const submitWalkIn = async () => {
     });
     showWalkInModal.value = false;
     showToast(res.data.message || 'Walk-in effectué avec succès', 'success');
+    if (res.data.errors?.length > 0) {
+      showToast(res.data.errors.join('; '), 'warning', 6000);
+    }
     await Promise.all([loadReservations(), loadRooms()]);
   } catch (e) {
     walkInError.value = e.response?.data?.message || 'Erreur lors du walk-in';

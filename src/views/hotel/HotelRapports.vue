@@ -84,7 +84,7 @@
               <div class="card-body text-white text-center">
                 <i class="bi bi-arrow-up-circle fs-3 d-block mb-1 opacity-75"></i>
                 <div class="small opacity-90">Total Dépenses</div>
-                <div class="fw-bold fs-5">{{ formatCurrency(report.caisse.total_expense + report.expenses.total) }}</div>
+                <div class="fw-bold fs-5">{{ formatCurrency(report.expenses.total) }}</div>
               </div>
             </div>
           </div>
@@ -244,8 +244,8 @@
                       <td class="text-end fw-semibold text-success">{{ formatCurrency(report.invoices.total_paid) }}</td>
                     </tr>
                     <tr>
-                      <td class="text-muted">Créances (impayés)</td>
-                      <td class="text-end fw-bold text-danger">{{ formatCurrency(report.invoices.total_unpaid) }}</td>
+                      <td class="text-muted">Reste à percevoir</td>
+                      <td class="text-end fw-bold text-danger">{{ formatCurrency(report.invoices.total_outstanding) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -470,6 +470,8 @@
                   <th>Date</th>
                   <th class="text-end">Chambres</th>
                   <th class="text-end">Restaurant</th>
+                  <th class="text-end">Conférence</th>
+                  <th class="text-end">Réception</th>
                   <th class="text-end fw-bold">Total</th>
                 </tr>
               </thead>
@@ -478,12 +480,16 @@
                   <td>{{ formatDate(day.date) }}</td>
                   <td class="text-end">{{ formatCurrency(day.rooms) }}</td>
                   <td class="text-end">{{ formatCurrency(day.restaurant) }}</td>
+                  <td class="text-end">{{ formatCurrency(day.conference) }}</td>
+                  <td class="text-end">{{ formatCurrency(day.reception) }}</td>
                   <td class="text-end fw-bold text-primary">{{ formatCurrency(day.total) }}</td>
                 </tr>
                 <tr class="table-dark fw-bold">
                   <td>TOTAL</td>
                   <td class="text-end">{{ formatCurrency(report.daily_revenue.reduce((s, d) => s + d.rooms, 0)) }}</td>
                   <td class="text-end">{{ formatCurrency(report.daily_revenue.reduce((s, d) => s + d.restaurant, 0)) }}</td>
+                  <td class="text-end">{{ formatCurrency(report.daily_revenue.reduce((s, d) => s + (d.conference || 0), 0)) }}</td>
+                  <td class="text-end">{{ formatCurrency(report.daily_revenue.reduce((s, d) => s + (d.reception || 0), 0)) }}</td>
                   <td class="text-end">{{ formatCurrency(report.daily_revenue.reduce((s, d) => s + d.total, 0)) }}</td>
                 </tr>
               </tbody>
@@ -721,7 +727,7 @@ const exportToExcel = () => {
     ['Factures Émises', r.invoices.total_count],
     ['Montant Total Facturé', r.invoices.total_amount],
     ['Montant Payé', r.invoices.total_paid],
-    ['Créances (Impayés)', r.invoices.total_unpaid],
+    ['Reste à Percevoir', r.invoices.total_outstanding],
     ['Factures Payées', r.invoices.paid_count],
     ['Factures Partielles', r.invoices.partial_count],
     ['Factures Impayées', r.invoices.unpaid_count],
@@ -797,11 +803,13 @@ const exportToExcel = () => {
 
   if (r.daily_revenue.length > 0) {
     xml += buildSheet('Revenus Journaliers', [
-      'Date', 'Chambres (BIF)', 'Restaurant (BIF)', 'Total (BIF)',
+      'Date', 'Chambres (BIF)', 'Restaurant (BIF)', 'Conférence (BIF)', 'Réception (BIF)', 'Total (BIF)',
     ], r.daily_revenue.map((d) => [
       d.date,
       d.rooms,
       d.restaurant,
+      d.conference || 0,
+      d.reception || 0,
       d.total,
     ]));
   }
