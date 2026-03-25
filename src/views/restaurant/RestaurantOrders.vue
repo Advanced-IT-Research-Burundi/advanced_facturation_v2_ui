@@ -326,7 +326,7 @@ onMounted(async () => {
     await loadTableOrders(tableId);
   }
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   selectedServerId.value = user.id;
 });
 
@@ -377,7 +377,7 @@ async function loadServers() {
     servers.value = data.data;
   } catch (error) {
     // Fallback: use current user
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     servers.value = [user];
   }
 }

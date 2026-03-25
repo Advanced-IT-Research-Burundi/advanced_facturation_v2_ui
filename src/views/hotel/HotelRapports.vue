@@ -582,9 +582,10 @@ const revPct = (key) => {
 const sectionLabels = {
   restaurant: 'Restaurant', bar: 'Bar', rooms: 'Chambres',
   conference: 'Salles Conf.', reception: 'Salle Réception',
+  general: 'Dépenses Générales',
 };
 const sectionIcons = {
-  restaurant: 'bi-egg-fried', bar: 'bi-cup-straw', rooms: 'bi-door-closed',
+  restaurant: 'bi-egg-fried', bar: 'bi-cup-straw', rooms: 'bi-door-closed', general: 'bi-building',
   conference: 'bi-camera-video', reception: 'bi-balloon-heart',
 };
 const sectionLabel = (s) => sectionLabels[s] || s;

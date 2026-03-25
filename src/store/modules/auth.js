@@ -3,10 +3,9 @@ import api from "@/services/api";
 export default {
   namespaced: true,
   state: {
-    // On recharge l'état depuis le stockage local au rafraîchissement de la page
-    user: JSON.parse(localStorage.getItem("user")) || null,
-    token: localStorage.getItem("token") || null,
-    isAuthenticated: !!localStorage.getItem("token"),
+    user: JSON.parse(sessionStorage.getItem("user")) || null,
+    token: sessionStorage.getItem("token") || null,
+    isAuthenticated: !!sessionStorage.getItem("token"),
     loading: false,
   },
   mutations: {
@@ -16,23 +15,23 @@ export default {
       state.isAuthenticated = !!token;
 
       if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
+        sessionStorage.setItem("token", token);
+        sessionStorage.setItem("user", JSON.stringify(user));
       } else {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
       }
     },
     UPDATE_USER_COMPANY(state, company) {
       if (state.user) {
         state.user = { ...state.user, company };
-        localStorage.setItem("user", JSON.stringify(state.user));
+        sessionStorage.setItem("user", JSON.stringify(state.user));
       }
     },
     UPDATE_USER_DATA(state, userData) {
       if (state.user) {
         state.user = { ...state.user, ...userData };
-        localStorage.setItem("user", JSON.stringify(state.user));
+        sessionStorage.setItem("user", JSON.stringify(state.user));
       }
     },
     SET_LOADING(state, status) {

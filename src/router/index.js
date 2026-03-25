@@ -430,9 +430,9 @@ const hasPermission = (user, requiredPermission) => {
 };
 
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   const isAuthenticated = !!token;
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const user = JSON.parse(sessionStorage.getItem("user") || "null");
 
   // Public routes - always accessible
   const publicRoutes = ["login", "register-company", "unauthorized"];
