@@ -7,6 +7,9 @@
     <div class="px-3 pb-4 mt-3">
       <div class="d-flex justify-content-end align-items-center mb-4">
         <div class="d-flex gap-2">
+          <button class="btn btn-success" @click="openWalkInModal">
+            <i class="bi bi-person-walking me-1"></i> Walk-in
+          </button>
           <button class="btn btn-primary" @click="openAddModal">
             <i class="bi bi-plus-lg me-1"></i> Nouvelle Réservation
           </button>
@@ -478,15 +481,150 @@
         </div>
       </div>
     </div>
+
+    <!-- ═══ MODAL: WALK-IN (Entrée directe) ════════════════════════════════ -->
+    <div v-if="showWalkInModal" class="modal-overlay d-flex justify-content-center align-items-center" @click.self="showWalkInModal = false">
+      <div class="bg-white rounded shadow-lg p-4" style="width: 95%; max-width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+          <h5 class="mb-0">
+            <i class="bi bi-person-walking me-2 text-success"></i>Walk-in — Entrée directe
+          </h5>
+          <button class="btn-close" @click="showWalkInModal = false"></button>
+        </div>
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Enregistrez un ou plusieurs clients directement sans réservation préalable. Le check-in est immédiat.
+        </div>
+        <div v-if="walkInError" class="alert alert-danger py-2">{{ walkInError }}</div>
+
+        <div v-for="(guest, idx) in walkInGuests" :key="idx" class="card mb-3" :class="{ 'border-success': walkInGuests.length > 1 }">
+          <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+            <span class="fw-semibold small">
+              <i class="bi bi-person-fill me-1"></i>
+              Client {{ walkInGuests.length > 1 ? `#${idx + 1}` : '' }}
+            </span>
+            <button v-if="walkInGuests.length > 1" type="button" class="btn btn-sm btn-outline-danger py-0" @click="walkInGuests.splice(idx, 1)">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Chambre <span class="text-danger">*</span></label>
+                <select v-model="guest.hotel_room_id" class="form-select" required>
+                  <option :value="null">Sélectionner une chambre...</option>
+                  <option
+                    v-for="room in walkInAvailableRooms(idx)"
+                    :key="room.id"
+                    :value="room.id"
+                  >
+                    N°{{ room.room_number }} — {{ getRoomTypeLabel(room.type) }} ({{ formatCurrency(room.price_per_night) }}/nuit)
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Nom complet <span class="text-danger">*</span></label>
+                <input v-model="guest.guest_name" type="text" class="form-control" required placeholder="Nom du client" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Téléphone</label>
+                <input v-model="guest.guest_phone" type="text" class="form-control" placeholder="+257..." />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Type pièce ID</label>
+                <select v-model="guest.guest_id_type" class="form-select">
+                  <option value="cni">CNI</option>
+                  <option value="passport">Passeport</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">N° {{ guest.guest_id_type === 'passport' ? 'Passeport' : 'CNI' }}</label>
+                <input v-model="guest.guest_id_number" type="text" class="form-control" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Nuits <span class="text-danger">*</span></label>
+                <input v-model.number="guest.nights" type="number" class="form-control" min="1" required />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Départ prévu</label>
+                <input :value="walkInCheckOutDate(guest.nights)" type="text" class="form-control bg-light" readonly />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Total</label>
+                <input :value="walkInTotal(guest)" type="text" class="form-control bg-light fw-semibold text-primary" readonly />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Avance</label>
+                <input v-model.number="guest.advance_payment" type="number" class="form-control" min="0" step="0.01" />
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Notes</label>
+                <input v-model="guest.notes" type="text" class="form-control" placeholder="Optionnel..." />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-outline-success btn-sm mb-3" @click="addWalkInGuest">
+          <i class="bi bi-plus-lg me-1"></i> Ajouter un autre client
+        </button>
+
+        <div class="d-flex justify-content-between align-items-center border-top pt-3">
+          <div class="small text-muted" v-if="walkInGuests.length > 1">
+            <i class="bi bi-people-fill me-1"></i> {{ walkInGuests.length }} clients
+          </div>
+          <div class="d-flex gap-2 ms-auto">
+            <button type="button" class="btn btn-secondary" @click="showWalkInModal = false">Annuler</button>
+            <button type="button" class="btn btn-success" @click="submitWalkIn" :disabled="savingWalkIn || !isWalkInValid">
+              <span v-if="savingWalkIn" class="spinner-border spinner-border-sm me-1"></span>
+              <i v-else class="bi bi-check-lg me-1"></i>
+              {{ savingWalkIn ? 'Enregistrement...' : 'Check-in immédiat' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <Teleport to="body">
+      <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 99999;">
+        <TransitionGroup name="toast-fade">
+          <div
+            v-for="toast in toasts"
+            :key="toast.id"
+            class="toast show align-items-center border-0 mb-2"
+            :class="{
+              'text-bg-success': toast.type === 'success',
+              'text-bg-danger': toast.type === 'error',
+              'text-bg-warning': toast.type === 'warning',
+              'text-bg-info': toast.type === 'info',
+            }"
+            role="alert"
+          >
+            <div class="d-flex">
+              <div class="toast-body">
+                <i class="bi me-1" :class="{
+                  'bi-check-circle-fill': toast.type === 'success',
+                  'bi-x-circle-fill': toast.type === 'error',
+                  'bi-exclamation-triangle-fill': toast.type === 'warning',
+                  'bi-info-circle-fill': toast.type === 'info',
+                }"></i>
+                {{ toast.message }}
+              </div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" @click="removeToast(toast.id)"></button>
+            </div>
+          </div>
+        </TransitionGroup>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from 'vue';
+import { ref, computed, onMounted, reactive, watch, TransitionGroup, Teleport } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
-import router from '@/router';
 
 const route = useRoute();
 
@@ -678,8 +816,9 @@ const generateInvoice = async (reservation) => {
   try {
     await api.post(`/hotel/reservations/${reservation.id}/invoice`);
     await loadReservations();
+    showToast('Facture générée avec succès', 'success');
   } catch (e) {
-    alert(e.response?.data?.message || 'Impossible de générer la facture');
+    showToast(e.response?.data?.message || 'Impossible de générer la facture', 'error');
   } finally {
     generatingInvoiceId.value = null;
   }
@@ -689,8 +828,9 @@ const doCheckIn = async (reservation) => {
   try {
     await api.post(`/hotel/reservations/${reservation.id}/check-in`);
     await loadReservations();
+    showToast('Check-in effectué avec succès', 'success');
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur check-in');
+    showToast(e.response?.data?.message || 'Erreur check-in', 'error');
   }
 };
 
@@ -707,8 +847,9 @@ const doCheckOut = async () => {
     });
     checkOutModal.value = null;
     await loadReservations();
+    showToast('Check-out effectué avec succès', 'success');
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur check-out');
+    showToast(e.response?.data?.message || 'Erreur check-out', 'error');
   } finally {
     checkingOut.value = false;
   }
@@ -724,8 +865,9 @@ const doCancel = async () => {
     await api.post(`/hotel/reservations/${reservationToCancel.value.id}/cancel`);
     reservationToCancel.value = null;
     await loadReservations();
+    showToast('Réservation annulée', 'success');
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur annulation');
+    showToast(e.response?.data?.message || 'Erreur annulation', 'error');
   } finally {
     cancelling.value = false;
   }
@@ -897,6 +1039,94 @@ const saveExtend = async () => {
   }
 };
 
+// ─── Walk-in (Entrée directe) ────────────────────────────────────────────────
+
+const showWalkInModal = ref(false);
+const savingWalkIn = ref(false);
+const walkInError = ref('');
+
+const createEmptyWalkInGuest = () => ({
+  hotel_room_id: null,
+  guest_name: '',
+  guest_phone: '',
+  guest_id_number: '',
+  guest_id_type: 'cni',
+  nights: 1,
+  advance_payment: 0,
+  notes: '',
+});
+
+const walkInGuests = ref([createEmptyWalkInGuest()]);
+
+const walkInAvailableRooms = (currentIdx) => {
+  const selectedIds = walkInGuests.value
+    .filter((_, i) => i !== currentIdx)
+    .map((g) => g.hotel_room_id)
+    .filter(Boolean);
+  return allRooms.value.filter(
+    (r) => r.status === 'available' && !selectedIds.includes(r.id),
+  );
+};
+
+const walkInCheckOutDate = (nights) => {
+  if (!nights || nights < 1) { return '—'; }
+  const d = new Date();
+  d.setDate(d.getDate() + nights);
+  return d.toLocaleDateString('fr-FR');
+};
+
+const walkInTotal = (guest) => {
+  const room = allRooms.value.find((r) => r.id === guest.hotel_room_id);
+  if (!room || !guest.nights || guest.nights < 1) { return '—'; }
+  return formatCurrency(parseFloat(room.price_per_night ?? 0) * guest.nights);
+};
+
+const isWalkInValid = computed(() =>
+  walkInGuests.value.every((g) => g.hotel_room_id && g.guest_name?.trim() && g.nights >= 1),
+);
+
+const openWalkInModal = () => {
+  walkInGuests.value = [createEmptyWalkInGuest()];
+  walkInError.value = '';
+  showWalkInModal.value = true;
+};
+
+const addWalkInGuest = () => {
+  walkInGuests.value.push(createEmptyWalkInGuest());
+};
+
+const submitWalkIn = async () => {
+  savingWalkIn.value = true;
+  walkInError.value = '';
+  try {
+    const res = await api.post('/hotel/reservations/walk-in', {
+      guests: walkInGuests.value,
+    });
+    showWalkInModal.value = false;
+    showToast(res.data.message || 'Walk-in effectué avec succès', 'success');
+    await Promise.all([loadReservations(), loadRooms()]);
+  } catch (e) {
+    walkInError.value = e.response?.data?.message || 'Erreur lors du walk-in';
+  } finally {
+    savingWalkIn.value = false;
+  }
+};
+
+// ─── Toast notifications ─────────────────────────────────────────────────────
+
+const toasts = ref([]);
+let toastIdCounter = 0;
+
+const showToast = (message, type = 'success', duration = 4000) => {
+  const id = ++toastIdCounter;
+  toasts.value.push({ id, message, type });
+  setTimeout(() => removeToast(id), duration);
+};
+
+const removeToast = (id) => {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 onMounted(() => {
@@ -916,5 +1146,31 @@ onMounted(() => {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 9999;
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-overlay > div {
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.toast-fade-enter-active {
+  animation: slideInRight 0.3s ease;
+}
+.toast-fade-leave-active {
+  animation: slideOutRight 0.3s ease;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
 </style>

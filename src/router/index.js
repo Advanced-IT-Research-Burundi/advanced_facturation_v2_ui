@@ -387,6 +387,11 @@ const router = createRouter({
       name: "unauthorized",
       component: () => import("../views/Unauthorized.vue"),
     },
+    {
+      path: "/:pathMatch(.*)*",
+      name: "not-found",
+      component: () => import("../views/NotFound.vue"),
+    },
   ],
 });
 
