@@ -63,12 +63,12 @@
 
     <!-- Stocks -->
     <div class="row g-3">
-      <!-- Stock Matières Premières -->
+      <!-- Stock Produit en Production -->
       <div class="col-md-6">
         <div class="card shadow-sm">
           <div class="card-header bg-warning text-dark">
             <h5 class="mb-0">
-              <i class="bi bi-box-seam me-2"></i>Matières Premières
+              <i class="bi bi-box-seam me-2"></i>Produit en Production
             </h5>
           </div>
           <div class="card-body">
@@ -102,7 +102,7 @@
                       <button class="btn btn-sm btn-danger ms-1" @click="openQuickExit(stock)" title="Sortie">
                         <i class="bi bi-dash-circle"></i>
                       </button>
-                      <button class="btn btn-sm btn-info ms-1" @click="markAsFinished(stock)" title="Marquer comme fini">
+                      <button class="btn btn-sm btn-info ms-1" @click="openMarkAsFinishedModal(stock)" title="Marquer comme fini">
                         <i class="bi bi-check-circle"></i>
                       </button>
                     </td>
@@ -161,7 +161,7 @@
                       <button class="btn btn-sm btn-primary ms-1" @click="openQuickTransfer(stock)" title="Transférer">
                         <i class="bi bi-arrow-right"></i>
                       </button>
-                      <button class="btn btn-sm btn-warning ms-1" @click="markAsRaw(stock)" title="Retour matière">
+                      <button class="btn btn-sm btn-warning ms-1" @click="openMarkAsRawModal(stock)" title="Retour matière">
                         <i class="bi bi-arrow-counterclockwise"></i>
                       </button>
                     </td>
@@ -198,10 +198,17 @@
               <label class="form-label">Type d'entrée *</label>
               <select class="form-select" v-model="quickEntryForm.movement_type" required>
                 <option value="EN">EN - Entrée Normale</option>
-                <option value="ER">ER - Entrée par Retour</option>
+                <option value="ER">ER - Entrée par Retour (depuis Produits Finis)</option>
                 <option value="EI">EI - Entrée par Inventaire</option>
                 <option value="EAJ">EAJ - Entrée par Ajustement</option>
               </select>
+              <small v-if="quickEntryForm.movement_type === 'ER'" class="form-text text-warning">
+                Cette entrée retirera la quantité des produits finis
+              </small>
+            </div>
+            <div v-if="quickEntryForm.movement_type === 'ER'" class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              Stock disponible en Produits Finis: {{ getFinishedProductQuantity(selectedStock?.product_id) }} {{ selectedStock?.product?.item_measurement_unit }}
             </div>
             <div class="row g-3">
               <div class="col-md-6">
@@ -322,6 +329,86 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Marquer comme Fini -->
+    <div v-if="showMarkAsFinishedModal" class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-info text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-check-circle me-2"></i>Marquer comme Fini
+            </h5>
+            <button class="btn-close btn-close-white" @click="closeMarkAsFinishedModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
+              <small>Stock en production: {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Quantité à transférer en Produits Finis *</label>
+              <input type="number" step="0.01" class="form-control" 
+                     v-model="markAsFinishedForm.quantity" required min="0.01" 
+                     :max="selectedStock?.quantity">
+              <small class="form-text text-muted">
+                Maximum: {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}
+              </small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Notes (optionnel)</label>
+              <textarea class="form-control" v-model="markAsFinishedForm.notes" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeMarkAsFinishedModal">Annuler</button>
+            <button @click="submitMarkAsFinished" class="btn btn-info" :disabled="submitting">
+              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
+              Transférer en Produits Finis
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Retour en Matière Première -->
+    <div v-if="showMarkAsRawModal" class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>Retour en Matière Première
+            </h5>
+            <button class="btn-close" @click="closeMarkAsRawModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning">
+              <strong>{{ selectedStock?.product?.item_designation }}</strong><br>
+              <small>Stock en fini: {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Quantité à retourner en production *</label>
+              <input type="number" step="0.01" class="form-control" 
+                     v-model="markAsRawForm.quantity" required min="0.01" 
+                     :max="selectedStock?.quantity">
+              <small class="form-text text-muted">
+                Maximum: {{ selectedStock?.quantity }} {{ selectedStock?.product?.item_measurement_unit }}
+              </small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Notes (optionnel)</label>
+              <textarea class="form-control" v-model="markAsRawForm.notes" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeMarkAsRawModal">Annuler</button>
+            <button @click="submitMarkAsRaw" class="btn btn-warning" :disabled="submitting">
+              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
+              Retourner en Production
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -345,6 +432,8 @@ const stats = ref({ todayProduction: 0, todayTransfers: 0 });
 const showQuickEntryModal = ref(false);
 const showQuickExitModal = ref(false);
 const showQuickTransferModal = ref(false);
+const showMarkAsFinishedModal = ref(false);
+const showMarkAsRawModal = ref(false);
 const selectedStock = ref(null);
 
 const quickEntryForm = ref({
@@ -361,6 +450,16 @@ const quickExitForm = ref({
 
 const quickTransferForm = ref({
   destination_warehouse_id: '',
+  quantity: '',
+  notes: ''
+});
+
+const markAsFinishedForm = ref({
+  quantity: '',
+  notes: ''
+});
+
+const markAsRawForm = ref({
   quantity: '',
   notes: ''
 });
@@ -425,6 +524,16 @@ const submitQuickEntry = async () => {
   submitting.value = true;
   error.value = null;
   try {
+    // Si c'est une entrée par retour, vérifier la quantité disponible en produits finis
+    if (quickEntryForm.value.movement_type === 'ER') {
+      const finishedQty = getFinishedProductQuantity(selectedStock.value.product_id);
+      if (finishedQty < quickEntryForm.value.quantity) {
+        error.value = `Quantité insuffisante en produits finis. Disponible: ${finishedQty}`;
+        submitting.value = false;
+        return;
+      }
+    }
+
     const resp = await api.post('bakery/production/quick-entry', {
       product_id: selectedStock.value.product_id,
       ...quickEntryForm.value
@@ -440,6 +549,13 @@ const submitQuickEntry = async () => {
   } finally {
     submitting.value = false;
   }
+};
+
+const getFinishedProductQuantity = (productId) => {
+  const finished = productionStock.value.find(s => 
+    s.product_id === productId && s.production_status === 'FINISHED'
+  );
+  return finished ? finished.quantity : 0;
 };
 
 const openQuickExit = (stock) => {
@@ -513,6 +629,43 @@ const submitQuickTransfer = async () => {
   }
 };
 
+const openMarkAsFinishedModal = (stock) => {
+  selectedStock.value = stock;
+  markAsFinishedForm.value = {
+    quantity: stock.quantity,
+    notes: ''
+  };
+  showMarkAsFinishedModal.value = true;
+};
+
+const closeMarkAsFinishedModal = () => {
+  showMarkAsFinishedModal.value = false;
+  selectedStock.value = null;
+};
+
+const submitMarkAsFinished = async () => {
+  submitting.value = true;
+  error.value = null;
+  try {
+    const resp = await api.post('bakery/production/mark-as-finished', {
+      warehouse_product_id: selectedStock.value.id,
+      product_id: selectedStock.value.product_id,
+      finished_quantity: markAsFinishedForm.value.quantity,
+      notes: markAsFinishedForm.value.notes
+    });
+    if (resp.data.success) {
+      successMessage.value = resp.data.message;
+      closeMarkAsFinishedModal();
+      await fetchDashboard();
+      setTimeout(() => { successMessage.value = null; }, 3000);
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Erreur';
+  } finally {
+    submitting.value = false;
+  }
+};
+
 const markAsFinished = async (stock) => {
   if (!confirm(`Marquer "${stock.product?.item_designation}" comme produit fini ?`)) return;
   
@@ -528,6 +681,43 @@ const markAsFinished = async (stock) => {
     }
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur';
+  }
+};
+
+const openMarkAsRawModal = (stock) => {
+  selectedStock.value = stock;
+  markAsRawForm.value = {
+    quantity: stock.quantity,
+    notes: ''
+  };
+  showMarkAsRawModal.value = true;
+};
+
+const closeMarkAsRawModal = () => {
+  showMarkAsRawModal.value = false;
+  selectedStock.value = null;
+};
+
+const submitMarkAsRaw = async () => {
+  submitting.value = true;
+  error.value = null;
+  try {
+    const resp = await api.post('bakery/production/mark-as-raw', {
+      warehouse_product_id: selectedStock.value.id,
+      product_id: selectedStock.value.product_id,
+      raw_quantity: markAsRawForm.value.quantity,
+      notes: markAsRawForm.value.notes
+    });
+    if (resp.data.success) {
+      successMessage.value = resp.data.message;
+      closeMarkAsRawModal();
+      await fetchDashboard();
+      setTimeout(() => { successMessage.value = null; }, 3000);
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Erreur';
+  } finally {
+    submitting.value = false;
   }
 };
 

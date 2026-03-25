@@ -155,7 +155,9 @@ const handleModalClose = () => {
   fetchClients(1, search.value);
 };
 
-onMounted(() => fetchClients(1, ''));
+onMounted(() => {
+  fetchClients(1, '');
+});
 </script>
 
 <style scoped>
