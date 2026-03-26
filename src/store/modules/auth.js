@@ -1,5 +1,13 @@
 import api from "@/services/api";
 
+// Migrate old localStorage tokens to sessionStorage (one-time)
+if (!sessionStorage.getItem("token") && localStorage.getItem("token")) {
+  sessionStorage.setItem("token", localStorage.getItem("token"));
+  sessionStorage.setItem("user", localStorage.getItem("user"));
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+}
+
 export default {
   namespaced: true,
   state: {
