@@ -442,7 +442,7 @@ const filteredNavItems = computed(() => {
 
 .company-title {
   font-size: clamp(0.9rem, 2.5vw, 1.25rem);
-  max-width: 200px;
+  max-width: 50%;
 }
 
 .page-content {
@@ -502,7 +502,7 @@ const filteredNavItems = computed(() => {
     padding: 0.75rem;
   }
   .company-title {
-    max-width: 130px;
+    max-width: 45%;
     font-size: 0.9rem;
   }
 }
