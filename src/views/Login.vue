@@ -8,7 +8,6 @@ const router = useRouter();
 
 const email = ref("");
 const password = ref("");
-const rememberMe = ref(false);
 const loading = ref(false);
 const errorMessage = ref("");
 
@@ -97,21 +96,8 @@ const handleLogin = async () => {
               :disabled="loading"
             />
           </div>
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <div class="form-check">
-              <input
-                v-model="rememberMe"
-                class="form-check-input"
-                type="checkbox"
-                id="rememberMe"
-              />
-              <label class="form-check-label small text-muted" for="rememberMe"
-                >Se souvenir de moi</label
-              >
-            </div>
-            <a href="#" class="small text-decoration-none text-primary"
-              >Mot de passe oublié ?</a
-            >
+          <div class="d-flex justify-content-end mt-2">
+            <span class="text-muted small" title="Fonctionnalité bientôt disponible">Mot de passe oublié ?</span>
           </div>
         </div>
 

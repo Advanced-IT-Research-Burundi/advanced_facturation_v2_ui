@@ -27,6 +27,7 @@ const isSubmitting = ref(false);
 const customers = ref([]);
 const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
 const selectedWarehouseId = ref(null);
+const invoiceListKey = ref(0);
 
 // --- PRINT MODAL STATE ---
 const showPrintModal = ref(false);
@@ -39,6 +40,29 @@ const invoiceToPay = ref(null);
 
 // --- CLIENT FORM MODAL STATE ---
 const showClientForm = ref(false);
+
+// --- CANCEL MODAL STATE ---
+const showCancelModal = ref(false);
+const cancelTarget = ref(null);
+const cancelMotif = ref('');
+const cancelRestoreStock = ref(true);
+const cancelError = ref('');
+
+// --- TOAST NOTIFICATION STATE ---
+const toastMessage = ref('');
+const toastType = ref('success');
+const showToast = ref(false);
+
+const showNotification = (message, type = 'success') => {
+  toastMessage.value = message;
+  toastType.value = type;
+  showToast.value = true;
+  setTimeout(() => { showToast.value = false; }, 4000);
+};
+
+const fetchInvoices = () => {
+  invoiceListKey.value++;
+};
 
 // Handle warehouse change from POS
 const handleStockChanged = (warehouseId) => {
@@ -77,41 +101,35 @@ const closePaymentModal = () => {
 };
 
 const handlePaymentAdded = () => {
-    // Optionally trigger invoice list refresh via a global event bus or similar if desired.
-    // For now we assume the user will manually refresh the list if needed.
+  fetchInvoices();
 };
 
 // Handle cancel invoice
-const handleCancelInvoice = async (invoice) => {
-  const motif = prompt(
-    `Annuler la facture ${invoice.invoice_number}?\n\nVeuillez saisir le motif d'annulation (minimum 10 caractères):`
-  );
-  
-  if (!motif) return;
-  
-  if (motif.length < 10) {
-    alert("Le motif doit contenir au moins 10 caractères.");
+const openCancelModal = (invoice) => {
+  cancelTarget.value = invoice;
+  cancelMotif.value = '';
+  cancelRestoreStock.value = true;
+  cancelError.value = '';
+  showCancelModal.value = true;
+};
+
+const confirmCancelInvoice = async () => {
+  if (!cancelMotif.value || cancelMotif.value.length < 10) {
+    cancelError.value = 'Le motif doit contenir au moins 10 caractères.';
     return;
   }
-
-  const restoreStock = confirm("Voulez-vous restaurer le stock après annulation?");
-
+  cancelError.value = '';
   try {
-    const response = await api.post(`/invoices/${invoice.id}/cancel`, {
-      motif: motif,
-      restore_stock: restoreStock
+    await api.post(`/invoices/${cancelTarget.value.id}/cancel`, {
+      motif: cancelMotif.value,
+      restore_stock: cancelRestoreStock.value,
     });
-
-    if (response.data.success) {
-      alert(`Facture annulée avec succès!\n${restoreStock ? 'Stock restauré.' : ''}`);
-      // Refresh la liste (optionnel: émettre un événement ou recharger)
-      window.location.reload();
-    } else {
-      alert("Erreur: " + (response.data.message || "Annulation échouée"));
-    }
-  } catch (error) {
-    console.error("Erreur annulation:", error);
-    alert("Erreur lors de l'annulation: " + (error.response?.data?.message || error.message));
+    showCancelModal.value = false;
+    cancelTarget.value = null;
+    showNotification('Facture annulée avec succès.');
+    fetchInvoices();
+  } catch (err) {
+    cancelError.value = err.response?.data?.message || "Erreur lors de l'annulation.";
   }
 };
 
@@ -206,11 +224,11 @@ const handleInvoiceSubmit = async (payload) => {
         cart.value = [];
       }
     } else {
-      alert("Erreur: " + response.data.message);
+      showNotification("Erreur: " + response.data.message, 'error');
     }
   } catch (e) {
     console.error("Erreur lors de la soumission:", e);
-    alert("Erreur lors de la soumission.");
+    showNotification("Erreur lors de la soumission.", 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -237,11 +255,11 @@ const handleProformaSave = async (payload) => {
       isEditingProforma.value = false;
       editingProformaData.value = null;
     } else {
-      alert(result.message || "Erreur lors de l'enregistrement de la proforma");
+      showNotification(result.message || "Erreur lors de l'enregistrement de la proforma", 'error');
     }
   } catch (e) {
     console.error("Proforma save error:", e);
-    alert("Erreur lors de l'enregistrement: " + (e.message || "Erreur inconnue"));
+    showNotification("Erreur lors de l'enregistrement: " + (e.message || "Erreur inconnue"), 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -250,7 +268,7 @@ const handleProformaSave = async (payload) => {
 const handleProformaDelete = async (proforma) => {
     const result = await store.dispatch("proformats/deleteProforma", proforma.id || proforma.invoice_number); // Check what ID we use
     if (!result.success) {
-        alert("Erreur lors de la suppression");
+        showNotification("Erreur lors de la suppression", 'error');
     }
 };
 
@@ -330,10 +348,11 @@ const closeProformaDetails = () => {
         />
         <InvoicesList
           v-else-if="activeTab === 'Factures'"
+          :key="invoiceListKey"
           @view="handleViewInvoice"
           @print="handlePrintInvoice"
           @pay="handlePayInvoice"
-          @cancel="handleCancelInvoice"
+          @cancel="openCancelModal"
         />
         <Reports v-else-if="activeTab === 'Rapports'" />
       </div>
@@ -393,6 +412,46 @@ const closeProformaDetails = () => {
       @close="showClientForm = false"
       @client-created="handleClientCreated"
     />
+
+    <!-- Cancel Invoice Modal -->
+    <div v-if="showCancelModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Annuler la facture {{ cancelTarget?.invoice_number }}</h5>
+            <button type="button" class="btn-close" @click="showCancelModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="cancelError" class="alert alert-danger">{{ cancelError }}</div>
+            <div class="mb-3">
+              <label class="form-label">Motif d'annulation (min. 10 caractères)</label>
+              <textarea v-model="cancelMotif" class="form-control" rows="3" placeholder="Saisissez le motif d'annulation..."></textarea>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" v-model="cancelRestoreStock" id="restoreStock">
+              <label class="form-check-label" for="restoreStock">Restaurer le stock après annulation</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="showCancelModal = false">Fermer</button>
+            <button type="button" class="btn btn-danger" @click="confirmCancelInvoice">Confirmer l'annulation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div v-if="showToast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+      <div class="toast show" :class="toastType === 'success' ? 'border-success' : 'border-danger'">
+        <div class="toast-body d-flex align-items-center gap-2">
+          <span :class="toastType === 'success' ? 'text-success' : 'text-danger'">
+            {{ toastType === 'success' ? '✓' : '✗' }}
+          </span>
+          {{ toastMessage }}
+          <button type="button" class="btn-close ms-auto" @click="showToast = false"></button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue';
+import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue';
 import {
   TrendingUp, TrendingDown, Package, Users, DollarSign,
   ShoppingCart, AlertTriangle, BarChart3, RefreshCw
@@ -10,6 +10,7 @@ import api from '@/services/api';
 // Loading states
 const loading = ref(true);
 const refreshing = ref(false);
+const loadError = ref('');
 
 // Data
 const stats = ref(null);
@@ -38,6 +39,7 @@ const formatCurrency = (num) => `${formatNumber(num)} FBU`;
 const fetchDashboardData = async () => {
   try {
     loading.value = true;
+    loadError.value = '';
 
     const results = await Promise.allSettled([
       api.get('/analytics/dashboard-stats'),
@@ -50,41 +52,41 @@ const fetchDashboardData = async () => {
 
     const [statsRes, salesRes, productsRes, customersRes, stockRes, invoicesRes] = results;
 
-    if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
+    if (statsRes.status === 'fulfilled' && statsRes.value?.data?.success) {
       stats.value = statsRes.value.data.data;
     } else {
       console.error('Stats request failed:', statsRes.reason || statsRes.value?.data);
     }
 
-    if (salesRes.status === 'fulfilled' && salesRes.value.data.success) {
+    if (salesRes.status === 'fulfilled' && salesRes.value?.data?.success) {
       salesChart.value = salesRes.value.data.data;
     }
 
-    if (productsRes.status === 'fulfilled' && productsRes.value.data.success) {
-      topProducts.value = productsRes.value.data.data.products;
+    if (productsRes.status === 'fulfilled' && productsRes.value?.data?.success) {
+      topProducts.value = productsRes.value.data?.data?.products || [];
     }
 
-    if (customersRes.status === 'fulfilled' && customersRes.value.data.success) {
-      topCustomers.value = customersRes.value.data.data.customers;
+    if (customersRes.status === 'fulfilled' && customersRes.value?.data?.success) {
+      topCustomers.value = customersRes.value.data?.data?.customers || [];
     }
 
-    if (stockRes.status === 'fulfilled' && stockRes.value.data.success) {
-      lowStockAlerts.value = stockRes.value.data.data.alerts.slice(0, 5);
+    if (stockRes.status === 'fulfilled' && stockRes.value?.data?.success) {
+      lowStockAlerts.value = (stockRes.value.data?.data?.alerts || []).slice(0, 5);
     }
 
-    if (invoicesRes.status === 'fulfilled' && invoicesRes.value.data.success) {
-      recentInvoices.value = invoicesRes.value.data.data.recent_invoices;
+    if (invoicesRes.status === 'fulfilled' && invoicesRes.value?.data?.success) {
+      recentInvoices.value = invoicesRes.value.data?.data?.recent_invoices || [];
     }
 
-    // Render charts after data is loaded
-    setTimeout(() => {
-      renderSalesChart();
-      renderProductsChart();
-    }, 100);
+    loading.value = false;
+
+    await nextTick();
+    renderSalesChart();
+    renderProductsChart();
 
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
-  } finally {
+    loadError.value = 'Erreur lors du chargement des données du tableau de bord.';
     loading.value = false;
   }
 };
@@ -267,6 +269,13 @@ onUnmounted(() => {
     <div v-if="loading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status"></div>
       <p class="mt-2 text-muted">Chargement du tableau de bord...</p>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="loadError" class="alert alert-danger d-flex align-items-center" role="alert">
+      <span class="me-2">&#9888;</span>
+      {{ loadError }}
+      <button class="btn btn-sm btn-outline-danger ms-auto" @click="fetchDashboardData">Réessayer</button>
     </div>
 
     <template v-else>

@@ -14,7 +14,6 @@ import {
   Building,
   UserCog,
   LogOut,
-  Bell,
   Menu,
   X,
 } from "lucide-vue-next";
@@ -133,7 +132,7 @@ const currentUser = computed(() => store.state.auth.user);
 const isAdmin = computed(() => {
   const roles = currentUser.value?.roles || [];
   return roles.some((r) =>
-    ["admin", "Admin", "super_admin", "Super Admin"].includes(r.name)
+    ["admin", "super_admin"].includes(r.name?.toLowerCase())
   );
 });
 
@@ -285,11 +284,6 @@ const filteredNavItems = computed(() => {
         <h4 class="mb-0 fw-bold text-primary company-title text-truncate">{{ companyName }}</h4>
 
         <div class="d-flex align-items-center gap-2 ms-auto">
-          <button class="btn btn-light position-relative rounded-circle p-2">
-            <Bell :size="18" />
-            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
-          </button>
-
           <div class="dropdown">
             <a
               href="#"

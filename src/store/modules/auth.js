@@ -1,5 +1,15 @@
 import api from "@/services/api";
 
+let sessionTimer = null;
+
+const startSessionTimer = (commit) => {
+  if (sessionTimer) clearTimeout(sessionTimer);
+  sessionTimer = setTimeout(() => {
+    commit("CLEAR_AUTH");
+    window.location.href = "/login";
+  }, 8 * 60 * 60 * 1000);
+};
+
 // Migrate old localStorage tokens to sessionStorage (one-time)
 if (!sessionStorage.getItem("token") && localStorage.getItem("token")) {
   sessionStorage.setItem("token", localStorage.getItem("token"));
@@ -42,6 +52,13 @@ export default {
         sessionStorage.setItem("user", JSON.stringify(state.user));
       }
     },
+    CLEAR_AUTH(state) {
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+    },
     SET_LOADING(state, status) {
       state.loading = status;
     },
@@ -56,6 +73,7 @@ export default {
         const { user, access_token } = response.data.data;
 
         commit("SET_AUTH", { user, token: access_token });
+        startSessionTimer(commit);
         return { success: true };
       } catch (error) {
         // Récupère le message d'erreur du backend (sendError)
@@ -73,6 +91,7 @@ export default {
         // Structure: response.data.data includes user and token
         const { user, token } = response.data.data;
         commit("SET_AUTH", { user, token });
+        startSessionTimer(commit);
         return { success: true };
       } catch (error) {
         const message =

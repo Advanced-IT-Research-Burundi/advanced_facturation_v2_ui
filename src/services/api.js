@@ -1,5 +1,6 @@
 import axios from "axios";
 
+let isRedirecting = false;
 
 const apiClient = axios.create({
 baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -24,7 +25,8 @@ apiClient.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");
-      if (window.location.pathname !== "/login") {
+      if (!isRedirecting && !window.location.pathname.includes('/login')) {
+        isRedirecting = true;
         window.location.href = "/login";
       }
     }

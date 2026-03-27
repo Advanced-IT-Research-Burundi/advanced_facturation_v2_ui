@@ -33,6 +33,18 @@ const movementForm = ref({
   reference: ''
 });
 
+// Toast notification
+const toastMessage = ref('');
+const toastType = ref('success');
+const showToast = ref(false);
+
+const showNotification = (message, type = 'success') => {
+  toastMessage.value = message;
+  toastType.value = type;
+  showToast.value = true;
+  setTimeout(() => { showToast.value = false; }, 4000);
+};
+
 // Formatters
 const formatCurrency = (amount) => new Intl.NumberFormat('fr-FR').format(amount || 0) + ' FBU';
 const formatDateTime = (date) => new Date(date).toLocaleString('fr-FR');
@@ -81,7 +93,7 @@ const openRegister = async () => {
       await fetchRegisters();
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de l\'ouverture');
+    showNotification(error.response?.data?.message || 'Erreur lors de l\'ouverture', 'error');
   }
 };
 
@@ -98,13 +110,22 @@ const closeRegister = async () => {
       await fetchRegisters();
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la fermeture');
+    showNotification(error.response?.data?.message || 'Erreur lors de la fermeture', 'error');
   }
 };
 
 // Add movement
 const addMovement = async () => {
   if (!currentRegister.value?.register?.id) return;
+
+  if (!movementForm.value.amount || movementForm.value.amount <= 0) {
+    showNotification('Le montant doit être supérieur à 0.', 'error');
+    return;
+  }
+  if (!movementForm.value.description || !movementForm.value.description.trim()) {
+    showNotification('La description est obligatoire.', 'error');
+    return;
+  }
 
   try {
     const res = await api.post(`/cash-registers/${currentRegister.value.register.id}/movements`, movementForm.value);
@@ -114,7 +135,7 @@ const addMovement = async () => {
       await fetchCurrentRegister();
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de l\'ajout');
+    showNotification(error.response?.data?.message || 'Erreur lors de l\'ajout', 'error');
   }
 };
 
@@ -155,6 +176,10 @@ const printReceipt = () => {
   `;
 
   const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showNotification('Veuillez autoriser les popups pour imprimer.', 'error');
+    return;
+  }
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.print();
@@ -453,6 +478,18 @@ onMounted(async () => {
             <button type="button" class="btn btn-secondary" @click="showMovementModal = false">Annuler</button>
             <button type="button" class="btn btn-primary" @click="addMovement">Ajouter</button>
           </div>
+        </div>
+      </div>
+    </div>
+    <!-- Toast Notification -->
+    <div v-if="showToast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+      <div class="toast show" :class="toastType === 'success' ? 'border-success' : 'border-danger'">
+        <div class="toast-body d-flex align-items-center gap-2">
+          <span :class="toastType === 'success' ? 'text-success' : 'text-danger'">
+            {{ toastType === 'success' ? '✓' : '✗' }}
+          </span>
+          {{ toastMessage }}
+          <button type="button" class="btn-close ms-auto" @click="showToast = false"></button>
         </div>
       </div>
     </div>

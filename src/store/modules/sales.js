@@ -5,7 +5,8 @@ const state = {
   cart: [],
 
   // Partie Facture de Service
-  serviceItems: [{ description: "", quantity: 1, price: 0, tvaRate: 18 }],
+  // TVA rate should come from the product or company config
+  serviceItems: [{ description: "", quantity: 1, price: 0, tvaRate: 0 }],
 
   // Métadonnées communes
   invoiceForm: {
@@ -89,7 +90,7 @@ const mutations = {
       description: "",
       quantity: 1,
       price: 0,
-      tvaRate: 18,
+      tvaRate: 0,
     });
   },
   REMOVE_SERVICE_ROW(state, index) {
@@ -99,7 +100,7 @@ const mutations = {
         description: "",
         quantity: 1,
         price: 0,
-        tvaRate: 18,
+        tvaRate: 0,
       };
   },
   UPDATE_SERVICE_ITEM(state, { index, field, value }) {
@@ -115,7 +116,7 @@ const mutations = {
   RESET_SALES(state) {
     state.cart = [];
     state.serviceItems = [
-      { description: "", quantity: 1, price: 0, tvaRate: 18 },
+      { description: "", quantity: 1, price: 0, tvaRate: 0 },
     ];
     state.invoiceForm = { customerId: null, paymentType: "", currency: "BIF" };
   },

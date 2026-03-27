@@ -31,20 +31,22 @@ const validationErrors = ref({});
 const handleRegister = async () => {
   error.value = null;
   validationErrors.value = {};
-
   loading.value = true;
-
-  const result = await store.dispatch("auth/registerCompany", form);
-
-  if (result.success) {
-    router.push({ name: "dashboard" }); // Correct route name is lowercase
-  } else {
-    error.value = result.error;
-    if (result.validationErrors) {
-      validationErrors.value = result.validationErrors;
+  try {
+    const result = await store.dispatch("auth/registerCompany", form);
+    if (result.success) {
+      router.push({ name: "dashboard" });
+    } else {
+      error.value = result.error;
+      if (result.validationErrors) {
+        validationErrors.value = result.validationErrors;
+      }
     }
+  } catch (e) {
+    error.value = "Une erreur inattendue s'est produite. Veuillez réessayer.";
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 };
 </script>
 

@@ -83,11 +83,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useStore } from 'vuex';
 import api from '@/services/api';
 
 const route = useRoute();
-const store = useStore();
 const stock = ref(null);
 const loading = ref(true);
 
@@ -100,19 +98,6 @@ const fetchStock = async (id) => {
       const data = response.data.data;
       // The API returns an object with a company object inside it
       stock.value = Array.isArray(data) ? data[0] : data;
-
-      console.log("Stock Loaded:", stock.value);
-      
-      // Update global store logic
-      if (store.state.data) {
-        if (!store.state.data.stockItems) store.state.data.stockItems = [];
-        const index = store.state.data.stockItems.findIndex(item => item.id == id);
-        if (index !== -1) {
-          store.state.data.stockItems[index] = stock.value;
-        } else {
-          store.state.data.stockItems.push(stock.value);
-        }
-      }
     }
   } catch (error) {
     console.error("Erreur lors de la récupération du stock:", error);

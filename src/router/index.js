@@ -33,7 +33,7 @@ const router = createRouter({
         {
           path: "stock",
           name: "stock",
-          component: () => import("../views/stocks/StockWelcomPage.vue"),
+          component: () => import("../views/stocks/StockWelcomePage.vue"),
           meta: { permission: "stock" },
         },
         {
@@ -105,7 +105,7 @@ const router = createRouter({
         {
           path: "bakery",
           name: "bakery",
-          component: () => import("../views/BakeryManagemen.vue"),
+          component: () => import("../views/BakeryManagement.vue"),
           meta: { permission: "bakery" },
         },
         {
@@ -410,7 +410,7 @@ const hasPermission = (user, requiredPermission) => {
   
   // Check if user is admin
   const isAdmin = roles.some((r) =>
-    ["admin", "Admin", "super_admin", "Super Admin"].includes(r.name)
+    ["admin", "super_admin"].includes(r.name?.toLowerCase())
   );
   if (isAdmin) return true;
   
