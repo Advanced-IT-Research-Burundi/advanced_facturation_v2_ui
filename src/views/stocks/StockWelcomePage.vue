@@ -4,20 +4,24 @@ import { Search, Plus, Package, AlertTriangle } from 'lucide-vue-next';
 import { onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
+import { useToast } from '@/composables/useToast';
 import StockHeader from './StockHeader.vue';
 
 const router = useRouter();
 const store = useStore();
+const toast = useToast();
+
 onMounted(() => {
   fetchStocks();
 });
 
 const fetchStocks = async () => {
-
+  try {
     const response = await api.get('/stocks');
     store.state.data.stockItems = response.data?.data;
-    console.log(store.state.data);
-  
+  } catch (err) {
+    toast.error("Erreur lors de la récupération des stocks");
+  }
 }
 
 const stockItems = computed(() => store.state.data.stockItems);

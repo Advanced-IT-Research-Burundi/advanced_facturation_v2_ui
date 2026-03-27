@@ -26,4 +26,6 @@ app.use(PrimeVue, {
 app.use(router);
 app.use(store);
 
+store.dispatch("auth/restoreSession");
+
 app.mount("#app");

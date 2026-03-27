@@ -27,6 +27,7 @@ apiClient.interceptors.response.use(
       sessionStorage.removeItem("user");
       if (!isRedirecting && !window.location.pathname.includes('/login')) {
         isRedirecting = true;
+        setTimeout(() => { isRedirecting = false; }, 5000);
         window.location.href = "/login";
       }
     }

@@ -103,6 +103,12 @@ export default {
       }
     },
 
+    restoreSession({ commit, state }) {
+      if (state.token) {
+        startSessionTimer(commit);
+      }
+    },
+
     async logout({ commit }) {
       try {
         await api.post("/logout");

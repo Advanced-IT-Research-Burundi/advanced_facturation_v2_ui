@@ -130,9 +130,7 @@ defineExpose({ fetchProducts });
       </div>
       <div v-if="stocks?.length > 1" class="">
         <select v-model="selectedStock" class="form-select">
-          <!-- index 0 est le stock par defaut -->
-          <option v-if="stocks?.length > 1" :value="stocks[0].id" selected>{{ stocks[0].warehouse.name }}</option>
-          <option v-if="stocks?.length > 1" v-for="stock in stocks" :key="stock.id" :value="stock.id" >{{ stock.warehouse.name }}</option>
+          <option v-for="stock in stocks" :key="stock.id" :value="stock.warehouse_id">{{ stock.warehouse.name }}</option>
         </select>
       </div>
       </div>

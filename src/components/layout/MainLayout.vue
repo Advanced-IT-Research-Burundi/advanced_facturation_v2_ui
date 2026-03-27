@@ -188,6 +188,7 @@ const userHasPermission = (permission) => {
   if (isAdmin.value) return true;
   const roles = currentUser.value?.roles || [];
   for (const role of roles) {
+    if (role.name?.toLowerCase() === permission.toLowerCase()) return true;
     if (role.permissions && Array.isArray(role.permissions)) {
       if (role.permissions.includes(permission)) return true;
     }
