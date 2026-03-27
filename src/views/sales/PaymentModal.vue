@@ -2,6 +2,8 @@
 import { ref, watch, computed } from 'vue';
 import { X, Check, DollarSign, Trash2, Calendar, CreditCard, FileText } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
   show: Boolean,
@@ -13,6 +15,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'payment-added']);
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 const loading = ref(false);
 const payments = ref([]);
@@ -104,14 +109,14 @@ const submitPayment = async () => {
      }
   } catch (e) {
       console.error(e);
-      alert('Erreur lors de l\'enregistrement du paiement');
+      toast.error('Erreur lors de l\'enregistrement du paiement');
   } finally {
       loading.value = false;
   }
 };
 
 const deletePayment = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce paiement ?')) return;
+    if (!(await confirmDialog('Êtes-vous sûr de vouloir supprimer ce paiement ?'))) return;
     
     try {
         await api.delete(`/payments/${id}`);
@@ -119,7 +124,7 @@ const deletePayment = async (id) => {
         emit('payment-added'); // To trigger refresh of parent if needed
     } catch (e) {
         console.error(e);
-        alert('Erreur lors de la suppression');
+        toast.error('Erreur lors de la suppression');
     }
 };
 

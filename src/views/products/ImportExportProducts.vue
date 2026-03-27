@@ -290,9 +290,14 @@
 
 <script>
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
 
 export default {
   name: 'ImportExportProducts',
+  setup() {
+    const toast = useToast();
+    return { toast };
+  },
   data() {
     return {
       isDragging: false,
@@ -356,12 +361,12 @@ export default {
       const extension = '.' + file.name.split('.').pop().toLowerCase();
       
       if (!validExtensions.includes(extension)) {
-        alert('Format de fichier non supporté. Utilisez .xlsx, .xls ou .csv');
+        this.toast.error('Format de fichier non supporté. Utilisez .xlsx, .xls ou .csv');
         return;
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        alert('Le fichier est trop volumineux (max 10MB)');
+        this.toast.error('Le fichier est trop volumineux (max 10MB)');
         return;
       }
 
@@ -398,7 +403,7 @@ export default {
         window.URL.revokeObjectURL(url);
       } catch (error) {
         console.error('Erreur téléchargement template:', error);
-        alert('Erreur lors du téléchargement du modèle');
+        this.toast.error('Erreur lors du téléchargement du modèle');
       } finally {
         this.downloadingTemplate = false;
       }
@@ -421,7 +426,7 @@ export default {
         this.showPreview = true;
       } catch (error) {
         console.error('Erreur preview:', error);
-        alert(error.response?.data?.message || 'Erreur lors de la prévisualisation');
+        this.toast.error(error.response?.data?.message || 'Erreur lors de la prévisualisation');
       } finally {
         this.isLoading = false;
       }
@@ -447,7 +452,7 @@ export default {
         this.loadProductCount();
       } catch (error) {
         console.error('Erreur import:', error);
-        alert(error.response?.data?.message || 'Erreur lors de l\'import');
+        this.toast.error(error.response?.data?.message || 'Erreur lors de l\'import');
       } finally {
         this.importing = false;
       }
@@ -481,7 +486,7 @@ export default {
         window.URL.revokeObjectURL(url);
       } catch (error) {
         console.error('Erreur export:', error);
-        alert('Erreur lors de l\'export');
+        this.toast.error('Erreur lors de l\'export');
       } finally {
         this.exporting = false;
       }

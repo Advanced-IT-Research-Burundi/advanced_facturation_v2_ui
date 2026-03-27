@@ -140,8 +140,12 @@
 import { computed, onMounted, ref, reactive } from 'vue';
 import { useStore } from 'vuex';
 import SettingsHeader from './SettingsHeader.vue';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const showModal = ref(false);
@@ -254,12 +258,12 @@ const submitForm = async () => {
     // Refresh list if create (to see new item sorted/paginated) or just rely on store update
     if (!isEditing.value) fetchData(); 
   } else {
-    alert(result.message || "Une erreur est survenue");
+    toast.error(result.message || "Une erreur est survenue");
   }
 };
 
 const confirmDelete = async (config) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la configuration "${config.config_key}" ?`)) {
+    if (await confirmDialog(`Êtes-vous sûr de vouloir supprimer la configuration "${config.config_key}" ?`)) {
         await store.dispatch('deleteConfig', config.id);
     }
 };

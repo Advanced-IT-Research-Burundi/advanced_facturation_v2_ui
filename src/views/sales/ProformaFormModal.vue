@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, computed, watch } from "vue";
 import { Plus, Trash2, Loader2 } from "lucide-vue-next";
+import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
   show: Boolean,
@@ -14,6 +15,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close", "save", "preview"]);
+
+const toast = useToast();
 
 const form = reactive({
   customer_id: "",
@@ -76,13 +79,13 @@ const totals = computed(() => {
 
 const save = () => {
   if (!form.customer_id) {
-    alert("Veuillez sélectionner un client.");
+    toast.error("Veuillez sélectionner un client.");
     return;
   }
 
   const validItems = form.items.filter(i => i.item_designation && i.item_designation.trim() !== '');
   if (validItems.length === 0) {
-    alert("Veuillez ajouter au moins un article avec une description.");
+    toast.error("Veuillez ajouter au moins un article avec une description.");
     return;
   }
 

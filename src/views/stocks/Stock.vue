@@ -102,9 +102,11 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex"; 
 import StockHeader from "./StockHeader.vue";
+import { useConfirm } from '@/composables/useConfirm';
 
 const router = useRouter();
 const store = useStore();
+const { confirm: confirmDialog } = useConfirm();
 
 const search = ref("");
 const stockFilter = ref("TOUT");
@@ -140,7 +142,7 @@ const formatDate = (dateStr) => {
 };
 
 const confirmDelete = async (id) => {
-  if (confirm("Voulez-vous vraiment supprimer cet article du stock ?")) {
+  if (await confirmDialog("Voulez-vous vraiment supprimer cet article du stock ?")) {
     await store.dispatch("stock/deleteStockItem", id);
   }
 };

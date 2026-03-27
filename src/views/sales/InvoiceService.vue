@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed } from "vue";
 import { Plus, Trash2, CreditCard, Loader2, User, Search } from "lucide-vue-next";
+import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
   isSubmitting: Boolean,
@@ -11,6 +12,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["submit"]);
+
+const toast = useToast();
 
 const serviceItems = ref([
   { description: "", quantity: 1, price: 0, tvaRate: 18 },
@@ -87,11 +90,11 @@ const serviceTotals = computed(() => {
 
 const validateAndSubmit = () => {
   if (serviceItems.value.length === 0 || !serviceItems.value[0].description) {
-    alert("Veuillez ajouter au moins un service.");
+    toast.error("Veuillez ajouter au moins un service.");
     return;
   }
   if (!selectedClient.value) {
-    alert("Veuillez sélectionner un client.");
+    toast.error("Veuillez sélectionner un client.");
     return;
   }
 

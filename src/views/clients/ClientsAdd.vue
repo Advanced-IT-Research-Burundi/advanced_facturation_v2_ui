@@ -74,9 +74,11 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import { useStore } from 'vuex';
+import { useToast } from '@/composables/useToast';
 
 const emit = defineEmits(['close']);
 const store = useStore();
+const toast = useToast();
 const isSaving = ref(false);
 
 const form = reactive({
@@ -92,7 +94,7 @@ const form = reactive({
 
 const saveClient = async () => {
   if (!form.customer_name || !form.type) {
-    alert("Veuillez remplir les champs obligatoires.");
+    toast.error("Veuillez remplir les champs obligatoires.");
     return;
   }
 
@@ -105,11 +107,11 @@ const saveClient = async () => {
       const errorMsg = result.errors
         ? Object.values(result.errors).flat().join('\n')
         : (result.message || "Erreur lors de l'enregistrement");
-      alert(errorMsg);
+      toast.error(errorMsg);
     }
   } catch (e) {
     const errorMsg = e.errors ? Object.values(e.errors).flat().join('\n') : "Erreur lors de l'enregistrement";
-    alert(errorMsg);
+    toast.error(errorMsg);
   } finally {
     isSaving.value = false;
   }

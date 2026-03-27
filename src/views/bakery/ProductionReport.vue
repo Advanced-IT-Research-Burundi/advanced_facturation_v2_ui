@@ -262,6 +262,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const loading = ref(false);
 const report = ref(null);
@@ -337,15 +340,15 @@ const printReport = () => {
 };
 
 const exportReport = () => {
-  alert('Fonction d\'export Excel à implémenter avec votre backend');
+  toast.info('Fonction d\'export Excel à implémenter avec votre backend');
 };
 
 const exportProductsTable = () => {
-  alert('Export du tableau des produits');
+  toast.info('Export du tableau des produits');
 };
 
 const exportDaysTable = () => {
-  alert('Export du tableau par jour');
+  toast.info('Export du tableau par jour');
 };
 </script>
 

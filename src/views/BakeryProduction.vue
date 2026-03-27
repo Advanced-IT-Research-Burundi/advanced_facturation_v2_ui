@@ -456,8 +456,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/services/api';
+import { useConfirm } from '@/composables/useConfirm';
 
 const router = useRouter();
+const { confirm: confirmDialog } = useConfirm();
 const route = useRoute();
 const loading = ref(false);
 const submitting = ref(false);
@@ -732,7 +734,7 @@ const submitMarkAsFinished = async () => {
 };
 
 const markAsFinished = async (stock) => {
-  if (!confirm(`Marquer "${stock.product?.item_designation}" comme produit fini ?`)) return;
+  if (!(await confirmDialog(`Marquer "${stock.product?.item_designation}" comme produit fini ?`))) return;
   
   try {
     const resp = await api.post('bakery/production/change-status', {
@@ -787,7 +789,7 @@ const submitMarkAsRaw = async () => {
 };
 
 const markAsRaw = async (stock) => {
-  if (!confirm(`Retourner "${stock.product?.item_designation}" en matière première ?`)) return;
+  if (!(await confirmDialog(`Retourner "${stock.product?.item_designation}" en matière première ?`))) return;
   
   try {
     const resp = await api.post('bakery/production/change-status', {

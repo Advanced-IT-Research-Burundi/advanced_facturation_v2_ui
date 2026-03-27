@@ -143,8 +143,10 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import api from '@/services/api';
 import StockHeader from '../stocks/StockHeader.vue';
+import { useToast } from '@/composables/useToast';
 
 const store = useStore()
+const toast = useToast()
 const loading = ref(false)
 const formLoading = ref(false)
 
@@ -254,7 +256,7 @@ const submitForm = async () => {
         closeModal()
     } catch (error) {
         console.error("Erreur sauvegarde:", error)
-        alert("Une erreur est survenue lors de la sauvegarde.")
+        toast.error("Une erreur est survenue lors de la sauvegarde.")
     } finally {
         formLoading.value = false
     }
@@ -281,7 +283,7 @@ const deleteCategory = async () => {
         closeDeleteModal()
     } catch (error) {
         console.error("Erreur suppression:", error)
-        alert("Impossible de supprimer cette catégorie.")
+        toast.error("Impossible de supprimer cette catégorie.")
     } finally {
         formLoading.value = false
     }

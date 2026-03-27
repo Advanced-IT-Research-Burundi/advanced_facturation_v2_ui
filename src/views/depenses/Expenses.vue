@@ -197,8 +197,12 @@ import { onMounted, computed, ref, reactive } from "vue";
 import { useStore } from "vuex";
 import DepenseHeader from "./DepenseHeader.vue";
 import api from "@/services/api";
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const showModal = ref(false);
@@ -312,12 +316,12 @@ const submitForm = async () => {
         closeModal();
         fetchData(pagination.value.current_page);
     } else {
-        alert(res.message);
+        toast.error(res.message);
     }
 };
 
 const confirmDelete = async (item) => {
-    if(confirm("Supprimer cette dépense ?")) {
+    if(await confirmDialog("Supprimer cette dépense ?")) {
         await store.dispatch("expenses/deleteExpense", item.id);
         fetchData(pagination.value.current_page);
     }
@@ -362,7 +366,7 @@ const viewJustification = async (expenseId) => {
         }
     } catch (e) {
         console.error('Justificatif error:', e);
-        alert('Impossible de charger le justificatif: ' + (e.response?.status || e.message));
+        toast.error('Impossible de charger le justificatif: ' + (e.response?.status || e.message));
     }
 };
 </script>

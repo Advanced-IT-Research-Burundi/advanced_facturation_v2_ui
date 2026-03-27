@@ -11,6 +11,9 @@ import {
   Percent,
 } from "lucide-vue-next";
 import api from "@/services/api";
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const props = defineProps({
   cart: {
@@ -97,7 +100,7 @@ const formatPrice = (price) => {
 const submitInvoice = async () => {
   if (props.cart.length === 0) return;
   if (!selectedClient.value) {
-    alert("Veuillez sélectionner un client.");
+    toast.warning("Veuillez sélectionner un client.");
     return;
   }
 

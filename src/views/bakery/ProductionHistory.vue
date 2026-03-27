@@ -83,6 +83,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const loading = ref(false);
 const history = ref([]);
@@ -126,6 +129,6 @@ const formatDate = (date) => new Date(date).toLocaleString('fr-FR');
 
 const exportReport = () => {
   // TODO: Implémenter export Excel/PDF
-  alert('Fonction d\'export à implémenter');
+  toast.info('Fonction d\'export à implémenter');
 };
 </script>

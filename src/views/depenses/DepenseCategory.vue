@@ -84,8 +84,12 @@
 import { onMounted, computed, ref, reactive } from "vue";
 import { useStore } from "vuex";
 import DepenseHeader from "./DepenseHeader.vue";
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const showModal = ref(false);
@@ -136,11 +140,11 @@ const submitForm = async () => {
   }
   submitting.value = false;
   if (res.success) closeModal();
-  else alert(res.message);
+  else toast.error(res.message);
 };
 
 const confirmDelete = async (cat) => {
-  if (confirm(`Supprimer la catégorie "${cat.name}"?`)) {
+  if (await confirmDialog(`Supprimer la catégorie "${cat.name}"?`)) {
     await store.dispatch("expenses/deleteCategory", cat.id);
   }
 };

@@ -14,6 +14,7 @@ import {
   DollarSign,
 } from "lucide-vue-next";
 import api from "@/services/api";
+import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
   isSubmitting: Boolean,
@@ -24,6 +25,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["submit"]);
+
+const toast = useToast();
 
 // State
 const isLoading = ref(false);
@@ -106,11 +109,11 @@ const clearDeposit = () => {
 // Create new deposit (caution)
 const createDeposit = () => {
   if (!selectedClient.value) {
-    alert("Veuillez sélectionner un client.");
+    toast.error("Veuillez sélectionner un client.");
     return;
   }
   if (depositForm.amount <= 0) {
-    alert("Veuillez entrer un montant valide.");
+    toast.error("Veuillez entrer un montant valide.");
     return;
   }
 
@@ -139,22 +142,22 @@ const createDeposit = () => {
 // Refund existing deposit
 const submitRefund = () => {
   if (!selectedDeposit.value) {
-    alert("Veuillez sélectionner une caution.");
+    toast.error("Veuillez sélectionner une caution.");
     return;
   }
   if (refundAmount.value <= 0) {
-    alert("Veuillez entrer un montant valide.");
+    toast.error("Veuillez entrer un montant valide.");
     return;
   }
   if (
     refundAmount.value >
     (selectedDeposit.value.remaining_amount || selectedDeposit.value.amount)
   ) {
-    alert("Le montant du remboursement ne peut pas dépasser le montant restant.");
+    toast.error("Le montant du remboursement ne peut pas dépasser le montant restant.");
     return;
   }
   if (!refundReason.value.trim()) {
-    alert("Veuillez indiquer le motif du remboursement.");
+    toast.error("Veuillez indiquer le motif du remboursement.");
     return;
   }
 

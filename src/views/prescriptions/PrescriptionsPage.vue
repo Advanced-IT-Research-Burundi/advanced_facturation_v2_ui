@@ -4,8 +4,12 @@ import { useStore } from "vuex";
 import api from "@/services/api";
 import PrescriptionFormModal from "./PrescriptionFormModal.vue";
 import PharmaceHeader from "../pharmaceutical/PharmaceHeader.vue";
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 const prescriptions = computed(() => store.getters["pharmaceutical/allPrescriptions"]);
 const loading = computed(() => store.getters["pharmaceutical/prescriptionsLoading"]);
@@ -70,7 +74,7 @@ const viewPrescription = async (prescription) => {
       showModal.value = true;
     }
   } catch (error) {
-    alert("Erreur lors du chargement de l'ordonnance");
+    toast.error("Erreur lors du chargement de l'ordonnance");
   }
 };
 
@@ -85,19 +89,19 @@ const handleSave = async (prescriptionData) => {
     closeModal();
     await fetchPrescriptions();
   } else {
-    alert(result.error || "Erreur lors de l'enregistrement");
+    toast.error(result.error || "Erreur lors de l'enregistrement");
   }
 };
 
 const handleDelete = async (prescription) => {
   if (prescription.status !== "pending") {
-    alert("Seules les ordonnances en attente peuvent etre supprimees");
+    toast.warning("Seules les ordonnances en attente peuvent etre supprimees");
     return;
   }
-  if (confirm(`Supprimer l'ordonnance ${prescription.prescription_number} ?`)) {
+  if (await confirmDialog(`Supprimer l'ordonnance ${prescription.prescription_number} ?`)) {
     const result = await store.dispatch("pharmaceutical/deletePrescription", prescription.id);
     if (!result.success) {
-      alert(result.error || "Erreur lors de la suppression");
+      toast.error(result.error || "Erreur lors de la suppression");
     }
   }
 };

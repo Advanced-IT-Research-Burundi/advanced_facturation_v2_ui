@@ -579,8 +579,10 @@ import { useStore } from 'vuex';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
+import { useToast } from '@/composables/useToast';
 
 const store = useStore();
+const toast = useToast();
 const currentUser = computed(() => store.state.auth.user);
 const isAdmin = computed(() => {
   const roles = currentUser.value?.roles || [];
@@ -678,7 +680,7 @@ const updateOrderStatus = async (order, status) => {
     if (status === 'preparing') order.started_at = Date.now();
     order.status = status;
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur');
+    toast.error(e.response?.data?.message || 'Erreur');
   }
 };
 
@@ -710,7 +712,7 @@ const saveDish = async () => {
     const res = await api.get('/hotel/dishes');
     dishes.value = res.data.data;
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
   } finally {
     savingDish.value = false;
   }
@@ -722,7 +724,7 @@ const deleteDish = async (dish) => {
     const res = await api.get('/hotel/dishes');
     dishes.value = res.data.data;
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de la suppression');
+    toast.error(e.response?.data?.message || 'Erreur lors de la suppression');
   }
 };
 
@@ -747,7 +749,7 @@ const saveStock = async () => {
     const res = await api.get('/hotel/kitchen-stock');
     stockItems.value = res.data.data;
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
   }
 };
 

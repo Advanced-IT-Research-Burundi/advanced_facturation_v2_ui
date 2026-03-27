@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-vue-next";
 import api from "@/services/api";
+import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
   isSubmitting: Boolean,
@@ -23,6 +24,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["submit"]);
+
+const toast = useToast();
 
 // State
 const isLoading = ref(false);
@@ -116,12 +119,12 @@ const validateAndSubmit = () => {
   const selectedItems = avoirItems.value.filter((item) => item.selected);
 
   if (selectedItems.length === 0) {
-    alert("Veuillez sélectionner au moins un article.");
+    toast.error("Veuillez sélectionner au moins un article.");
     return;
   }
 
   if (!avoirReason.value.trim()) {
-    alert("Veuillez indiquer le motif de l'avoir.");
+    toast.error("Veuillez indiquer le motif de l'avoir.");
     return;
   }
 

@@ -1,5 +1,8 @@
 <script setup>
 import { ref, watch } from "vue";
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const props = defineProps({
   show: Boolean,
@@ -46,23 +49,23 @@ const handleClose = () => {
 const handleSave = () => {
   // Validation basique
   if (!form.value.product_id) {
-    alert("Veuillez selectionner un produit");
+    toast.warning("Veuillez selectionner un produit");
     return;
   }
   if (!form.value.warehouse_id) {
-    alert("Veuillez selectionner un entrepot");
+    toast.warning("Veuillez selectionner un entrepot");
     return;
   }
   if (!form.value.lot_number) {
-    alert("Veuillez saisir un numero de lot");
+    toast.warning("Veuillez saisir un numero de lot");
     return;
   }
   if (!form.value.expiration_date) {
-    alert("Veuillez saisir une date d'expiration");
+    toast.warning("Veuillez saisir une date d'expiration");
     return;
   }
   if (form.value.initial_quantity <= 0 && !props.isEditing) {
-    alert("La quantite doit etre superieure a 0");
+    toast.warning("La quantite doit etre superieure a 0");
     return;
   }
 

@@ -2,6 +2,9 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { Printer, Loader2 } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 // State
 const invoices = ref([]);
@@ -128,7 +131,7 @@ const printInvoice = async (invoice) => {
     }
   } catch (err) {
     console.error('Error fetching invoice for print:', err);
-    alert('Erreur lors de la récupération de la facture');
+    toast.error('Erreur lors de la récupération de la facture');
   }
 };
 

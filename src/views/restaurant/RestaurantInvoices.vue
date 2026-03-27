@@ -171,6 +171,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const invoices = ref([]);
 const loading = ref(false);
@@ -236,12 +239,12 @@ async function sendToObr(invoice) {
     const { data } = await api.post(`/restaurant/invoices/${invoice.id}/send-obr`);
     if (data.success) {
       invoice.obr_submission_status = 'ACCEPTED';
-      alert('Facture envoyée à OBR');
+      toast.success('Facture envoyée à OBR');
     } else {
-      alert(data.message || 'Erreur OBR');
+      toast.error(data.message || 'Erreur OBR');
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de l\'envoi');
+    toast.error(error.response?.data?.message || 'Erreur lors de l\'envoi');
   } finally {
     sendingId.value = null;
   }

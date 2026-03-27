@@ -186,8 +186,10 @@ import { ref, reactive, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import api from '@/services/api'; // Adjust path if needed, assuming alias @ works
 import StockHeader from '../stocks/StockHeader.vue';
+import { useToast } from '@/composables/useToast';
 
 const store = useStore()
+const toast = useToast()
 const loading = ref(false)
 const formLoading = ref(false)
 const suppliers = ref([])
@@ -307,7 +309,7 @@ const submitForm = async () => {
         closeModal()
     } catch (error) {
         console.error("Erreur sauvegarde:", error)
-        alert("Une erreur est survenue lors de la sauvegarde.")
+        toast.error("Une erreur est survenue lors de la sauvegarde.")
     } finally {
         formLoading.value = false
     }
@@ -334,7 +336,7 @@ const deleteSupplier = async () => {
         closeDeleteModal()
     } catch (error) {
         console.error("Erreur suppression:", error)
-        alert("Impossible de supprimer ce fournisseur.")
+        toast.error("Impossible de supprimer ce fournisseur.")
     } finally {
         formLoading.value = false
     }

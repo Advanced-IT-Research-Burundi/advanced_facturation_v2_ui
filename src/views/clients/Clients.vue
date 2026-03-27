@@ -156,12 +156,14 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import ClientsAdd from './ClientsAdd.vue';
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
 const search = ref('');
 const showAddModal = ref(false);
 const searchTimeout = ref(null);
 const perPage = 15;
+const { confirm: confirmDialog } = useConfirm();
 
 const editClient = ref(null);
 const isSavingEdit = ref(false);
@@ -207,7 +209,7 @@ const calculateIndex = (index) => {
 };
 
 const handleDelete = async (id) => {
-  if (confirm("Supprimer ce client ?")) {
+  if (await confirmDialog("Supprimer ce client ?")) {
     const result = await store.dispatch('clients/deleteClient', id);
     if (result.success) {
       // Recharger la page actuelle ou la précédente si la page est vide

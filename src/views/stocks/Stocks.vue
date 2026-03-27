@@ -244,6 +244,9 @@ import api from '@/services/api';
 import store from '@/store';
 import { onMounted, computed, ref, reactive } from 'vue';
 import SettingsHeader from '../settings/SettingsHeader.vue';
+import { useConfirm } from '@/composables/useConfirm';
+
+const { confirm: confirmDialog } = useConfirm();
 
 // Local State
 const showModal = ref(false);
@@ -374,7 +377,7 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (item) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer l'entrepôt "${item.name}" ?`)) {
+    if (await confirmDialog(`Êtes-vous sûr de vouloir supprimer l'entrepôt "${item.name}" ?`)) {
         try {
             loading.value = true;
             await api.delete(`warehouses/${item.id}`);

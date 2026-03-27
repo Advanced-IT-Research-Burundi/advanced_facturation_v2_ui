@@ -781,8 +781,10 @@ import { useStore } from 'vuex';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
+import { useToast } from '@/composables/useToast';
 
 const store = useStore();
+const toast = useToast();
 const currentUser = computed(() => store.state.auth.user);
 const company = computed(() => currentUser.value?.company ?? null);
 
@@ -961,7 +963,7 @@ const saveOrder = async () => {
     activeTab.value = 'orders';
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de la commande');
+    toast.error(e.response?.data?.message || 'Erreur lors de la commande');
   } finally {
     savingOrder.value = false;
   }
@@ -972,7 +974,7 @@ const updateOrderStatus = async (order, status) => {
     await api.put(`/hotel/restaurant-orders/${order.id}/status`, { status });
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur');
+    toast.error(e.response?.data?.message || 'Erreur');
   }
 };
 
@@ -1057,7 +1059,7 @@ const closeOrder = async (order) => {
     viewingOrder.value = null;
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur');
+    toast.error(e.response?.data?.message || 'Erreur');
   }
 };
 
@@ -1082,7 +1084,7 @@ const saveTable = async () => {
     showTableModal.value = false;
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
   }
 };
 
@@ -1092,7 +1094,7 @@ const deleteTable = async (table) => {
     selectedTable.value = null;
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de la suppression');
+    toast.error(e.response?.data?.message || 'Erreur lors de la suppression');
   }
 };
 
@@ -1117,7 +1119,7 @@ const saveMenuItem = async () => {
     const menuRes = await api.get('/hotel/menu-items');
     menuItems.value = menuRes.data.data;
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
   }
 };
 
@@ -1174,7 +1176,7 @@ const saveBarStock = async () => {
     const res = await api.get('/hotel/bar-stock');
     barStockItems.value = res.data.data;
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
   }
 };
 

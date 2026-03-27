@@ -360,8 +360,10 @@
 import { onMounted, ref, computed, reactive } from "vue";
 import { useStore } from "vuex";
 import CompanyHader from "./CompanyHader.vue";
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const showModal = ref(false);
@@ -529,7 +531,7 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (id) => {
-  if (confirm("Êtes-vous sûr de vouloir supprimer cette entreprise ?")) {
+  if (await confirmDialog("Êtes-vous sûr de vouloir supprimer cette entreprise ?")) {
     await store.dispatch("companies/deleteCompany", id);
     store.dispatch("companies/fetchCompanies", { page: pagination.value.current_page, search: searchQuery.value });
   }

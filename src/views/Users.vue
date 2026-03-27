@@ -126,8 +126,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import UsersAdd from './UsersAdd.vue';
+import { useToast } from '@/composables/useToast';
 
 const store = useStore();
+const toast = useToast();
 const showModal = ref(false);
 const selectedUser = ref(null);
 const searchQuery = ref('');
@@ -214,7 +216,7 @@ const deleteUser = async (user) => {
     await store.dispatch('users/deleteUser', user.id);
     fetchUsers(pagination.value.current_page, searchQuery.value);
   } catch (e) {
-    alert("Erreur lors de la suppression");
+    toast.error("Erreur lors de la suppression");
   }
 };
 

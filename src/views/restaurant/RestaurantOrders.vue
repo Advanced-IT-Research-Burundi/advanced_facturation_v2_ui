@@ -271,9 +271,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import ClientFormModal from '@/views/sales/ClientFormModal.vue';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const products = ref([]);
 const servers = ref([]);
@@ -403,7 +405,7 @@ async function loadTableOrders(tableId) {
 function addToOrder(product) {
   // Check stock availability
   if (product.stock_quantity <= 0) {
-    alert(`Stock insuffisant pour ${product.name || product.item_designation}`);
+    toast.error(`Stock insuffisant pour ${product.name || product.item_designation}`);
     return;
   }
 
@@ -411,7 +413,7 @@ function addToOrder(product) {
   if (existing) {
     // Check if we can add more
     if (existing.quantity >= product.stock_quantity) {
-      alert(`Stock insuffisant. Disponible: ${product.stock_quantity}`);
+      toast.error(`Stock insuffisant. Disponible: ${product.stock_quantity}`);
       return;
     }
     existing.quantity += 1;
@@ -460,7 +462,7 @@ function selectOrder(order) {
 
 async function saveOrder() {
   if (!currentTable.value) {
-    alert('Veuillez sélectionner une table');
+    toast.error('Veuillez sélectionner une table');
     return;
   }
 
@@ -505,7 +507,7 @@ async function saveOrder() {
       }));
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    toast.error(error.response?.data?.message || 'Erreur lors de l\'enregistrement');
   } finally {
     saving.value = false;
   }
@@ -571,7 +573,7 @@ async function confirmInvoice() {
 
   if (!currentTable.value || !selectedCustomer.value || !invoiceWarehouseId.value) {
     if (!invoiceWarehouseId.value) {
-      alert('Veuillez sélectionner un dépôt');
+      toast.error('Veuillez sélectionner un dépôt');
     }
     return;
   }
@@ -586,7 +588,7 @@ async function confirmInvoice() {
     showInvoiceModal.value = false;
     router.push({ name: 'restaurant.invoice', params: { id: data.data.id } });
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la génération de la facture');
+    toast.error(error.response?.data?.message || 'Erreur lors de la génération de la facture');
   } finally {
     generatingInvoice.value = false;
   }

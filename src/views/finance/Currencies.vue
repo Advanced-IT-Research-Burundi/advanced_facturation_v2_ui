@@ -4,6 +4,11 @@ import {
   DollarSign, TrendingUp, RefreshCw, Plus, Edit2, Trash2, History
 } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const loading = ref(true);
@@ -72,7 +77,7 @@ const createCurrency = async () => {
       await fetchCurrencies();
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la création');
+    toast.error(error.response?.data?.message || 'Erreur lors de la création');
   }
 };
 
@@ -96,18 +101,18 @@ const updateCurrency = async () => {
       await fetchCurrencies();
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la mise à jour');
+    toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour');
   }
 };
 
 // Delete currency
 const deleteCurrency = async (id) => {
-  if (!confirm('Supprimer cette devise ?')) return;
+  if (!(await confirmDialog('Supprimer cette devise ?'))) return;
   try {
     await api.delete(`/currencies/${id}`);
     await fetchCurrencies();
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la suppression');
+    toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
   }
 };
 
@@ -121,7 +126,7 @@ const convert = async () => {
       convertResult.value = res.data.data;
     }
   } catch (error) {
-    alert('Erreur lors de la conversion');
+    toast.error('Erreur lors de la conversion');
   }
 };
 
@@ -135,7 +140,7 @@ const viewHistory = async (currency) => {
       showHistoryModal.value = true;
     }
   } catch (error) {
-    alert('Erreur lors du chargement de l\'historique');
+    toast.error('Erreur lors du chargement de l\'historique');
   }
 };
 
@@ -151,7 +156,7 @@ const updateRate = async () => {
       await fetchCurrencies();
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la mise à jour du taux');
+    toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour du taux');
   }
 };
 

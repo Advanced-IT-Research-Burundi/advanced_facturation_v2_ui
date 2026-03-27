@@ -183,6 +183,11 @@
 import { ref, computed, onMounted } from "vue";
 import api from "@/services/api";
 import ProductFormModal from "../products/ProductFormModal.vue";
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const products = ref([]);
@@ -311,7 +316,7 @@ const handleSave = async () => {
 };
 
 const handleDelete = async (productId) => {
-  if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit pharmaceutique?")) {
+  if (!(await confirmDialog("Êtes-vous sûr de vouloir supprimer ce produit pharmaceutique?"))) {
     return;
   }
 
@@ -325,7 +330,7 @@ const handleDelete = async (productId) => {
     }, 3000);
   } catch (error) {
     console.error("Erreur lors de la suppression:", error);
-    alert("Erreur lors de la suppression du produit");
+    toast.error("Erreur lors de la suppression du produit");
   }
 };
 

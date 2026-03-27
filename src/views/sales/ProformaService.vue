@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { Eye, Pencil, Trash, Search } from "lucide-vue-next";
+import { useConfirm } from '@/composables/useConfirm';
 
 const props = defineProps({
   proformas: {
@@ -19,6 +20,8 @@ const emit = defineEmits([
   "create",
 ]);
 
+const { confirm: confirmDialog } = useConfirm();
+
 const formatPrice = (price) => {
   if (price === null || price === undefined) return "0";
   const num = parseFloat(price);
@@ -35,8 +38,8 @@ const filteredProformas = computed(() => {
   );
 });
 
-const confirmDelete = (proforma) => {
-  if (confirm("Êtes-vous sûr de vouloir supprimer cette proforma ?")) {
+const confirmDelete = async (proforma) => {
+  if (await confirmDialog("Êtes-vous sûr de vouloir supprimer cette proforma ?")) {
     emit("delete", proforma);
   }
 };

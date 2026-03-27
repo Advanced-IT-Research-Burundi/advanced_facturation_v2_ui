@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from "vue";
 import { useStore } from "vuex";
 import StockHeader from "../stocks/StockHeader.vue";
 import api from "@/services/api";
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 // Child Components
 import ProductHeader from "./ProductHeader.vue";
@@ -11,6 +13,8 @@ import ProductList from "./ProductList.vue";
 import ProductFormModal from "./ProductFormModal.vue";
 
 const store = useStore();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 const searchQuery = ref("");
 const isEditing = ref(false);
 const editId = ref(null);
@@ -84,7 +88,7 @@ const handleSave = async (payload) => {
       successMessage.value = null;
     }, 3000);
   } else {
-    alert(
+    toast.error(
       "Erreur lors de l'enregistrement: " +
         JSON.stringify(result.errors || result.error)
     );
@@ -93,7 +97,7 @@ const handleSave = async (payload) => {
 
 const handleDelete = async (product) => {
   if (
-    confirm(
+    await confirmDialog(
       `Voulez-vous vraiment supprimer le produit "${product.item_designation}" ?`
     )
   ) {
@@ -104,7 +108,7 @@ const handleDelete = async (product) => {
         successMessage.value = null;
       }, 3000);
     } else {
-      alert("Erreur lors de la suppression");
+      toast.error("Erreur lors de la suppression");
     }
   }
 };

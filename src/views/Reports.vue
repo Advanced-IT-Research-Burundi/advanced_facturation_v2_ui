@@ -5,6 +5,9 @@ import {
   Printer, FileText, Package, ArrowDownCircle, ArrowUpCircle,
   CreditCard, FileCheck, History, Download, Eye, FileSpreadsheet, Wallet
 } from 'lucide-vue-next';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 // Active tab
 const activeTab = ref('invoices-history');
@@ -130,7 +133,7 @@ const selectAllInvoices = () => {
 // Print selected invoices
 const printSelectedInvoices = async () => {
   if (selectedInvoices.value.length === 0) {
-    alert('Veuillez sélectionner au moins une facture');
+    toast.warning('Veuillez sélectionner au moins une facture');
     return;
   }
 

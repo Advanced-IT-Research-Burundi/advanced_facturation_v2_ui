@@ -153,6 +153,11 @@
 import { ref, computed, onMounted } from 'vue';
 import HotelHeader from '@/views/hotel/HotelHeader.vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 const sections = [
   { value: 'restaurant', label: 'Restaurant', icon: 'bi-egg-fried' },
@@ -283,12 +288,12 @@ const registerDepenseInCaisse = async (name, montant) => {
 };
 
 const deleteDepense = async (d) => {
-  if (!confirm(`Supprimer la dépense "${d.name}" ?`)) return;
+  if (!(await confirmDialog(`Supprimer la dépense "${d.name}" ?`))) return;
   try {
     await api.delete(`/hotel/depenses/${d.id}`);
     await loadDepenses(pagination.value.current_page);
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur suppression');
+    toast.error(e.response?.data?.message || 'Erreur suppression');
   }
 };
 

@@ -167,8 +167,10 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
+import { useConfirm } from '@/composables/useConfirm';
 
 const route = useRoute();
+const { confirm: confirmDialog } = useConfirm();
 const warehouseId = route.params.id;
 
 const loading = ref(false);
@@ -203,7 +205,7 @@ const fetchData = async () => {
 };
 
 const approveTransfer = async (transfer) => {
-  if (!confirm(`Voulez-vous approuver le transfert ${transfer.transfer_code} ?`)) return;
+  if (!(await confirmDialog(`Voulez-vous approuver le transfert ${transfer.transfer_code} ?`))) return;
 
   submitting.value = true;
   try {

@@ -271,6 +271,9 @@
 import { ref, computed, onMounted } from 'vue';
 import HotelHeader from '@/views/hotel/HotelHeader.vue';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const sections = [
   { value: 'restaurant', label: 'Restaurant', icon: 'bi-egg-fried' },
@@ -347,7 +350,7 @@ const openRegister = async () => {
     openForm.value = { opening_balance: 0, opening_note: '' };
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur ouverture caisse');
+    toast.error(e.response?.data?.message || 'Erreur ouverture caisse');
   } finally {
     saving.value = false;
   }
@@ -361,7 +364,7 @@ const closeRegister = async () => {
     closeForm.value = { closing_balance: 0, closing_note: '' };
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur fermeture caisse');
+    toast.error(e.response?.data?.message || 'Erreur fermeture caisse');
   } finally {
     saving.value = false;
   }
@@ -374,7 +377,7 @@ const openMovement = (type) => {
 
 const saveMovement = async () => {
   if (!movementForm.value.amount || !movementForm.value.description) {
-    alert('Veuillez remplir le montant et la description.');
+    toast.warning('Veuillez remplir le montant et la description.');
     return;
   }
   saving.value = true;
@@ -383,7 +386,7 @@ const saveMovement = async () => {
     showMovementModal.value = false;
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur mouvement');
+    toast.error(e.response?.data?.message || 'Erreur mouvement');
   } finally {
     saving.value = false;
   }

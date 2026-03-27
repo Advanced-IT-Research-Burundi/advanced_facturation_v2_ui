@@ -125,12 +125,14 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const router = useRouter();
 const invoice = ref(null);
 const loading = ref(true);
 const { printA4, printPOS } = useInvoicePrint();
+const toast = useToast();
 
 onMounted(() => loadInvoice());
 
@@ -140,7 +142,7 @@ async function loadInvoice() {
     const { data } = await api.get(`/hotel/invoices/${route.params.id}`);
     invoice.value = data.data;
   } catch {
-    alert('Facture non trouvée');
+    toast.error('Facture non trouvée');
     router.push({ name: 'hotel.invoices' });
   } finally {
     loading.value = false;

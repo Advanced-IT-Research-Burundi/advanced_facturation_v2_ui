@@ -4,8 +4,12 @@ import { useStore } from "vuex";
 import api from "@/services/api";
 import LotFormModal from "./LotFormModal.vue";
 import PharmaceHeader from "../pharmaceutical/PharmaceHeader.vue";
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const store = useStore();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 const lots = computed(() => store.getters["pharmaceutical/allLots"]);
 const loading = computed(() => store.getters["pharmaceutical/lotsLoading"]);
@@ -93,15 +97,15 @@ const handleSave = async (lotData) => {
     closeModal();
     await fetchLots();
   } else {
-    alert(result.error || "Erreur lors de l'enregistrement");
+    toast.error(result.error || "Erreur lors de l'enregistrement");
   }
 };
 
 const handleDelete = async (lot) => {
-  if (confirm(`Supprimer le lot ${lot.lot_number} ?`)) {
+  if (await confirmDialog(`Supprimer le lot ${lot.lot_number} ?`)) {
     const result = await store.dispatch("pharmaceutical/deleteLot", lot.id);
     if (!result.success) {
-      alert(result.error || "Erreur lors de la suppression");
+      toast.error(result.error || "Erreur lors de la suppression");
     }
   }
 };

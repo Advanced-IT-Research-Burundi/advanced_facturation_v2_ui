@@ -1,5 +1,8 @@
 <script setup>
 import { ref, watch, computed } from "vue";
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const props = defineProps({
   show: Boolean,
@@ -65,28 +68,28 @@ const removeItem = (index) => {
 const handleSave = () => {
   // Validation
   if (!form.value.customer_id) {
-    alert("Veuillez selectionner un client");
+    toast.warning("Veuillez selectionner un client");
     return;
   }
   if (!form.value.patient_name) {
-    alert("Veuillez saisir le nom du patient");
+    toast.warning("Veuillez saisir le nom du patient");
     return;
   }
   if (!form.value.prescriber_name) {
-    alert("Veuillez saisir le nom du medecin");
+    toast.warning("Veuillez saisir le nom du medecin");
     return;
   }
   if (items.value.length === 0) {
-    alert("Veuillez ajouter au moins un produit");
+    toast.warning("Veuillez ajouter au moins un produit");
     return;
   }
   for (const item of items.value) {
     if (!item.product_id) {
-      alert("Veuillez selectionner un produit pour chaque ligne");
+      toast.warning("Veuillez selectionner un produit pour chaque ligne");
       return;
     }
     if (item.prescribed_quantity <= 0) {
-      alert("La quantite doit etre superieure a 0");
+      toast.warning("La quantite doit etre superieure a 0");
       return;
     }
   }

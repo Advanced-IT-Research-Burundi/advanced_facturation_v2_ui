@@ -202,9 +202,11 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import api from "@/services/api";
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const store = useStore();
+const toast = useToast();
 const warehouseId = route.params.id;
 
 const inStock = ref([]);
@@ -273,7 +275,7 @@ const transfer = async (productId) => {
     await loadProductsNotInStock();
   } catch (error) {
     console.error("Erreur lors de l'ajout:", error);
-    alert("Erreur lors de l'ajout du produit");
+    toast.error("Erreur lors de l'ajout du produit");
   } finally {
     working.value = null;
   }
@@ -314,7 +316,7 @@ const deleteProduct = async () => {
     productToDelete.value = null;
   } catch (e) {
     console.error("Erreur lors de la suppression:", e);
-    alert("Erreur lors de la suppression du produit");
+    toast.error("Erreur lors de la suppression du produit");
   } finally {
     deleting.value = null;
   }

@@ -180,9 +180,11 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const invoice = ref(null);
 const loading = ref(true);
@@ -204,7 +206,7 @@ async function loadInvoice() {
     paymentAmount.value = invoice.value.invoice_total_amount;
   } catch (error) {
     console.error('Erreur chargement facture:', error);
-    alert('Facture non trouvée');
+    toast.error('Facture non trouvée');
     router.push({ name: 'restaurant.tables' });
   } finally {
     loading.value = false;
@@ -219,9 +221,9 @@ async function processPayment() {
       amount: Math.min(paymentAmount.value, invoice.value.invoice_total_amount),
     });
     invoice.value = data.data;
-    alert('Paiement enregistré avec succès');
+    toast.success('Paiement enregistré avec succès');
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors du paiement');
+    toast.error(error.response?.data?.message || 'Erreur lors du paiement');
   } finally {
     processing.value = false;
   }
@@ -233,12 +235,12 @@ async function sendToObr() {
     const { data } = await api.post(`/restaurant/invoices/${invoice.value.id}/send-obr`);
     if (data.success) {
       invoice.value = data.data;
-      alert('Facture envoyée à OBR avec succès');
+      toast.success('Facture envoyée à OBR avec succès');
     } else {
-      alert(data.message || 'Erreur OBR');
+      toast.error(data.message || 'Erreur OBR');
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de l\'envoi à OBR');
+    toast.error(error.response?.data?.message || 'Erreur lors de l\'envoi à OBR');
   } finally {
     sendingObr.value = false;
   }

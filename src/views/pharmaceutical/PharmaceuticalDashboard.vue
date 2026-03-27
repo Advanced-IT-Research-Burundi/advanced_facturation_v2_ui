@@ -3,9 +3,11 @@ import { ref, computed, onMounted } from "vue";
 import { useStore } from "vuex";
 import { useRouter } from "vue-router";
 import PharmaceHeader from "./PharmaceHeader.vue";
+import { useToast } from '@/composables/useToast';
 
 const store = useStore();
 const router = useRouter();
+const toast = useToast();
 
 const stats = computed(() => store.getters["pharmaceutical/dashboardStats"]);
 const loading = computed(() => store.getters["pharmaceutical/dashboardLoading"]);
@@ -46,7 +48,7 @@ const navigateTo = (route) => {
 const generateAlerts = async () => {
   const result = await store.dispatch("pharmaceutical/generateAlerts");
   if (result.success) {
-    alert(`${result.data.alerts_created} nouvelles alertes generees`);
+    toast.success(`${result.data.alerts_created} nouvelles alertes generees`);
   }
 };
 </script>

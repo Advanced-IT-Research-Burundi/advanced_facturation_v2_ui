@@ -282,8 +282,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import ClientFormModal from '@/views/sales/ClientFormModal.vue';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const router = useRouter();
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 const tables = ref([]);
 const dashboard = ref({});
@@ -379,7 +383,7 @@ async function saveTable() {
     loadTables();
   } catch (error) {
     console.error('Erreur sauvegarde:', error);
-    alert(error.response?.data?.message || 'Erreur lors de la sauvegarde');
+    toast.error(error.response?.data?.message || 'Erreur lors de la sauvegarde');
   } finally {
     saving.value = false;
   }
@@ -397,13 +401,13 @@ function editTable(table) {
 }
 
 async function deleteTable(table) {
-  if (!confirm('Supprimer cette table ?')) return;
+  if (!(await confirmDialog('Supprimer cette table ?'))) return;
   try {
     await api.delete(`/restaurant/tables/${table.id}`);
     showDetailModal.value = false;
     loadTables();
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la suppression');
+    toast.error(error.response?.data?.message || 'Erreur lors de la suppression');
   }
 }
 
@@ -477,7 +481,7 @@ function generateInvoice(table) {
 async function confirmInvoice() {
   if (!tableToInvoice.value || !selectedCustomer.value || !invoiceWarehouseId.value) {
     if (!invoiceWarehouseId.value) {
-      alert('Veuillez sélectionner un dépôt');
+      toast.error('Veuillez sélectionner un dépôt');
     }
     return;
   }
@@ -492,7 +496,7 @@ async function confirmInvoice() {
     showInvoiceModal.value = false;
     router.push({ name: 'restaurant.invoice', params: { id: data.data.id } });
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la génération de la facture');
+    toast.error(error.response?.data?.message || 'Erreur lors de la génération de la facture');
   } finally {
     generatingInvoice.value = false;
   }

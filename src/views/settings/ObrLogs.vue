@@ -281,9 +281,16 @@
 
 <script>
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 export default {
   name: 'ObrLogs',
+  setup() {
+    const toast = useToast();
+    const { confirm: confirmDialog } = useConfirm();
+    return { toast, confirmDialog };
+  },
   data() {
     return {
       logs: [],
@@ -353,16 +360,16 @@ export default {
       this.showDetail = true;
     },
     async retryLog(log) {
-      if (!confirm('Réessayer cet envoi ?')) return;
+      if (!(await this.confirmDialog('Réessayer cet envoi ?'))) return;
       
       try {
         await api.post(`/obr-logs/${log.id}/retry`);
-        alert('Tentative de renvoi planifiée');
+        this.toast.success('Tentative de renvoi planifiée');
         this.loadLogs();
         this.loadStats();
       } catch (error) {
         console.error('Erreur retry:', error);
-        alert('Erreur lors de la planification du renvoi');
+        this.toast.error('Erreur lors de la planification du renvoi');
       }
     },
     getTypeLabel(type) {

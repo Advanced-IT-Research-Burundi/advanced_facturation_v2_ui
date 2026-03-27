@@ -642,6 +642,9 @@
 import { ref, computed, onMounted, reactive, watch, toRaw } from 'vue';
 import api from '@/services/api';
 import HotelHeader from './HotelHeader.vue';
+import { useToast } from '@/composables/useToast';
+
+const toast = useToast();
 
 const loading = ref(false);
 const rooms = ref([]);
@@ -823,7 +826,7 @@ const generateConferenceInvoice = async (booking) => {
     await api.post(`/hotel/conference-bookings/${booking.id}/invoice`);
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Impossible de générer la facture');
+    toast.error(e.response?.data?.message || 'Impossible de générer la facture');
   } finally {
     generatingInvoiceId.value = null;
   }
@@ -967,7 +970,7 @@ const deleteRoom = async () => {
     roomToDelete.value = null;
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur lors de la suppression');
+    toast.error(e.response?.data?.message || 'Erreur lors de la suppression');
   } finally {
     deleting.value = false;
   }
@@ -979,7 +982,7 @@ const changeRoomStatus = async (room, newStatus) => {
     selectedRoom.value = null;
     await loadAll();
   } catch (e) {
-    alert(e.response?.data?.message || 'Erreur');
+    toast.error(e.response?.data?.message || 'Erreur');
   }
 };
 

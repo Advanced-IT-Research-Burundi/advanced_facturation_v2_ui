@@ -122,6 +122,11 @@ import api from '@/services/api';
 import store from '@/store';
 import { onMounted, computed, ref, reactive } from 'vue';
 import SettingsHeader from './SettingsHeader.vue';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // Local State
 const showModal = ref(false);
@@ -224,18 +229,18 @@ const submitForm = async () => {
             closeModal();
             fetchUnites(pagination.value.current_page);
         } else {
-            alert(resp.data.message || "Une erreur est survenue");
+            toast.error(resp.data.message || "Une erreur est survenue");
         }
     } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || "Erreur lors de l'enregistrement");
+        toast.error(err.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
         submitting.value = false;
     }
 };
 
 const confirmDelete = async (unit) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer l'unité "${unit.name}" ?`)) {
+    if (await confirmDialog(`Êtes-vous sûr de vouloir supprimer l'unité "${unit.name}" ?`)) {
         try {
             loading.value = true;
             await api.delete(`product-units/${unit.id}`);

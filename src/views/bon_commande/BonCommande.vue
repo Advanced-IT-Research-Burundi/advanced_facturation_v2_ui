@@ -7,6 +7,11 @@ import {
 } from 'lucide-vue-next';
 import api from '@/services/api';
 import StockHeader from '../stocks/StockHeader.vue';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const purchaseOrders = ref([]);
@@ -293,13 +298,13 @@ const updateStatus = async (order, newStatus) => {
     }
   } catch (err) {
     console.error('Error updating status:', err);
-    alert(err.response?.data?.message || 'Erreur lors de la mise à jour du statut');
+    toast.error(err.response?.data?.message || 'Erreur lors de la mise à jour du statut');
   }
 };
 
 // Delete
 const deleteOrder = async (order) => {
-  if (!confirm(`Supprimer le bon de commande ${order.ref_code} ?`)) return;
+  if (!(await confirmDialog(`Supprimer le bon de commande ${order.ref_code} ?`))) return;
 
   try {
     await api.delete(`/purchase-orders/${order.id}`);
@@ -307,7 +312,7 @@ const deleteOrder = async (order) => {
     fetchStats();
   } catch (err) {
     console.error('Error deleting order:', err);
-    alert(err.response?.data?.message || 'Erreur lors de la suppression');
+    toast.error(err.response?.data?.message || 'Erreur lors de la suppression');
   }
 };
 

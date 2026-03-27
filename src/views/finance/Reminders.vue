@@ -5,6 +5,11 @@ import {
   Mail, MessageSquare, FileText, Plus, Filter, Search
 } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+
+const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 // State
 const loading = ref(true);
@@ -118,7 +123,7 @@ const createReminder = async () => {
       await Promise.all([fetchReminders(), fetchUnpaidInvoices(), fetchStats()]);
     }
   } catch (error) {
-    alert(error.response?.data?.message || 'Erreur lors de la création');
+    toast.error(error.response?.data?.message || 'Erreur lors de la création');
   }
 };
 
@@ -128,7 +133,7 @@ const markAsSent = async (id) => {
     await fetchReminders();
     await fetchStats();
   } catch (error) {
-    alert('Erreur lors de la mise à jour');
+    toast.error('Erreur lors de la mise à jour');
   }
 };
 
@@ -137,18 +142,18 @@ const markAsPaid = async (id) => {
     await api.post(`/reminders/${id}/mark-paid`);
     await Promise.all([fetchReminders(), fetchUnpaidInvoices(), fetchStats()]);
   } catch (error) {
-    alert('Erreur lors de la mise à jour');
+    toast.error('Erreur lors de la mise à jour');
   }
 };
 
 const deleteReminder = async (id) => {
-  if (!confirm('Supprimer cette relance ?')) return;
+  if (!(await confirmDialog('Supprimer cette relance ?'))) return;
   try {
     await api.delete(`/reminders/${id}`);
     await fetchReminders();
     await fetchStats();
   } catch (error) {
-    alert('Erreur lors de la suppression');
+    toast.error('Erreur lors de la suppression');
   }
 };
 
