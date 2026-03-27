@@ -894,7 +894,7 @@ const savePayment = async () => {
     });
     await registerPaymentInCaisse(
       paymentForm.amount,
-      `Réservation salle ${payingBooking.value.conferenceRoom?.name ?? ''}`.trim(),
+      `Réservation salle ${payingBooking.value.conference_room?.name ?? ''}`.trim(),
     );
     showPaymentModal.value = false;
     await loadAll();
