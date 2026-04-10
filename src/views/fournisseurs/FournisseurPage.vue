@@ -232,25 +232,27 @@ const debouncedSearch = () => {
     }, 500)
 }
 
-const fetchSuppliers = async () => {
+const fetchSuppliers = async (pageOrUrl = 1) => {
   loading.value = true
   try {
-    const resp = await api.get('/fournisseurs', {
-      params: searchQuery.value ? { search: searchQuery.value } : {}
-    })
+    const isUrl = typeof pageOrUrl === 'string' && pageOrUrl.startsWith('http')
+    const endpoint = isUrl ? pageOrUrl : '/fournisseurs'
+    const params = isUrl
+      ? {}
+      : { page: pageOrUrl, per_page: 20, ...(searchQuery.value ? { search: searchQuery.value } : {}) }
 
-    // ✅ CAS ACTUEL DE TON API
-    if (resp.data.success && Array.isArray(resp.data.data)) {
-      suppliers.value = resp.data.data
+    const resp = await api.get(endpoint, { params })
+    const payload = resp.data?.data
+    const rows = payload?.data || []
+    suppliers.value = rows
 
-      pagination.value = {
-        current_page: 1,
-        from: 1,
-        to: resp.data.data.length,
-        total: resp.data.data.length,
-        prev_page_url: null,
-        next_page_url: null
-      }
+    pagination.value = {
+      current_page: payload?.current_page || 1,
+      from: payload?.from || 0,
+      to: payload?.to || rows.length,
+      total: payload?.total || rows.length,
+      prev_page_url: payload?.prev_page_url || null,
+      next_page_url: payload?.next_page_url || null
     }
 
   } catch (error) {

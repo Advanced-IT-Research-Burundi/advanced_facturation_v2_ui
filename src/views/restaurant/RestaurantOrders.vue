@@ -284,6 +284,7 @@ const currentOrder = ref(null);
 const tableOrders = ref([]);
 const orderItems = ref([]);
 const searchProduct = ref('');
+const productSearchTimeout = ref(null);
 const selectedServerId = ref(null);
 const loading = ref(false);
 const saving = ref(false);
@@ -296,6 +297,7 @@ const selectedWarehouseId = ref(null);
 const customers = ref([]);
 const filteredCustomers = ref([]);
 const customerSearch = ref('');
+const customerSearchTimeout = ref(null);
 const selectedCustomer = ref(null);
 const showInvoiceModal = ref(false);
 const showNewClientModal = ref(false);
@@ -304,11 +306,7 @@ const invoiceWarehouseId = ref(null);
 const invoiceAttempted = ref(false);
 
 const filteredProducts = computed(() => {
-  if (!searchProduct.value) return products.value;
-  const search = searchProduct.value.toLowerCase();
-  return products.value.filter(p =>
-    (p.name || p.item_designation || '').toLowerCase().includes(search)
-  );
+  return products.value;
 });
 
 const orderTotal = computed(() => {
@@ -363,8 +361,10 @@ async function loadWarehouseProducts() {
 
   loading.value = true;
   try {
-    const { data } = await api.get(`/restaurant/warehouses/${selectedWarehouseId.value}/products`);
-    products.value = data.data || [];
+    const { data } = await api.get(`/restaurant/warehouses/${selectedWarehouseId.value}/products`, {
+      params: { per_page: 100, search: searchProduct.value || undefined },
+    });
+    products.value = data.data?.data || data.data || [];
   } catch (error) {
     console.error('Erreur chargement produits:', error);
     products.value = [];
@@ -516,17 +516,11 @@ async function saveOrder() {
 // Customer management functions
 async function loadCustomers() {
   try {
-    const { data } = await api.get('/customers');
-    // Handle paginated response: data.data.data or data.data (array) or data (array)
-    if (Array.isArray(data.data)) {
-      customers.value = data.data;
-    } else if (data.data?.data && Array.isArray(data.data.data)) {
-      customers.value = data.data.data;
-    } else if (Array.isArray(data)) {
-      customers.value = data;
-    } else {
-      customers.value = [];
-    }
+    const { data } = await api.get('/customers', {
+      params: { per_page: 100, search: customerSearch.value || undefined },
+    });
+    customers.value = data.data?.data || data.data || [];
+    filteredCustomers.value = customers.value.slice(0, 10);
   } catch (error) {
     console.error('Erreur chargement clients:', error);
     customers.value = [];
@@ -534,16 +528,12 @@ async function loadCustomers() {
 }
 
 function searchCustomers() {
-  const list = Array.isArray(customers.value) ? customers.value : [];
-  if (!customerSearch.value) {
-    filteredCustomers.value = list.slice(0, 10);
-    return;
+  if (customerSearchTimeout.value) {
+    clearTimeout(customerSearchTimeout.value);
   }
-  const search = customerSearch.value.toLowerCase();
-  filteredCustomers.value = list.filter(c =>
-    c.customer_name?.toLowerCase().includes(search) ||
-    c.customer_TIN?.includes(search)
-  ).slice(0, 10);
+  customerSearchTimeout.value = setTimeout(() => {
+    loadCustomers();
+  }, 300);
 }
 
 function selectCustomer(customer) {
@@ -563,10 +553,18 @@ function openInvoiceModal() {
   invoiceAttempted.value = false;
   // Pre-select the current warehouse
   invoiceWarehouseId.value = selectedWarehouseId.value || (warehouses.value.length > 0 ? warehouses.value[0].id : null);
-  const list = Array.isArray(customers.value) ? customers.value : [];
-  filteredCustomers.value = list.slice(0, 10);
+  filteredCustomers.value = customers.value.slice(0, 10);
   showInvoiceModal.value = true;
 }
+
+watch(searchProduct, () => {
+  if (productSearchTimeout.value) {
+    clearTimeout(productSearchTimeout.value);
+  }
+  productSearchTimeout.value = setTimeout(() => {
+    loadWarehouseProducts();
+  }, 300);
+});
 
 async function confirmInvoice() {
   invoiceAttempted.value = true;

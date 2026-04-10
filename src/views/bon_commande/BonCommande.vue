@@ -128,7 +128,7 @@ const fetchWarehouses = async () => {
 
 const fetchProducts = async () => {
   try {
-    const response = await api.get('/products?per_page=1000');
+    const response = await api.get('/products', { params: { per_page: 100 } });
     if (response.data.success) {
       products.value = response.data.data.data || response.data.data || [];
     }

@@ -39,8 +39,8 @@ const fetchPrescriptions = async () => {
 const loadFormData = async () => {
   try {
     const [custRes, prodRes] = await Promise.all([
-      api.get("/customers"),
-      api.get("/products/pharmaceutical?per_page=1000"),
+      api.get("/customers", { params: { per_page: 100 } }),
+      api.get("/products/pharmaceutical?per_page=100"),
     ]);
     customers.value = custRes.data.data.data || custRes.data.data || [];
     products.value = prodRes.data.data.data || prodRes.data.data || [];

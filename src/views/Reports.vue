@@ -29,6 +29,8 @@ const filters = ref({
 const reportData = ref(null);
 const warehouses = ref([]);
 const selectedInvoices = ref([]);
+const reportPage = ref(1);
+const reportPerPage = 50;
 
 // Tabs configuration
 const tabs = [
@@ -99,7 +101,13 @@ const fetchReport = async () => {
   };
 
   try {
-    const response = await api.get(endpoints[activeTab.value], { params: filters.value });
+    const paginatedTabs = ['invoices-history', 'stock-sheet', 'stock-movements', 'stock-entries', 'credit-invoices', 'proformas'];
+    const params = { ...filters.value };
+    if (paginatedTabs.includes(activeTab.value)) {
+      params.page = reportPage.value;
+      params.per_page = reportPerPage;
+    }
+    const response = await api.get(endpoints[activeTab.value], { params });
     if (response.data.success) {
       reportData.value = response.data.data;
     }
@@ -122,12 +130,47 @@ const toggleInvoiceSelection = (id) => {
 
 // Select all invoices
 const selectAllInvoices = () => {
-  if (!reportData.value?.invoices) return;
-  if (selectedInvoices.value.length === reportData.value.invoices.length) {
+  const rows = getRows('invoices');
+  if (!rows.length) return;
+  if (selectedInvoices.value.length === rows.length) {
     selectedInvoices.value = [];
   } else {
-    selectedInvoices.value = reportData.value.invoices.map(inv => inv.id);
+    selectedInvoices.value = rows.map(inv => inv.id);
   }
+};
+
+const getRows = (key) => {
+  const payload = reportData.value?.[key];
+  if (!payload) return [];
+  return Array.isArray(payload) ? payload : payload.data || [];
+};
+
+const getPagination = (key) => {
+  const payload = reportData.value?.[key];
+  if (!payload || Array.isArray(payload)) return null;
+  return {
+    current_page: payload.current_page || 1,
+    last_page: payload.last_page || 1,
+    total: payload.total || 0,
+    from: payload.from || 0,
+    to: payload.to || 0,
+  };
+};
+
+const reportPagination = computed(() => {
+  if (activeTab.value === 'invoices-history') return getPagination('invoices');
+  if (activeTab.value === 'stock-sheet') return getPagination('items');
+  if (activeTab.value === 'stock-movements' || activeTab.value === 'stock-entries') return getPagination('movements');
+  if (activeTab.value === 'credit-invoices') return getPagination('invoices');
+  if (activeTab.value === 'proformas') return getPagination('proformas');
+  return null;
+});
+
+const changeReportPage = (page) => {
+  if (!reportPagination.value) return;
+  if (page < 1 || page > reportPagination.value.last_page) return;
+  reportPage.value = page;
+  fetchReport();
 };
 
 // Print selected invoices
@@ -226,7 +269,7 @@ const getExportData = () => {
     'invoices-history': {
       filename: 'historique_factures',
       headers: ['#', 'Date', 'N° Facture', 'Client', 'HTVA', 'TVA', 'TVAC', 'Type', 'Utilisateur'],
-      getData: () => reportData.value.invoices.map((inv, i) => [
+      getData: () => getRows('invoices').map((inv, i) => [
         i + 1, inv.date, inv.invoice_number, inv.customer_name,
         inv.amount_htva, inv.tva, inv.amount_tvac, inv.invoice_type_label, inv.user_name
       ]),
@@ -243,7 +286,7 @@ const getExportData = () => {
     'stock-sheet': {
       filename: 'fiche_stock',
       headers: ['#', 'Code', 'Produit', 'Stock', 'Quantité', 'Prix Unitaire', 'Valeur Totale'],
-      getData: () => reportData.value.items.map((item, i) => [
+      getData: () => getRows('items').map((item, i) => [
         i + 1, item.product_code, item.product_name, item.warehouse_name,
         item.quantity, item.unit_price, item.total_value
       ]),
@@ -258,7 +301,7 @@ const getExportData = () => {
     'stock-movements': {
       filename: 'mouvements_stock',
       headers: ['#', 'Date', 'Produit', 'Stock', 'Type', 'Quantité', 'Prix Unit.', 'Total', 'Utilisateur'],
-      getData: () => reportData.value.movements.map((mov, i) => [
+      getData: () => getRows('movements').map((mov, i) => [
         i + 1, mov.date, mov.product_name, mov.warehouse_name,
         mov.movement_type_label, mov.quantity, mov.unit_price, mov.total, mov.user_name
       ]),
@@ -274,7 +317,7 @@ const getExportData = () => {
     'stock-entries': {
       filename: 'entrees_stock',
       headers: ['#', 'Date', 'Produit', 'Stock', 'Type', 'Quantité', 'Prix Unit.', 'Total', 'Utilisateur'],
-      getData: () => reportData.value.movements.map((mov, i) => [
+      getData: () => getRows('movements').map((mov, i) => [
         i + 1, mov.date, mov.product_name, mov.warehouse_name,
         mov.movement_type_label, mov.quantity, mov.unit_price, mov.total, mov.user_name
       ]),
@@ -289,7 +332,7 @@ const getExportData = () => {
     'credit-invoices': {
       filename: 'factures_credit',
       headers: ['#', 'Date', 'N° Facture', 'Client', 'HTVA', 'TVA', 'TVAC', 'Statut', 'Utilisateur'],
-      getData: () => reportData.value.invoices.map((inv, i) => [
+      getData: () => getRows('invoices').map((inv, i) => [
         i + 1, inv.date, inv.invoice_number, inv.customer_name,
         inv.amount_htva, inv.tva, inv.amount_tvac,
         inv.status === 'success' ? 'Validé' : 'En attente', inv.user_name
@@ -305,7 +348,7 @@ const getExportData = () => {
     'proformas': {
       filename: 'proformas',
       headers: ['#', 'Date', 'N° Proforma', 'Client', 'Articles', 'HTVA', 'TVA', 'TVAC', 'Utilisateur'],
-      getData: () => reportData.value.proformas.map((p, i) => [
+      getData: () => getRows('proformas').map((p, i) => [
         i + 1, p.date, p.invoice_number, p.customer_name,
         p.items_count, p.amount_htva, p.tva, p.amount_tvac, p.user_name
       ]),
@@ -607,12 +650,14 @@ const cashBalanceGoTo = (page) => {
 
 // Watch tab changes
 watch(activeTab, () => {
+  reportPage.value = 1;
   cashBalancePage.value = 1;
   fetchReport();
 });
 
 // Watch filter changes
 watch(filters, () => {
+  reportPage.value = 1;
   fetchReport();
 }, { deep: true });
 
@@ -789,7 +834,7 @@ onMounted(() => {
                         type="checkbox"
                         class="form-check-input"
                         @change="selectAllInvoices"
-                        :checked="selectedInvoices.length === reportData.invoices.length && reportData.invoices.length > 0"
+                        :checked="selectedInvoices.length === getRows('invoices').length && getRows('invoices').length > 0"
                       >
                     </th>
                     <th>#</th>
@@ -804,10 +849,10 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="reportData.invoices.length === 0">
+                  <tr v-if="getRows('invoices').length === 0">
                     <td colspan="10" class="text-center py-4 text-muted">Aucune facture trouvée</td>
                   </tr>
-                  <tr v-for="(invoice, index) in reportData.invoices" :key="invoice.id">
+                  <tr v-for="(invoice, index) in getRows('invoices')" :key="invoice.id">
                     <td class="no-print">
                       <input
                         type="checkbox"
@@ -886,10 +931,10 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="reportData.items.length === 0">
+                  <tr v-if="getRows('items').length === 0">
                     <td colspan="7" class="text-center py-4 text-muted">Aucun produit en stock</td>
                   </tr>
-                  <tr v-for="(item, index) in reportData.items" :key="item.id">
+                  <tr v-for="(item, index) in getRows('items')" :key="item.id">
                     <td>{{ index + 1 }}</td>
                     <td>{{ item.product_code }}</td>
                     <td class="fw-medium">{{ item.product_name }}</td>
@@ -962,10 +1007,10 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="reportData.movements.length === 0">
+                  <tr v-if="getRows('movements').length === 0">
                     <td colspan="9" class="text-center py-4 text-muted">Aucun mouvement trouvé</td>
                   </tr>
-                  <tr v-for="(mov, index) in reportData.movements" :key="mov.id">
+                  <tr v-for="(mov, index) in getRows('movements')" :key="mov.id">
                     <td>{{ index + 1 }}</td>
                     <td>{{ mov.date }}</td>
                     <td class="fw-medium">{{ mov.product_name }}</td>
@@ -1027,10 +1072,10 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="reportData.invoices.length === 0">
+                  <tr v-if="getRows('invoices').length === 0">
                     <td colspan="8" class="text-center py-4 text-muted">Aucune facture à crédit</td>
                   </tr>
-                  <tr v-for="(invoice, index) in reportData.invoices" :key="invoice.id">
+                  <tr v-for="(invoice, index) in getRows('invoices')" :key="invoice.id">
                     <td>{{ index + 1 }}</td>
                     <td>{{ invoice.date }}</td>
                     <td class="fw-medium text-primary">{{ invoice.invoice_number }}</td>
@@ -1091,10 +1136,10 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="reportData.proformas.length === 0">
+                  <tr v-if="getRows('proformas').length === 0">
                     <td colspan="8" class="text-center py-4 text-muted">Aucun proforma</td>
                   </tr>
-                  <tr v-for="(proforma, index) in reportData.proformas" :key="proforma.id">
+                  <tr v-for="(proforma, index) in getRows('proformas')" :key="proforma.id">
                     <td>{{ index + 1 }}</td>
                     <td>{{ proforma.date }}</td>
                     <td class="fw-medium text-primary">{{ proforma.invoice_number }}</td>
@@ -1264,6 +1309,34 @@ onMounted(() => {
           </div>
         </div>
       </template>
+
+      <div
+        v-if="reportPagination && reportPagination.last_page > 1"
+        class="d-flex justify-content-between align-items-center mt-3 no-print"
+      >
+        <small class="text-muted">
+          Affichage {{ reportPagination.from }} à {{ reportPagination.to }} sur {{ reportPagination.total }}
+        </small>
+        <div class="btn-group btn-group-sm">
+          <button
+            class="btn btn-outline-secondary"
+            :disabled="reportPagination.current_page <= 1"
+            @click="changeReportPage(reportPagination.current_page - 1)"
+          >
+            Préc.
+          </button>
+          <button class="btn btn-outline-secondary" disabled>
+            {{ reportPagination.current_page }} / {{ reportPagination.last_page }}
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            :disabled="reportPagination.current_page >= reportPagination.last_page"
+            @click="changeReportPage(reportPagination.current_page + 1)"
+          >
+            Suiv.
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- No data -->

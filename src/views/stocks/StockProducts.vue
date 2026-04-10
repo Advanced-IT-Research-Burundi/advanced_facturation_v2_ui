@@ -75,6 +75,30 @@
                 </tbody>
               </table>
             </div>
+            <div
+              v-if="notInStockPagination.last_page > 1"
+              class="d-flex justify-content-between align-items-center p-2 border-top"
+            >
+              <small class="text-muted">
+                {{ notInStockPagination.from }}-{{ notInStockPagination.to }} / {{ notInStockPagination.total }}
+              </small>
+              <div class="btn-group btn-group-sm">
+                <button
+                  class="btn btn-outline-secondary"
+                  :disabled="notInStockPagination.current_page <= 1"
+                  @click="loadProductsNotInStock(notInStockPagination.current_page - 1)"
+                >
+                  Préc.
+                </button>
+                <button
+                  class="btn btn-outline-secondary"
+                  :disabled="notInStockPagination.current_page >= notInStockPagination.last_page"
+                  @click="loadProductsNotInStock(notInStockPagination.current_page + 1)"
+                >
+                  Suiv.
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -131,6 +155,30 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <div
+              v-if="inStockPagination.last_page > 1"
+              class="d-flex justify-content-between align-items-center p-2 border-top"
+            >
+              <small class="text-muted">
+                {{ inStockPagination.from }}-{{ inStockPagination.to }} / {{ inStockPagination.total }}
+              </small>
+              <div class="btn-group btn-group-sm">
+                <button
+                  class="btn btn-outline-secondary"
+                  :disabled="inStockPagination.current_page <= 1"
+                  @click="loadProductsInStock(inStockPagination.current_page - 1)"
+                >
+                  Préc.
+                </button>
+                <button
+                  class="btn btn-outline-secondary"
+                  :disabled="inStockPagination.current_page >= inStockPagination.last_page"
+                  @click="loadProductsInStock(inStockPagination.current_page + 1)"
+                >
+                  Suiv.
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -220,21 +268,44 @@ const showDeleteModal = ref(false);
 const productToDelete = ref(null);
 const deleting = ref(null);
 const successMessage = ref(null);
+const perPage = 20;
+const inStockPagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0,
+  from: 0,
+  to: 0,
+});
+const notInStockPagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0,
+  from: 0,
+  to: 0,
+});
 
 const handleSearchNotInStock = () => {
-  loadProductsNotInStock();
+  loadProductsNotInStock(1);
 };
 const handleSearchInStock = () => {
-  loadProductsInStock();
+  loadProductsInStock(1);
 };
 
-const loadProductsInStock = async () => {
+const loadProductsInStock = async (page = 1) => {
   loadingProductsInStock.value = true;
   try {
-    const resIn = await api.get(
-      `/product_in_stock/${warehouseId}?search=${searchInStock.value}`,
-    );
-    inStock.value = resIn.data?.data || [];
+    const resIn = await api.get(`/product_in_stock/${warehouseId}`, {
+      params: { search: searchInStock.value, page, per_page: perPage },
+    });
+    const payload = resIn.data?.data;
+    inStock.value = payload?.data || payload || [];
+    inStockPagination.value = {
+      current_page: payload?.current_page || 1,
+      last_page: payload?.last_page || 1,
+      total: payload?.total || inStock.value.length,
+      from: payload?.from || 0,
+      to: payload?.to || inStock.value.length,
+    };
   } catch (e) {
     console.error(e);
   } finally {
@@ -242,13 +313,21 @@ const loadProductsInStock = async () => {
   }
 };
 
-const loadProductsNotInStock = async () => {
+const loadProductsNotInStock = async (page = 1) => {
   loadingProductsNotInStock.value = true;
   try {
-    const resNot = await api.get(
-      `/product_not_stock/${warehouseId}?search=${search.value}`,
-    );
-    notInStock.value = resNot.data?.data || [];
+    const resNot = await api.get(`/product_not_stock/${warehouseId}`, {
+      params: { search: search.value, page, per_page: perPage },
+    });
+    const payload = resNot.data?.data;
+    notInStock.value = payload?.data || payload || [];
+    notInStockPagination.value = {
+      current_page: payload?.current_page || 1,
+      last_page: payload?.last_page || 1,
+      total: payload?.total || notInStock.value.length,
+      from: payload?.from || 0,
+      to: payload?.to || notInStock.value.length,
+    };
   } catch (e) {
     console.error(e);
   } finally {

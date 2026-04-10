@@ -41,7 +41,7 @@ const fetchLots = async () => {
 const loadFormData = async () => {
   try {
     const [prodRes, wareRes, fournRes] = await Promise.all([
-      api.get("/products/pharmaceutical?per_page=1000"),
+      api.get("/products/pharmaceutical?per_page=100"),
       api.get("/warehouses"),
       api.get("/fournisseurs"),
     ]);
