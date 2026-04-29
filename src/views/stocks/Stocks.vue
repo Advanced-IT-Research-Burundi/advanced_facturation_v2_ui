@@ -39,7 +39,7 @@
               <tr>
                 <th style="width: 25%;">Nom</th>
                 <th>Emplacement</th>
-                <th>ID Entreprise</th>
+                <th class="text-center">Production</th>
                 <th class="text-center">Utilisateurs</th>
                 <th class="text-center" style="width: 160px;">Actions</th>
               </tr>
@@ -48,7 +48,11 @@
               <tr v-for="item in warehouses" :key="item.id">
                 <td class="fw-bold text-primary">{{ item.name }}</td>
                 <td class="text-muted">{{ item.location || '-' }}</td>
-                <td class="text-muted">{{ item.company_id || '-' }}</td>
+                <td class="text-center">
+                  <span class="badge" :class="item.is_production ? 'bg-success' : 'bg-secondary'">
+                    {{ item.is_production ? 'Oui' : 'Non' }}
+                  </span>
+                </td>
                 <td class="text-center">
                   <span class="badge bg-info">{{ item.users_count || 0 }}</span>
                 </td>
@@ -71,7 +75,7 @@
                 </td>
               </tr>
               <tr v-if="warehouses.length === 0">
-                <td colspan="5" class="text-center py-5 text-muted">
+                <td colspan="6" class="text-center py-5 text-muted">
                   <i class="bi bi-building fs-1 d-block mb-2"></i>
                   Aucun entrepôt trouvé.
                 </td>
