@@ -286,7 +286,7 @@ const sections = [
 const activeSection = ref('restaurant');
 const activeSectionLabel = computed(() => sections.find((s) => s.value === activeSection.value)?.label ?? '');
 
-const loading = ref(false);
+const loading = ref(true);
 const saving = ref(false);
 const currentRegister = ref(null);
 const registers = ref([]);
@@ -310,20 +310,31 @@ const formatCurrency = (v) => new Intl.NumberFormat('fr-FR').format(v || 0) + ' 
 const formatDateTime = (d) => d ? new Date(d).toLocaleString('fr-FR') : '—';
 
 const loadCurrent = async () => {
-  const res = await api.get('/hotel/caisse/current', { params: { hotel_section: activeSection.value } });
-  const data = res.data.data;
-  currentRegister.value = data?.register ? data : null;
-  if (currentRegister.value?.register?.id) {
-    const mRes = await api.get(`/hotel/caisse/${currentRegister.value.register.id}/movements`);
-    movements.value = mRes.data.data ?? [];
-  } else {
+  try {
+    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: activeSection.value } });
+    const data = res.data?.data;
+    if (data && data.register && data.register.id) {
+      currentRegister.value = data;
+      const mRes = await api.get(`/hotel/caisse/${data.register.id}/movements`);
+      movements.value = Array.isArray(mRes.data?.data) ? mRes.data.data.filter(Boolean) : [];
+    } else {
+      currentRegister.value = null;
+      movements.value = [];
+    }
+  } catch {
+    currentRegister.value = null;
     movements.value = [];
   }
 };
 
 const loadHistory = async () => {
-  const res = await api.get('/hotel/caisse', { params: { hotel_section: activeSection.value } });
-  registers.value = res.data.data?.data ?? res.data.data ?? [];
+  try {
+    const res = await api.get('/hotel/caisse', { params: { hotel_section: activeSection.value } });
+    const raw = res.data?.data?.data ?? res.data?.data ?? [];
+    registers.value = Array.isArray(raw) ? raw.filter(Boolean) : [];
+  } catch {
+    registers.value = [];
+  }
 };
 
 const loadAll = async () => {
@@ -358,9 +369,11 @@ const openRegister = async () => {
 };
 
 const closeRegister = async () => {
+  const registerId = currentRegister.value?.register?.id;
+  if (!registerId) return;
   saving.value = true;
   try {
-    await api.post(`/hotel/caisse/${currentRegister.value.register.id}/close`, closeForm.value);
+    await api.post(`/hotel/caisse/${registerId}/close`, closeForm.value);
     showCloseModal.value = false;
     closeForm.value = { closing_balance: 0, closing_note: '' };
     await loadAll();
@@ -377,13 +390,15 @@ const openMovement = (type) => {
 };
 
 const saveMovement = async () => {
+  const registerId = currentRegister.value?.register?.id;
+  if (!registerId) return;
   if (!movementForm.value.amount || !movementForm.value.description) {
     toast.warning('Veuillez remplir le montant et la description.');
     return;
   }
   saving.value = true;
   try {
-    await api.post(`/hotel/caisse/${currentRegister.value.register.id}/movements`, movementForm.value);
+    await api.post(`/hotel/caisse/${registerId}/movements`, movementForm.value);
     showMovementModal.value = false;
     await loadAll();
   } catch (e) {
