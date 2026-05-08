@@ -51,7 +51,7 @@
               <div class="card border-0 bg-light h-100">
                 <div class="card-body text-center">
                   <div class="small text-muted">Solde d'ouverture</div>
-                  <div class="fw-bold text-primary">{{ formatCurrency(currentRegister.register.opening_balance) }}</div>
+                  <div class="fw-bold text-primary">{{ formatCurrency(currentRegister?.register?.opening_balance) }}</div>
                 </div>
               </div>
             </div>
@@ -59,7 +59,7 @@
               <div class="card border-0 h-100" style="background:#d1fae5">
                 <div class="card-body text-center">
                   <div class="small text-muted">Recettes</div>
-                  <div class="fw-bold text-success">+ {{ formatCurrency(currentRegister.summary.total_income) }}</div>
+                  <div class="fw-bold text-success">+ {{ formatCurrency(currentRegister?.summary?.total_income) }}</div>
                 </div>
               </div>
             </div>
@@ -67,7 +67,7 @@
               <div class="card border-0 h-100" style="background:#fee2e2">
                 <div class="card-body text-center">
                   <div class="small text-muted">Dépenses</div>
-                  <div class="fw-bold text-danger">- {{ formatCurrency(currentRegister.summary.total_expense) }}</div>
+                  <div class="fw-bold text-danger">- {{ formatCurrency(currentRegister?.summary?.total_expense) }}</div>
                 </div>
               </div>
             </div>
@@ -88,7 +88,7 @@
               <div class="card border-0 bg-primary text-white h-100">
                 <div class="card-body text-center">
                   <div class="small opacity-90">Solde attendu</div>
-                  <div class="fw-bold">{{ formatCurrency(currentRegister.summary.expected_balance) }}</div>
+                  <div class="fw-bold">{{ formatCurrency(currentRegister?.summary?.expected_balance) }}</div>
                 </div>
               </div>
             </div>
@@ -214,7 +214,7 @@
           <h6 class="mb-0"><i class="bi bi-lock me-2 text-danger"></i>Fermer la caisse</h6>
           <button class="btn-close" @click="showCloseModal = false"></button>
         </div>
-        <p class="text-muted small mb-3">Solde attendu : <strong>{{ formatCurrency(currentRegister?.summary?.expected_balance) }}</strong></p>
+        <p class="text-muted small mb-3">Solde attendu : <strong>{{ formatCurrency(currentRegister?.summary?.expected_balance ?? 0) }}</strong></p>
         <div class="mb-3">
           <label class="form-label fw-semibold">Solde réel compté (BIF)</label>
           <input v-model.number="closeForm.closing_balance" type="number" class="form-control" min="0" />
@@ -293,7 +293,7 @@ const registers = ref([]);
 const movements = ref([]);
 
 const currentBenefice = computed(() => {
-  if (!currentRegister.value) return 0;
+  if (!currentRegister.value?.summary) return 0;
   return (currentRegister.value.summary.total_income || 0) - (currentRegister.value.summary.total_expense || 0);
 });
 
