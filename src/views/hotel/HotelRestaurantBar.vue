@@ -1010,6 +1010,26 @@ const buildOrderDescription = (order, itemsSubset = null) => {
   return `${table}${itemStr}`;
 };
 
+const barCategories = ['Boisson', 'Alcool'];
+const restaurantCategories = ['Plat', 'Entrée', 'Dessert', 'Cuisine'];
+
+const getItemSection = (item) => {
+  const cat = item.category || '';
+  if (barCategories.includes(cat)) {
+    return 'bar';
+  }
+  if (restaurantCategories.includes(cat)) {
+    return 'restaurant';
+  }
+  if (item.hotel_dish_id || item.item_type === 'dish') {
+    return 'restaurant';
+  }
+  if (item.hotel_menu_item_id || item.item_type === 'menu') {
+    return 'bar';
+  }
+  return 'restaurant';
+};
+
 const closeOrder = async (order) => {
   try {
     await api.put(`/hotel/restaurant-orders/${order.id}/status`, { status: 'paid' });
@@ -1017,7 +1037,6 @@ const closeOrder = async (order) => {
     const items = Array.isArray(order.items) ? order.items : [];
 
     if (order.room_number) {
-      // Room service — tout dans caisse Chambres
       await registerOrderInCaisse(
         order.total,
         buildOrderDescription(order),
@@ -1025,33 +1044,31 @@ const closeOrder = async (order) => {
         `CHAMBRE N°${order.room_number}`,
       );
     } else {
-      // Table — séparer cuisine (restaurant) et boissons (bar)
-      const kitchenItems = items.filter((i) => i.hotel_dish_id);
-      const barItems = items.filter((i) => i.hotel_menu_item_id);
-
-      const kitchenTotal = kitchenItems.reduce((sum, i) => sum + parseFloat(i.price) * (i.qty ?? 1), 0);
-      const barTotal = barItems.reduce((sum, i) => sum + parseFloat(i.price) * (i.qty ?? 1), 0);
+      const grouped = {};
+      items.forEach((item) => {
+        const section = getItemSection(item);
+        if (!grouped[section]) {
+          grouped[section] = { items: [], total: 0 };
+        }
+        grouped[section].items.push(item);
+        grouped[section].total += parseFloat(item.price) * (item.qty ?? 1);
+      });
 
       const tableRef = `TABLE N°${order.table?.number ?? order.id}`;
+      const sectionNames = { restaurant: 'Restaurant', bar: 'Bar' };
 
-      if (kitchenTotal > 0) {
-        await registerOrderInCaisse(
-          kitchenTotal,
-          `Cuisine — ${buildOrderDescription(order, kitchenItems)}`,
-          'restaurant',
-          tableRef,
-        );
+      for (const [section, data] of Object.entries(grouped)) {
+        if (data.total > 0) {
+          await registerOrderInCaisse(
+            data.total,
+            `${sectionNames[section] || section} — ${buildOrderDescription(order, data.items)}`,
+            section,
+            tableRef,
+          );
+        }
       }
-      if (barTotal > 0) {
-        await registerOrderInCaisse(
-          barTotal,
-          `Bar — ${buildOrderDescription(order, barItems)}`,
-          'bar',
-          tableRef,
-        );
-      }
-      // Fallback si les items ne sont pas distincts (montant total non ventilé)
-      if (kitchenTotal === 0 && barTotal === 0 && order.total > 0) {
+
+      if (Object.keys(grouped).length === 0 && order.total > 0) {
         await registerOrderInCaisse(order.total, buildOrderDescription(order), 'restaurant', tableRef);
       }
     }

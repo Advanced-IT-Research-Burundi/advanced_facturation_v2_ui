@@ -497,19 +497,19 @@
           </div>
         </div>
 
-        <!-- ═══ 9. CAISSE RÉCAPITULATIF ═════════════════════════════════════ -->
+        <!-- ═══ 9. BALANCE CAISSE PAR SECTION ═════════════════════════════ -->
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-header bg-white fw-semibold">
-            <i class="bi bi-safe me-2 text-success"></i>Récapitulatif Caisse Hôtel
+            <i class="bi bi-safe me-2 text-success"></i>Balance Caisse Hôtel
           </div>
           <div class="card-body">
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
               <div class="col-6 col-md-3 text-center">
-                <div class="small text-muted">Recettes</div>
+                <div class="small text-muted">Recettes (Entrées)</div>
                 <div class="fw-bold fs-5 text-success">+{{ formatCurrency(report.caisse.total_income) }}</div>
               </div>
               <div class="col-6 col-md-3 text-center">
-                <div class="small text-muted">Dépenses</div>
+                <div class="small text-muted">Dépenses (Sorties)</div>
                 <div class="fw-bold fs-5 text-danger">-{{ formatCurrency(report.caisse.total_expense) }}</div>
               </div>
               <div class="col-6 col-md-3 text-center">
@@ -517,12 +517,56 @@
                 <div class="fw-bold fs-5" style="color: #b45309;">-{{ formatCurrency(report.caisse.total_losses) }}</div>
               </div>
               <div class="col-6 col-md-3 text-center">
-                <div class="small text-muted">Bénéfice Net</div>
+                <div class="small text-muted">Solde Net</div>
                 <div class="fw-bold fs-5" :class="report.caisse.total_profit >= 0 ? 'text-success' : 'text-danger'">
                   {{ report.caisse.total_profit >= 0 ? '+' : '' }}{{ formatCurrency(report.caisse.total_profit) }}
                 </div>
               </div>
             </div>
+
+            <div v-if="report.caisse.by_section && Object.keys(report.caisse.by_section).length > 0" class="table-responsive mt-3">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Section</th>
+                    <th class="text-end">Entrées (Ventes)</th>
+                    <th class="text-end">Sorties (Dépenses)</th>
+                    <th class="text-end">Pertes</th>
+                    <th class="text-end">Solde</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(data, section) in report.caisse.by_section" :key="section">
+                    <td>
+                      <i :class="['bi me-1', sectionIcon(section)]"></i>
+                      {{ sectionLabel(section) }}
+                    </td>
+                    <td class="text-end text-success fw-semibold">+{{ formatCurrency(data.income) }}</td>
+                    <td class="text-end text-danger fw-semibold">
+                      {{ data.expense > 0 ? '-' + formatCurrency(data.expense) : '—' }}
+                    </td>
+                    <td class="text-end fw-semibold" style="color: #b45309">
+                      {{ data.losses > 0 ? '-' + formatCurrency(data.losses) : '—' }}
+                    </td>
+                    <td class="text-end fw-bold" :class="data.profit >= 0 ? 'text-success' : 'text-danger'">
+                      {{ data.profit >= 0 ? '+' : '' }}{{ formatCurrency(data.profit) }}
+                    </td>
+                  </tr>
+                  <tr class="table-dark fw-bold">
+                    <td>TOTAL</td>
+                    <td class="text-end text-success">+{{ formatCurrency(report.caisse.total_income) }}</td>
+                    <td class="text-end text-danger">-{{ formatCurrency(report.caisse.total_expense) }}</td>
+                    <td class="text-end" style="color: #fbbf24">
+                      {{ report.caisse.total_losses > 0 ? '-' + formatCurrency(report.caisse.total_losses) : '—' }}
+                    </td>
+                    <td class="text-end" :class="report.caisse.total_profit >= 0 ? 'text-success' : 'text-danger'">
+                      {{ report.caisse.total_profit >= 0 ? '+' : '' }}{{ formatCurrency(report.caisse.total_profit) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             <div class="d-flex gap-2 mt-3 justify-content-center">
               <span class="badge bg-primary">{{ report.caisse.registers_count }} caisses au total</span>
               <span class="badge bg-success">{{ report.caisse.open_registers }} ouverte(s)</span>
