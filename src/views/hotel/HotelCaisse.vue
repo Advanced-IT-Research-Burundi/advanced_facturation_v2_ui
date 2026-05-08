@@ -311,8 +311,9 @@ const formatDateTime = (d) => d ? new Date(d).toLocaleString('fr-FR') : '—';
 
 const loadCurrent = async () => {
   const res = await api.get('/hotel/caisse/current', { params: { hotel_section: activeSection.value } });
-  currentRegister.value = res.data.data;
-  if (currentRegister.value) {
+  const data = res.data.data;
+  currentRegister.value = data?.register ? data : null;
+  if (currentRegister.value?.register?.id) {
     const mRes = await api.get(`/hotel/caisse/${currentRegister.value.register.id}/movements`);
     movements.value = mRes.data.data ?? [];
   } else {
