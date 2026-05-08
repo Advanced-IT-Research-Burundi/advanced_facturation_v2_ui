@@ -31,7 +31,6 @@ const warehouses = ref([]);
 const selectedInvoices = ref([]);
 const reportPage = ref(1);
 const reportPerPage = 50;
-const SALES_INVOICE_TYPES = new Set(['FN']);
 
 // Tabs configuration
 const tabs = [
@@ -72,124 +71,6 @@ const hotelSections = [
 // Formatters
 const formatNumber = (num) => new Intl.NumberFormat('fr-FR').format(num || 0);
 const formatCurrency = (num) => `${formatNumber(num)} FBU`;
-const toNumber = (value) => parseFloat(value) || 0;
-const normalizeDateKey = (value) => {
-  if (!value) return '';
-  if (typeof value === 'string') return value.slice(0, 10);
-  return new Date(value).toISOString().slice(0, 10);
-};
-
-const shouldMergeSalesIntoCashBalance = () => ['all', 'general'].includes(filters.value.hotel_section);
-
-const fetchSalesHistoryForCashBalance = async () => {
-  const rows = [];
-  let page = 1;
-  let lastPage = 1;
-
-  do {
-    const response = await api.get('/reports/invoices-history', {
-      params: {
-        date_from: filters.value.date_from,
-        date_to: filters.value.date_to,
-        invoice_type: 'all',
-        page,
-        per_page: 100,
-      }
-    });
-
-    if (!response.data.success) break;
-
-    const payload = response.data.data?.invoices;
-    const pageRows = Array.isArray(payload) ? payload : payload?.data || [];
-    rows.push(...pageRows);
-
-    if (Array.isArray(payload)) break;
-
-    lastPage = payload?.last_page || 1;
-    page += 1;
-  } while (page <= lastPage);
-
-  return rows;
-};
-
-const mergeSalesIntoCashBalance = (cashBalanceData, invoices = []) => {
-  if (!cashBalanceData) return cashBalanceData;
-
-  const salesByDate = invoices.reduce((acc, invoice) => {
-    const invoiceType = invoice.invoice_type || invoice.invoice_type_code;
-    if (!SALES_INVOICE_TYPES.has(invoiceType)) return acc;
-
-    const dateKey = normalizeDateKey(invoice.date || invoice.invoice_date || invoice.created_at);
-    if (!dateKey) return acc;
-
-    acc[dateKey] = (acc[dateKey] || 0) + toNumber(invoice.amount_tvac ?? invoice.invoice_total_amount);
-    return acc;
-  }, {});
-
-  const existingRows = Array.isArray(cashBalanceData.rows) ? cashBalanceData.rows : [];
-  const existingDates = new Set(existingRows.map((row) => normalizeDateKey(row.date)));
-  const fallbackInitialBalance = toNumber(cashBalanceData.summary?.initial_balance);
-
-  const generatedRows = Object.entries(salesByDate)
-    .filter(([dateKey]) => !existingDates.has(dateKey))
-    .map(([dateKey, amount]) => ({
-      date: dateKey,
-      carried_balance: fallbackInitialBalance,
-      income: amount,
-      expenses: 0,
-      losses: 0,
-      total_out: 0,
-      current_balance: fallbackInitialBalance + amount,
-    }));
-
-  const mergedRows = [...existingRows, ...generatedRows]
-    .sort((a, b) => normalizeDateKey(a.date).localeCompare(normalizeDateKey(b.date)));
-
-  let runningBalance = fallbackInitialBalance;
-  const recalculatedRows = mergedRows.map((row) => {
-    const dateKey = normalizeDateKey(row.date);
-    const salesAmount = salesByDate[dateKey] || 0;
-    const baseIncome = toNumber(row.income);
-    const mergedIncome = baseIncome > 0 ? Math.max(baseIncome, salesAmount) : salesAmount;
-    const expenses = toNumber(row.expenses);
-    const losses = toNumber(row.losses);
-    const totalOut = expenses + losses;
-    const nextRow = {
-      ...row,
-      date: dateKey || row.date,
-      carried_balance: runningBalance,
-      income: mergedIncome,
-      expenses,
-      losses,
-      total_out: totalOut,
-      current_balance: runningBalance + mergedIncome - totalOut,
-    };
-    runningBalance = nextRow.current_balance;
-    return nextRow;
-  });
-
-  const summary = recalculatedRows.reduce((acc, row) => {
-    acc.total_income += toNumber(row.income);
-    acc.total_expenses += toNumber(row.expenses);
-    acc.total_losses += toNumber(row.losses);
-    acc.final_balance = toNumber(row.current_balance);
-    return acc;
-  }, {
-    ...cashBalanceData.summary,
-    initial_balance: fallbackInitialBalance,
-    total_income: 0,
-    total_expenses: 0,
-    total_losses: 0,
-    final_balance: fallbackInitialBalance,
-  });
-
-  return {
-    ...cashBalanceData,
-    rows: recalculatedRows,
-    summary,
-  };
-};
-
 // Fetch warehouses
 const fetchWarehouses = async () => {
   try {
@@ -225,22 +106,9 @@ const fetchReport = async () => {
       params.page = reportPage.value;
       params.per_page = reportPerPage;
     }
-    if (activeTab.value === 'cash-balance') {
-      const [cashBalanceResponse, salesHistory] = await Promise.all([
-        api.get(endpoints[activeTab.value], { params }),
-        shouldMergeSalesIntoCashBalance() ? fetchSalesHistoryForCashBalance() : Promise.resolve([]),
-      ]);
-
-      if (cashBalanceResponse.data.success) {
-        reportData.value = shouldMergeSalesIntoCashBalance()
-          ? mergeSalesIntoCashBalance(cashBalanceResponse.data.data, salesHistory)
-          : cashBalanceResponse.data.data;
-      }
-    } else {
-      const response = await api.get(endpoints[activeTab.value], { params });
-      if (response.data.success) {
-        reportData.value = response.data.data;
-      }
+    const response = await api.get(endpoints[activeTab.value], { params });
+    if (response.data.success) {
+      reportData.value = response.data.data;
     }
   } catch (e) {
     console.error('Error fetching report:', e);
