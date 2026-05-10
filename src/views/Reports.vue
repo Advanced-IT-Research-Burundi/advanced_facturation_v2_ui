@@ -1174,6 +1174,12 @@ onMounted(() => {
               <div class="card-body text-center py-3">
                 <div class="small text-muted">Total Entrées</div>
                 <div class="fw-bold fs-5 text-success">+ {{ formatCurrency(reportData.summary.total_income) }}</div>
+                <div v-if="(reportData.summary.total_pos_income || 0) > 0" class="small mt-1" style="color: #7c3aed">
+                  dont {{ formatCurrency(reportData.summary.total_pos_income) }} ventes POS
+                </div>
+                <div v-if="(reportData.summary.total_hotel_income || 0) > 0" class="small mt-1" style="color: #0369a1">
+                  dont {{ formatCurrency(reportData.summary.total_hotel_income) }} chambres
+                </div>
               </div>
             </div>
           </div>
@@ -1241,6 +1247,12 @@ onMounted(() => {
                   </td>
                   <td class="text-end text-success fw-semibold">
                     {{ row.income > 0 ? '+ ' + formatCurrency(row.income) : '—' }}
+                    <div v-if="(row.pos_income || 0) > 0" class="small fw-normal" style="color: #7c3aed; font-size: 0.75rem">
+                      POS: {{ formatCurrency(row.pos_income) }}
+                    </div>
+                    <div v-if="(row.hotel_income || 0) > 0" class="small fw-normal" style="color: #0369a1; font-size: 0.75rem">
+                      Chambres: {{ formatCurrency(row.hotel_income) }}
+                    </div>
                   </td>
                   <td class="text-end text-danger">
                     {{ row.expenses > 0 ? '- ' + formatCurrency(row.expenses) : '—' }}
