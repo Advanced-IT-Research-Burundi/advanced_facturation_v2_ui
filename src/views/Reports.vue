@@ -1178,7 +1178,7 @@ onMounted(() => {
                   dont {{ formatCurrency(reportData.summary.total_pos_income) }} ventes POS
                 </div>
                 <div v-if="(reportData.summary.total_hotel_income || 0) > 0" class="small mt-1" style="color: #0369a1">
-                  dont {{ formatCurrency(reportData.summary.total_hotel_income) }} chambres
+                  dont {{ formatCurrency(reportData.summary.total_hotel_income) }} hébergement/salles
                 </div>
               </div>
             </div>
@@ -1251,7 +1251,7 @@ onMounted(() => {
                       POS: {{ formatCurrency(row.pos_income) }}
                     </div>
                     <div v-if="(row.hotel_income || 0) > 0" class="small fw-normal" style="color: #0369a1; font-size: 0.75rem">
-                      Chambres: {{ formatCurrency(row.hotel_income) }}
+                      Hôtel: {{ formatCurrency(row.hotel_income) }}
                     </div>
                   </td>
                   <td class="text-end text-danger">
