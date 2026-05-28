@@ -70,7 +70,7 @@ const cartTotalHT = computed(() => {
 const cartTotalTVA = computed(() => {
   return props.cart.reduce((total, item) => {
     const lineHT = item.price * item.quantity;
-    const vatRate = item.vat_rate || 18;
+    const vatRate = item.vat_rate ?? 18;
     return total + (lineHT * vatRate) / 100;
   }, 0);
 });
@@ -83,7 +83,7 @@ const cartTotalTTC = computed(() => {
 // Calculer TVA par ligne
 const getItemVAT = (item) => {
   const lineHT = item.price * item.quantity;
-  const vatRate = item.vat_rate || 18;
+  const vatRate = item.vat_rate ?? 18;
   return (lineHT * vatRate) / 100;
 };
 
@@ -117,7 +117,7 @@ const submitInvoice = async () => {
         item_designation: item.name,
         item_quantity: item.quantity,
         item_price: item.price,
-        vat: item.vat_rate || 18,
+        vat: item.vat_rate ?? 18,
         item_ct: 0,
         item_tl: 0,
       })),
@@ -215,7 +215,7 @@ defineExpose({ clearClient });
                 {{ item.name }}
               </div>
               <span class="badge bg-info text-white small">
-                TVA {{ item.vat_rate || 18 }}%
+                TVA {{ item.vat_rate ?? 18 }}%
               </span>
             </div>
             <button
@@ -265,7 +265,7 @@ defineExpose({ clearClient });
                 <span>{{ formatPrice(item.price * item.quantity) }}</span>
               </div>
               <div class="d-flex justify-content-between text-info">
-                <span>TVA ({{ item.vat_rate || 18 }}%):</span>
+                <span>TVA ({{ item.vat_rate ?? 18 }}%):</span>
                 <span>{{ formatPrice(getItemVAT(item)) }}</span>
               </div>
               <div class="d-flex justify-content-between fw-bold text-dark">

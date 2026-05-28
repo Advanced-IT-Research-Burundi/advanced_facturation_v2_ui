@@ -20,7 +20,15 @@ const props = defineProps({
 
 const emit = defineEmits(["close"]);
 
+const printRef = ref(null);
 const { printA4, printPOS } = useInvoicePrint();
+
+const invoiceCurrency = computed(() => invoice?.invoice_currency || 'BIF');
+const invoiceTotals = computed(() => ({
+  amountNvat: parseFloat(invoice?.invoice_amount_nvat) || 0,
+  vatAmount: parseFloat(invoice?.invoice_vat_amount) || 0,
+  totalAmount: parseFloat(invoice?.invoice_total_amount) || 0,
+}));
 
 const invoiceTypeLabel = computed(() => {
   const types = {
@@ -137,18 +145,20 @@ const formatDate = (date) => {
             <!-- Totals -->
             <div class="totals">
               <table>
-                <tr>
-                  <th>Total HT</th>
-                  <td class="text-right">{{ formatPrice(invoice.invoice_amount_nvat) }} {{ invoice.invoice_currency }}</td>
-                </tr>
-                <tr>
-                  <th>Total TVA</th>
-                  <td class="text-right">{{ formatPrice(invoice.invoice_vat_amount) }} {{ invoice.invoice_currency }}</td>
-                </tr>
-                <tr class="total-row">
-                  <td><strong>TOTAL TTC</strong></td>
-                  <td class="text-right"><strong>{{ formatPrice(invoice.invoice_total_amount) }} {{ invoice.invoice_currency }}</strong></td>
-                </tr>
+                <tbody>
+                  <tr>
+                    <th>Total HT</th>
+                    <td class="text-right">{{ formatPrice(invoiceTotals.amountNvat) }} {{ invoiceCurrency }}</td>
+                  </tr>
+                  <tr>
+                    <th>Total TVA</th>
+                    <td class="text-right">{{ formatPrice(invoiceTotals.vatAmount) }} {{ invoiceCurrency }}</td>
+                  </tr>
+                  <tr class="total-row">
+                    <td><strong>TOTAL TTC</strong></td>
+                    <td class="text-right"><strong>{{ formatPrice(invoiceTotals.totalAmount) }} {{ invoiceCurrency }}</strong></td>
+                  </tr>
+                </tbody>
               </table>
             </div>
 
