@@ -23,11 +23,11 @@ const emit = defineEmits(["close"]);
 const printRef = ref(null);
 const { printA4, printPOS } = useInvoicePrint();
 
-const invoiceCurrency = computed(() => invoice?.invoice_currency || 'BIF');
+const invoiceCurrency = computed(() => props.invoice?.invoice_currency || 'BIF');
 const invoiceTotals = computed(() => ({
-  amountNvat: parseFloat(invoice?.invoice_amount_nvat) || 0,
-  vatAmount: parseFloat(invoice?.invoice_vat_amount) || 0,
-  totalAmount: parseFloat(invoice?.invoice_total_amount) || 0,
+  amountNvat: parseFloat(props.invoice?.invoice_amount_nvat) || 0,
+  vatAmount: parseFloat(props.invoice?.invoice_vat_amount) || 0,
+  totalAmount: parseFloat(props.invoice?.invoice_total_amount) || 0,
 }));
 
 const invoiceTypeLabel = computed(() => {
@@ -135,9 +135,9 @@ const formatDate = (date) => {
                   <td>{{ item.item_designation }}</td>
                   <td class="text-center">{{ item.item_quantity }}</td>
                   <td class="text-right">{{ formatPrice(item.item_price) }}</td>
-                  <td class="text-center">{{ item.vat || 18 }}%</td>
-                  <td class="text-right">{{ formatPrice((item.item_price * item.item_quantity * (item.vat || 18)) / 100) }}</td>
-                  <td class="text-right">{{ formatPrice(item.item_total_amount || (item.item_price * item.item_quantity * (1 + (item.vat || 18) / 100))) }}</td>
+                  <td class="text-center">{{ item.vat ?? 0 }}%</td>
+                  <td class="text-right">{{ formatPrice((item.item_price * item.item_quantity * (item.vat ?? 0)) / 100) }}</td>
+                  <td class="text-right">{{ formatPrice(item.item_total_amount ?? (item.item_price * item.item_quantity * (1 + (item.vat ?? 0) / 100))) }}</td>
                 </tr>
               </tbody>
             </table>

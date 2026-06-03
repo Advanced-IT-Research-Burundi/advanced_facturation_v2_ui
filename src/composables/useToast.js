@@ -1,24 +1,34 @@
-import { reactive } from 'vue';
+import { useToast as usePrimeVueToast } from 'primevue/usetoast';
 
-const state = reactive({
-  toasts: [],
-});
+const summaries = {
+  success: 'Succès',
+  error: 'Erreur',
+  Warn: 'Attention',
+  info: 'Information',
+};
 
-let idCounter = 0;
+const normalizeSeverity = (type) => {
+  if (type === 'danger') return 'error';
+  return summaries[type] ? type : 'info';
+};
 
 export function useToast() {
+  const primeToast = usePrimeVueToast();
+
   const addToast = (message, type = 'info', duration = 4000) => {
-    const id = ++idCounter;
-    state.toasts.push({ id, message, type });
-    setTimeout(() => {
-      state.toasts = state.toasts.filter((t) => t.id !== id);
-    }, duration);
+    const severity = normalizeSeverity(type);
+    primeToast.add({
+      severity,
+      summary: summaries[severity],
+      detail: message,
+      life: duration,
+    });
   };
 
-  const success = (message) => addToast(message, 'success');
-  const error = (message) => addToast(message, 'danger');
-  const warning = (message) => addToast(message, 'warning');
-  const info = (message) => addToast(message, 'info');
+  const success = (message, duration) => addToast(message, 'success', duration);
+  const error = (message, duration) => addToast(message, 'error', duration);
+  const warning = (message, duration) => addToast(message, 'warning', duration);
+  const info = (message, duration) => addToast(message, 'info', duration);
 
-  return { toasts: state.toasts, success, error, warning, info, addToast };
+  return { success, error, warning, info, addToast };
 }

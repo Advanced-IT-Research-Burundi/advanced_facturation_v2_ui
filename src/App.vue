@@ -1,12 +1,12 @@
 <script setup>
 import { RouterView } from 'vue-router'
-import AppToast from '@/components/common/AppToast.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import Toast from 'primevue/toast'
 </script>
 
 <template>
   <RouterView />
-  <AppToast />
+  <Toast position="top-right" />
   <ConfirmModal />
 </template>
 

@@ -74,7 +74,7 @@ const selectInvoice = (invoice) => {
     original_price: parseFloat(item.item_price),
     avoir_quantity: parseFloat(item.item_quantity),
     avoir_price: parseFloat(item.item_price),
-    vat: parseFloat(item.vat) || 18,
+    vat: Number.isNaN(parseFloat(item.vat)) ? 0 : parseFloat(item.vat),
     selected: true,
   }));
 };

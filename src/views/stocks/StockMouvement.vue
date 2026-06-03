@@ -96,6 +96,34 @@
           </div>
         </div>
 
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <div class="summary-card border rounded-3 p-3 bg-light h-100">
+              <div class="text-muted small">Produits affichés</div>
+              <div class="fs-4 fw-bold">{{ filteredStocks.length }}</div>
+              <div class="small text-muted">sur {{ stocks.length }} produit(s)</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="summary-card border rounded-3 p-3 bg-light h-100">
+              <div class="text-muted small">Quantité totale affichée</div>
+              <div class="fs-4 fw-bold">{{ formatNumber(filteredStockQuantity) }}</div>
+              <div class="small text-muted">toutes unités confondues</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="summary-card border rounded-3 p-3 bg-primary-subtle h-100">
+              <div class="text-muted small">Chiffre d'affaires potentiel affiché</div>
+              <div class="fs-5 fw-bold text-primary">
+                {{ formatCurrencyTotals(filteredStockRevenueByCurrency) }}
+              </div>
+              <div v-if="searchQuery" class="small text-muted">
+                Total stock: {{ formatCurrencyTotals(stockRevenueByCurrency) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="loading" class="text-center py-5">
           <div class="spinner-border text-primary"></div>
         </div>
@@ -107,6 +135,7 @@
                 <th>Produit</th>
                 <th class="text-end">Quantité</th>
                 <th class="text-end">Prix Unitaire</th>
+                <th class="text-end">Total Produit</th>
                 <th class="text-center">Actions</th>
               </tr>
             </thead>
@@ -127,7 +156,10 @@
                   </span>
                 </td>
                 <td class="text-end">
-                  {{ stock.unit_price }} {{ stock.currency }}
+                  {{ formatCurrency(stock.unit_price, stock.currency) }}
+                </td>
+                <td class="text-end fw-bold text-success">
+                  {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
                 </td>
                 <td class="text-center">
                   <button
@@ -147,7 +179,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="5" class="text-center py-5 text-muted">
+                <td colspan="6" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery
@@ -416,6 +448,42 @@ const warehouse = ref(null);
 const stocks = ref([]);
 const pendingCount = ref(0);
 
+const toNumber = (value) => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+};
+
+const getStockLineTotal = (stock) => {
+  return toNumber(stock.quantity) * toNumber(stock.unit_price);
+};
+
+const groupRevenueByCurrency = (stockList) => {
+  return stockList.reduce((totals, stock) => {
+    const currency = stock.currency || "BIF";
+    totals[currency] = (totals[currency] || 0) + getStockLineTotal(stock);
+    return totals;
+  }, {});
+};
+
+const formatNumber = (value) => {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(toNumber(value));
+};
+
+const formatCurrency = (amount, currency = "BIF") => {
+  return `${formatNumber(amount)} ${currency || "BIF"}`;
+};
+
+const formatCurrencyTotals = (totals) => {
+  const entries = Object.entries(totals);
+  if (entries.length === 0) return formatCurrency(0, "BIF");
+  return entries
+    .map(([currency, amount]) => formatCurrency(amount, currency))
+    .join(" / ");
+};
+
 // Computed property pour filtrer les stocks
 const filteredStocks = computed(() => {
   if (!searchQuery.value) return stocks.value;
@@ -427,6 +495,14 @@ const filteredStocks = computed(() => {
     return code.includes(query) || designation.includes(query);
   });
 });
+
+const filteredStockQuantity = computed(() => {
+  return filteredStocks.value.reduce((total, stock) => total + toNumber(stock.quantity), 0);
+});
+
+const stockRevenueByCurrency = computed(() => groupRevenueByCurrency(stocks.value));
+
+const filteredStockRevenueByCurrency = computed(() => groupRevenueByCurrency(filteredStocks.value));
 
 const showQuickEntryModal = ref(false);
 const showQuickExitModal = ref(false);

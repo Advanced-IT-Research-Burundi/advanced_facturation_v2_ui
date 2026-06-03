@@ -75,9 +75,14 @@
     <div class="card shadow-sm">
       <div class="card-header bg-primary text-white">
         <div class="d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">
-            <i class="bi bi-list-ul me-2"></i>Liste des Mouvements
-          </h5>
+          <div>
+            <h5 class="mb-0">
+              <i class="bi bi-list-ul me-2"></i>Liste des Mouvements
+            </h5>
+            <h5 v-if="isFiltered && movements.length > 0" class="mb-0 text-warning"> 
+              Montant total: <strong>{{ totalAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') }} BIF</strong> 
+            </h5>
+          </div>
           <span class="badge bg-light text-dark">{{ movements.length }} mouvements</span>
         </div>
       </div>
@@ -93,12 +98,13 @@
           <table class="table table-hover table-striped align-middle mb-0">
             <thead class="table-light sticky-top">
               <tr>
-                <th style="width: 140px">Date</th>
+                <th style="width: 140px">Date d'Entrée</th>
                 <th style="width: 100px">Type</th>
                 <th style="width: 120px">Code</th>
                 <th>Produit</th>
                 <th class="text-end" style="width: 120px">Quantité</th>
                 <th class="text-end" style="width: 140px">Prix</th>
+                <th class="text-end" style="width: 140px">Total</th>
                 <th style="width: 150px">Référence</th>
                 <th class="text-center" style="width: 100px">OBR</th>
               </tr>
@@ -130,6 +136,11 @@
                     {{ mvt.item_purchase_or_sale_price }} {{ mvt.item_purchase_or_sale_currency }}
                   </span>
                 </td>
+                <td class="text-end">
+                  <span class="badge bg-primary">
+                    {{ (mvt.item_quantity * mvt.item_purchase_or_sale_price).toFixed(2) }} {{ mvt.item_purchase_or_sale_currency }}
+                  </span>
+                </td>
                 <td>
                   <small>{{ mvt.item_movement_invoice_ref || '-' }}</small>
                 </td>
@@ -140,7 +151,7 @@
                 </td>
               </tr>
               <tr v-if="movements.length === 0">
-                <td colspan="8" class="text-center py-5 text-muted">
+                <td colspan="9" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   <p>Aucun mouvement trouvé</p>
                   <small>Essayez de modifier les filtres</small>
@@ -223,6 +234,16 @@ const visiblePages = computed(() => {
   }
   
   return pages;
+});
+
+const totalAmount = computed(() => {
+  return movements.value.reduce((sum, mvt) => {
+    return sum + (mvt.item_quantity * mvt.item_purchase_or_sale_price);
+  }, 0);
+});
+
+const isFiltered = computed(() => {
+  return filters.value.movement_type !== '';
 });
 
 onMounted(async () => {

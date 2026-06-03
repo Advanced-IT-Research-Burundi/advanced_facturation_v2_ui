@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, computed } from "vue";
 import { useStore } from "vuex";
 import api from "@/services/api";
+import { useToast } from "@/composables/useToast";
 
 // Child Components
 import SalesHeader from "./SalesHeader.vue";
@@ -20,6 +21,7 @@ import PaymentModal from "./PaymentModal.vue";
 import ClientFormModal from "./ClientFormModal.vue";
 
 const store = useStore();
+const toast = useToast();
 
 // --- GLOBAL STATE ---
 const activeTab = ref("POS");
@@ -48,16 +50,13 @@ const cancelMotif = ref('');
 const cancelRestoreStock = ref(true);
 const cancelError = ref('');
 
-// --- TOAST NOTIFICATION STATE ---
-const toastMessage = ref('');
-const toastType = ref('success');
-const showToast = ref(false);
-
 const showNotification = (message, type = 'success') => {
-  toastMessage.value = message;
-  toastType.value = type;
-  showToast.value = true;
-  setTimeout(() => { showToast.value = false; }, 4000);
+  const normalizedType = type === 'danger' ? 'error' : type;
+  if (typeof toast[normalizedType] === 'function') {
+    toast[normalizedType](message);
+  } else {
+    toast.info(message);
+  }
 };
 
 const fetchInvoices = () => {
@@ -186,9 +185,30 @@ onMounted(() => {
 
 // --- CART LOGIC ---
 const addToCart = (product) => {
-  const existing = cart.value.find((i) => i.id === product.id);
-  if (existing) existing.quantity++;
-  else cart.value.push({ ...product, quantity: 1 });
+  const vatRate = product.vat_rate === null || product.vat_rate === undefined
+    ? 0
+    : Number(product.vat_rate);
+
+  // Assurer que le produit a toutes les propriétés requises
+  const normalizedProduct = {
+    id: product.id,
+    name: product.name,
+    price: Number(product.price) || 0,
+    quantity: 1,
+    category: product.category,
+    vat_rate: Number.isNaN(vatRate) ? 0 : vatRate,
+    item_code: product.item_code,
+    // Propriétés optionnelles
+    item_ct: product.item_ct || 0,
+    item_tl: product.item_tl || 0,
+  };
+  
+  const existing = cart.value.find((i) => i.id === normalizedProduct.id);
+  if (existing) {
+    existing.quantity++;
+  } else {
+    cart.value.push(normalizedProduct);
+  }
 };
 
 const updateQuantity = (id, delta) => {
@@ -262,6 +282,42 @@ const registerSaleInCaisse = async (items, invoiceNumber) => {
   }
 };
 
+const getStockErrorMessage = (stockDetails = [], payloadItems = []) => {
+  const unavailableItem = stockDetails.find((item) => item && item.is_available === false);
+  if (!unavailableItem) return null;
+
+  const payloadItem = payloadItems.find((item) => item.product_id === unavailableItem.product_id);
+  const designation = payloadItem?.item_designation || `Produit #${unavailableItem.product_id}`;
+
+  return `${designation}: stock insuffisant (disponible ${unavailableItem.available}, demandé ${unavailableItem.requested})`;
+};
+
+const getValidationErrorMessage = (errors) => {
+  if (!errors) return null;
+  if (typeof errors === 'string') return errors;
+
+  const firstErrorField = Object.keys(errors)[0];
+  const firstError = errors[firstErrorField];
+
+  if (Array.isArray(firstError)) return firstError[0];
+  if (typeof firstError === 'string') return firstError;
+
+  return null;
+};
+
+const getInvoiceSubmitErrorMessage = (error, payload) => {
+  const responseData = error.response?.data;
+  const stockMessage = getStockErrorMessage(responseData?.stock_details, payload?.items || []);
+
+  if (stockMessage) return stockMessage;
+  if (responseData?.message) return responseData.message;
+
+  const validationMessage = getValidationErrorMessage(responseData?.errors);
+  if (validationMessage) return validationMessage;
+
+  return error.message || "Erreur lors de la soumission.";
+};
+
 const handleInvoiceSubmit = async (payload) => {
   isSubmitting.value = true;
   try {
@@ -287,7 +343,8 @@ const handleInvoiceSubmit = async (payload) => {
     }
   } catch (e) {
     console.error("Erreur lors de la soumission:", e);
-    showNotification("Erreur lors de la soumission.", 'error');
+    console.error("Détails d'erreur:", e.response?.data);
+    showNotification(getInvoiceSubmitErrorMessage(e, payload), 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -499,18 +556,6 @@ const closeProformaDetails = () => {
       </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div v-if="showToast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
-      <div class="toast show" :class="toastType === 'success' ? 'border-success' : 'border-danger'">
-        <div class="toast-body d-flex align-items-center gap-2">
-          <span :class="toastType === 'success' ? 'text-success' : 'text-danger'">
-            {{ toastType === 'success' ? '✓' : '✗' }}
-          </span>
-          {{ toastMessage }}
-          <button type="button" class="btn-close ms-auto" @click="showToast = false"></button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

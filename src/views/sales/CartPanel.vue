@@ -70,7 +70,7 @@ const cartTotalHT = computed(() => {
 const cartTotalTVA = computed(() => {
   return props.cart.reduce((total, item) => {
     const lineHT = item.price * item.quantity;
-    const vatRate = item.vat_rate ?? 18;
+    const vatRate = item.vat_rate ?? 0;
     return total + (lineHT * vatRate) / 100;
   }, 0);
 });
@@ -83,7 +83,7 @@ const cartTotalTTC = computed(() => {
 // Calculer TVA par ligne
 const getItemVAT = (item) => {
   const lineHT = item.price * item.quantity;
-  const vatRate = item.vat_rate ?? 18;
+  const vatRate = item.vat_rate ?? 0;
   return (lineHT * vatRate) / 100;
 };
 
@@ -97,10 +97,56 @@ const formatPrice = (price) => {
   return typeof price === "number" ? price.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : "0";
 };
 
+const formatValidationMessage = (errors) => {
+  const visibleErrors = errors.slice(0, 3).join(" • ");
+  const remainingCount = errors.length - 3;
+  return remainingCount > 0
+    ? `${visibleErrors} • +${remainingCount} autre(s) erreur(s)`
+    : visibleErrors;
+};
+
+// Valider les articles du panier avant soumission
+const validateCartItems = () => {
+  const errors = [];
+  
+  props.cart.forEach((item, index) => {
+    // Vérifier la quantité
+    if (!item.quantity || Number(item.quantity) <= 0) {
+      errors.push(`Article ${index + 1} (${item.name}): Quantité invalide ou manquante`);
+    }
+    
+    // Vérifier le prix
+    if (item.price === undefined || item.price === null || item.price === '' || Number(item.price) <= 0) {
+      errors.push(`Article ${index + 1} (${item.name}): Prix manquant ou invalide`);
+    }
+    
+    // Vérifier les propriétés essentielles
+    if (!item.id) {
+      errors.push(`Article ${index + 1}: ID produit manquant`);
+    }
+    if (!item.name) {
+      errors.push(`Article ${index + 1}: Nom du produit manquant`);
+    }
+  });
+  
+  return errors;
+};
+
 const submitInvoice = async () => {
-  if (props.cart.length === 0) return;
+  if (props.cart.length === 0) {
+    toast.warning("Le panier est vide.");
+    return;
+  }
+  
   if (!selectedClient.value) {
     toast.warning("Veuillez sélectionner un client.");
+    return;
+  }
+
+  // Valider les articles
+  const validationErrors = validateCartItems();
+  if (validationErrors.length > 0) {
+    toast.error(formatValidationMessage(validationErrors), 7000);
     return;
   }
 
@@ -115,17 +161,18 @@ const submitInvoice = async () => {
       items: props.cart.map((item) => ({
         product_id: item.id,
         item_designation: item.name,
-        item_quantity: item.quantity,
-        item_price: item.price,
-        vat: item.vat_rate ?? 18,
-        item_ct: 0,
-        item_tl: 0,
+        item_quantity: Number(item.quantity),
+        item_price: Number(item.price),
+        vat: item.vat_rate ?? 0,
+        item_ct: item.item_ct ?? 0,
+        item_tl: item.item_tl ?? 0,
       })),
     };
 
     emit("invoice-submitted", payload);
   } catch (error) {
     console.error("Erreur lors de la préparation de la facture:", error);
+    toast.error("Erreur lors de la préparation de la facture");
   }
 };
 
@@ -215,7 +262,7 @@ defineExpose({ clearClient });
                 {{ item.name }}
               </div>
               <span class="badge bg-info text-white small">
-                TVA {{ item.vat_rate ?? 18 }}%
+                TVA {{ item.vat_rate ?? 0 }}%
               </span>
             </div>
             <button
@@ -238,8 +285,11 @@ defineExpose({ clearClient });
                   type="number"
                   v-model.number="item.quantity"
                   class="form-control form-control-sm text-center p-0 fw-bold"
+                  :class="{ 'is-invalid': !item.quantity || item.quantity <= 0 }"
                   style="width: 45px; height: 32px"
                   min="1"
+                  step="1"
+                  required
                 />
                 <button
                   @click="$emit('update-quantity', item.id, 1)"
@@ -253,7 +303,11 @@ defineExpose({ clearClient });
                   type="number"
                   v-model.number="item.price"
                   class="form-control text-end pe-1 fw-bold text-primary"
+                  :class="{ 'is-invalid': !item.price || item.price <= 0 }"
                   placeholder="Prix"
+                  min="0.01"
+                  step="0.01"
+                  required
                 />
                 <span class="input-group-text px-1 small">{{ selectedCurrency }}</span>
               </div>
@@ -265,7 +319,7 @@ defineExpose({ clearClient });
                 <span>{{ formatPrice(item.price * item.quantity) }}</span>
               </div>
               <div class="d-flex justify-content-between text-info">
-                <span>TVA ({{ item.vat_rate ?? 18 }}%):</span>
+                <span>TVA ({{ item.vat_rate ?? 0 }}%):</span>
                 <span>{{ formatPrice(getItemVAT(item)) }}</span>
               </div>
               <div class="d-flex justify-content-between fw-bold text-dark">
@@ -303,7 +357,7 @@ defineExpose({ clearClient });
             <label class="form-label small text-muted pe-1 mb-0">Devise</label>
             <select v-model="selectedCurrency" class="form-select form-select-sm">
               <option value="BIF">BIF</option>
-              <option value="USD">USD</option>
+              <!-- <option value="USD">USD</option> -->
             </select>
           </div>
           <div class="col-6 d-flex align-items-center">
@@ -321,7 +375,7 @@ defineExpose({ clearClient });
         <button
           @click="submitInvoice"
           class="btn btn-primary fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-          :disabled="cart.length === 0 || isSubmitting || !selectedClient"
+          :disabled="isSubmitting"
         >
           <Loader2 v-if="isSubmitting" :size="20" class="animate-spin" />
           <CreditCard v-else :size="24" />
