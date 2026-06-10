@@ -133,9 +133,15 @@ const router = createRouter({
           meta: { permission: "bakery" },
         },
         {
+          path: '/bakery/rapports',
+          name: 'BolangerieRapports',
+          component: () => import("../views/bakery/BolangerieRapports.vue"),
+          meta: { permission: "bakery" },
+        },
+        {
           path: '/bakery/production/report',
           name: 'ProductionReport',
-          component: () => import("../views/bakery/ProductionReport.vue"),
+          component: () => import("../views/bakery/BolangerieRapports.vue"),
           meta: { permission: "bakery" },
         },
         {

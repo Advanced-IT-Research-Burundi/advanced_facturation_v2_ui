@@ -9,6 +9,9 @@
         <small class="text-muted">{{ productionWarehouse?.name }}</small>
       </div>
       <div>
+        <router-link to="/bakery/rapports" class="btn btn-outline-warning me-2">
+          <i class="bi bi-graph-up-arrow"></i> Rapports
+        </router-link>
         <router-link to="/bakery/production/history" class="btn btn-outline-info me-2">
           <i class="bi bi-clock-history"></i> Historique
         </router-link>

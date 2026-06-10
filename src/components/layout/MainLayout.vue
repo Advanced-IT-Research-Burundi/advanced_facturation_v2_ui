@@ -173,7 +173,20 @@ const navItems = [
     domains: ["hotel"],
   },
   { to: "/journal", icon: FileText, label: "Journal", permission: "journal" },
-  { to: "/reports", icon: BarChart2, label: "Rapports", permission: "reports" },
+  { 
+    to: "/reports", 
+    icon: BarChart2, 
+    label: "Rapports", 
+    permission: "reports",
+    "domains":["hotel", "restaurant"] // Exclut les entreprises généralistes
+  },
+  { 
+    to: "/bakery/rapports", 
+    icon: BarChart2, 
+    label: "Rapports", 
+    permission: "reports",
+    "domains":["bakery"] 
+  },
   { to: "/expenses", icon: Wallet, label: "Dépenses", permission: "expenses" },
   { to: "/company", icon: Building, label: "Entreprise", permission: "company" },
   { to: "/users", icon: UserCog, label: "Utilisateurs", permission: "users" },
