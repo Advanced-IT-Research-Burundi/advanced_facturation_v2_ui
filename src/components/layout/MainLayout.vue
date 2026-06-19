@@ -11,6 +11,7 @@ import {
   FileText,
   BarChart2,
   Wallet,
+  Landmark,
   Building,
   UserCog,
   LogOut,
@@ -187,6 +188,7 @@ const navItems = [
     permission: "reports",
     "domains":["bakery"] 
   },
+  { to: "/bank-deposits", icon: Landmark, label: "Banque", permission: "finance" },
   { to: "/expenses", icon: Wallet, label: "Dépenses", permission: "expenses" },
   { to: "/company", icon: Building, label: "Entreprise", permission: "company" },
   { to: "/users", icon: UserCog, label: "Utilisateurs", permission: "users" },

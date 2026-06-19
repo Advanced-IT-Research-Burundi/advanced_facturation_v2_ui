@@ -273,6 +273,12 @@ const router = createRouter({
           meta: { permission: "finance" },
         },
         {
+          path: "bank-deposits",
+          name: "bank-deposits",
+          component: () => import("../views/finance/BankDeposits.vue"),
+          meta: { permission: "finance" },
+        },
+        {
           path: "reminders",
           name: "reminders",
           component: () => import("../views/finance/Reminders.vue"),

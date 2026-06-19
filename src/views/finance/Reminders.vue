@@ -7,6 +7,7 @@ import {
 import api from '@/services/api';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import FinanceHeader from './FinanceHeader.vue';
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -188,6 +189,8 @@ onMounted(async () => {
 
 <template>
   <div class="container-fluid p-0">
+    <FinanceHeader />
+
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="h3 mb-1">Relances Clients</h1>

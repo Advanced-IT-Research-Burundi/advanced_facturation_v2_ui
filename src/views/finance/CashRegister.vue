@@ -5,6 +5,7 @@ import {
   Clock, CheckCircle, XCircle, Plus, RefreshCw, Printer
 } from 'lucide-vue-next';
 import api from '@/services/api';
+import FinanceHeader from './FinanceHeader.vue';
 
 // State
 const loading = ref(true);
@@ -195,6 +196,8 @@ onMounted(async () => {
 
 <template>
   <div class="container-fluid p-0">
+    <FinanceHeader />
+
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="h3 mb-1">Caisse Journalière</h1>
