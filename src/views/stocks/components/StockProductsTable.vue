@@ -44,6 +44,7 @@
                 <th>Produit</th>
                 <th>Code</th>
                 <th class="text-end">Quantité Disponible</th>
+                <th class="text-center">Alerte</th>
                 <th class="text-end">Prix Unitaire</th>
                 <th>Devise</th>
                 <th>Dernier Mouvement</th>
@@ -66,9 +67,20 @@
                 <td><code>{{ stock.product?.item_code }}</code></td>
                 <!-- Ligne 13: Quantité -->
                 <td class="text-end">
-                  <span class="badge fs-6" :class="stock.quantity > 0 ? 'bg-info' : 'bg-secondary'">
+                  <span class="badge fs-6" :class="stock.is_alert ? 'bg-danger' : stock.quantity > 0 ? 'bg-info' : 'bg-secondary'">
                     {{ stock.quantity }} {{ stock.product?.item_measurement_unit || 'PCE' }}
                   </span>
+                </td>
+                <td class="text-center">
+                  <span
+                    v-if="stock.is_alert"
+                    class="badge bg-danger-subtle text-danger border border-danger-subtle"
+                    :title="`Seuil: ${formatNumber(stock.alert_threshold)} ${stock.product?.item_measurement_unit || ''}`"
+                  >
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    Alerte
+                  </span>
+                  <span v-else class="text-muted">-</span>
                 </td>
                 <!-- Ligne 14: Prix unitaire -->
                 <td class="text-end">{{ formatNumber(stock.unit_price) }}</td>
@@ -103,7 +115,7 @@
               </tr>
               <!-- Ligne 18: Message si aucun produit -->
               <tr v-if="stockProducts.length === 0">
-                <td colspan="8" class="text-center py-5 text-muted">
+                <td colspan="9" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   <span v-if="searchQuery">Aucun produit trouvé pour "{{ searchQuery }}"</span>
                   <span v-else>Aucun produit dans ce stock</span>

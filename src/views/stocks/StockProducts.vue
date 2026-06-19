@@ -130,6 +130,8 @@
                   <tr>
                     <th class="px-3">Code</th>
                     <th class="px-3">Désignation</th>
+                    <th class="text-end px-3">Quantité</th>
+                    <th class="text-center px-3">Alerte</th>
                     <th class="text-end px-3"></th>
                   </tr>
                 </thead>
@@ -137,6 +139,26 @@
                   <tr v-for="p in inStock" :key="p.id">
                     <td class="px-3">{{ p.item_code }}</td>
                     <td class="px-3">{{ p.item_designation }}</td>
+                    <td class="text-end px-3">
+                      <span
+                        class="badge"
+                        :class="p.is_alert ? 'bg-danger' : 'bg-success'"
+                      >
+                        {{ formatNumber(p.stock_quantity) }}
+                        {{ p.item_measurement_unit || 'PCE' }}
+                      </span>
+                    </td>
+                    <td class="text-center px-3">
+                      <span
+                        v-if="p.is_alert"
+                        class="badge bg-danger-subtle text-danger border border-danger-subtle"
+                        :title="`Seuil: ${formatNumber(p.alert_threshold)} ${p.item_measurement_unit || ''}`"
+                      >
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        Alerte
+                      </span>
+                      <span v-else class="text-muted">-</span>
+                    </td>
                     <td class="text-end px-3">
                       <button
                         class="btn btn-xs btn-danger py-0 px-2"
@@ -149,7 +171,7 @@
                     </td>
                   </tr>
                   <tr v-if="!inStock.length">
-                    <td colspan="3" class="text-center py-3 text-muted">
+                    <td colspan="5" class="text-center py-3 text-muted">
                       Vide
                     </td>
                   </tr>
@@ -283,6 +305,13 @@ const notInStockPagination = ref({
   from: 0,
   to: 0,
 });
+
+const formatNumber = (value) => {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+};
 
 const handleSearchNotInStock = () => {
   loadProductsNotInStock(1);

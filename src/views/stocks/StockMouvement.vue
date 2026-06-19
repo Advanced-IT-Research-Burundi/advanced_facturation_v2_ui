@@ -134,6 +134,7 @@
                 <th>Code</th>
                 <th>Produit</th>
                 <th class="text-end">Quantité</th>
+                <th class="text-center">Alerte</th>
                 <th class="text-end">Prix Unitaire</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Actions</th>
@@ -150,10 +151,24 @@
                   </div>
                 </td>
                 <td class="text-end">
-                  <span class="badge bg-info fs-6">
+                  <span
+                    class="badge fs-6"
+                    :class="stock.is_alert ? 'bg-danger' : 'bg-info'"
+                  >
                     {{ stock.quantity }}
                     {{ stock.product?.item_measurement_unit }}
                   </span>
+                </td>
+                <td class="text-center">
+                  <span
+                    v-if="stock.is_alert"
+                    class="badge bg-danger-subtle text-danger border border-danger-subtle"
+                    :title="`Seuil: ${formatNumber(stock.alert_threshold)} ${stock.product?.item_measurement_unit || ''}`"
+                  >
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    Alerte
+                  </span>
+                  <span v-else class="text-muted">-</span>
                 </td>
                 <td class="text-end">
                   {{ formatCurrency(stock.unit_price, stock.currency) }}
@@ -179,7 +194,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="6" class="text-center py-5 text-muted">
+                <td colspan="7" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery

@@ -47,20 +47,31 @@
 
             <tr v-for="(item, index) in products" :key="item.id">
               <td class="ps-3 fw-bold text-muted">{{ calculateIndex(index) }}</td>
-              <td class="small fw-bold">{{ item.product?.sku || item.sku }}</td>
-              <td class="fw-medium">{{ item.product?.name || item.name }}</td>
-              <td>{{ item.product?.tva_rate || item.tva_rate || '18' }}%</td>
+              <td class="small fw-bold">{{ item.product?.item_code || item.item_code }}</td>
+              <td class="fw-medium">{{ item.product?.item_designation || item.item_designation }}</td>
+              <td>{{ item.product?.vat_rate || item.vat_rate || '18' }}%</td>
               <td class="fw-bold">{{ formatPrice(item.selling_price_ttc || item.unit_price) }}</td>
               <td class="text-center">
-                <span class="badge px-3 py-2 fs-6 w-75" :class="item.quantity > (item.min_quantity || 5) ? 'bg-success' : 'bg-danger'">
+                <span
+                  class="badge px-3 py-2 fs-6 w-75"
+                  :class="item.is_alert ? 'bg-danger' : 'bg-success'"
+                >
                   {{ item.quantity }}
                 </span>
               </td>
-              <td class="text-muted">{{ item.unit || 'pcs' }}</td>
+              <td class="text-muted">{{ item.product?.item_measurement_unit || item.item_measurement_unit || 'PCE' }}</td>
               <td class="text-center">
-                <i v-if="item.quantity <= (item.min_quantity || 5)" class="bi bi-exclamation-triangle-fill text-danger" title="Stock faible"></i>
+                <span
+                  v-if="item.is_alert"
+                  class="badge bg-danger-subtle text-danger border border-danger-subtle"
+                  :title="`Seuil: ${formatNumber(item.alert_threshold)} ${item.product?.item_measurement_unit || ''}`"
+                >
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                  Alerte
+                </span>
+                <span v-else class="text-muted">-</span>
               </td>
-              <td><span class="badge bg-light text-dark border">Pièces</span></td>
+              <td><span class="badge bg-light text-dark border">{{ item.product?.category_product?.name || item.product?.category_product?.category_name || '-' }}</span></td>
               <td class="text-primary fw-bold">EN/OUT</td>
               <td class="small text-muted">{{ formatDate(item.updated_at) }}</td>
               <td>
@@ -134,6 +145,7 @@ const handleSearch = () => {
 };
 
 const calculateIndex = (index) => (pagination.value.current_page - 1) * 15 + (index + 1);
+const formatNumber = (value) => new Intl.NumberFormat("fr-FR").format(Number(value) || 0);
 const formatPrice = (price) => new Intl.NumberFormat("fr-FR").format(price || 0) + " FBU";
 const formatDate = (dateStr) => {
   if (!dateStr) return "---";
