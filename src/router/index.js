@@ -279,6 +279,12 @@ const router = createRouter({
           meta: { permission: "finance" },
         },
         {
+          path: "finance-stock-value",
+          name: "finance-stock-value",
+          component: () => import("@/views/finance/StockValue.vue"),
+          meta: { permission: "finance" },
+        },
+        {
           path: "reminders",
           name: "reminders",
           component: () => import("../views/finance/Reminders.vue"),

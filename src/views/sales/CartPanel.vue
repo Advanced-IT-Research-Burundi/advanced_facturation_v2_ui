@@ -366,8 +366,8 @@ defineExpose({ clearClient });
             >
             <select v-model="selectedPaymentType" class="form-select form-select-sm">
               <option value="cash">Espèces</option>
-              <option value="mobile">Mobile</option>
-              <option value="banque">Banque</option>
+              <option value="bank_transfer">Banque</option>
+              <option value="credit">Crédit</option>
             </select>
           </div>
         </div>

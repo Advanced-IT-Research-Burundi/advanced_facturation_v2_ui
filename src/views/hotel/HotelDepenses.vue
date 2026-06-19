@@ -253,37 +253,11 @@ const saveDepense = async () => {
   try {
     await api.post('/hotel/depenses', { ...form.value, hotel_section: activeSection.value });
     showAddModal.value = false;
-
-    await registerDepenseInCaisse(form.value.name, form.value.montant);
-
     await loadDepenses(1);
   } catch (e) {
     formError.value = e.response?.data?.message || 'Erreur lors de l\'enregistrement.';
   } finally {
     saving.value = false;
-  }
-};
-
-/**
- * If an open cash register exists for the current section,
- * automatically record the depense as an expense movement.
- */
-const registerDepenseInCaisse = async (name, montant) => {
-  try {
-    const res = await api.get('/hotel/caisse/current', {
-      params: { hotel_section: activeSection.value },
-    });
-    const register = res.data?.data?.register;
-    if (register?.id) {
-      await api.post(`/hotel/caisse/${register.id}/movements`, {
-        type: 'expense',
-        amount: montant,
-        description: name,
-        reference: `DEP-${activeSectionLabel.value}`,
-      });
-    }
-  } catch {
-    // Aucune caisse ouverte ou erreur silencieuse — on ignore
   }
 };
 

@@ -1,11 +1,12 @@
 <script setup>
-import { Bell, Landmark, Wallet, Coins } from 'lucide-vue-next';
+import { Bell, Boxes, Coins, Landmark, Wallet } from 'lucide-vue-next';
 
 const links = [
   { name: 'Caisse', path: '/cash-register', icon: Wallet },
   { name: 'Versements banque', path: '/bank-deposits', icon: Landmark },
-  { name: 'Relances', path: '/reminders', icon: Bell },
-  { name: 'Devises', path: '/currencies', icon: Coins },
+  { name: 'Valeur du stock', path: '/finance-stock-value', icon: Boxes },
+  // { name: 'Relances', path: '/reminders', icon: Bell },
+  // { name: 'Devises', path: '/currencies', icon: Coins },
 ];
 </script>
 

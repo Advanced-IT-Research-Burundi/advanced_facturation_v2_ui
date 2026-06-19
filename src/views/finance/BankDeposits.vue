@@ -2,9 +2,12 @@
 import { computed, onMounted, ref } from 'vue';
 import {
   ArrowDownCircle,
+  Banknote,
   Calendar,
+  HandCoins,
   Landmark,
   Plus,
+  ReceiptText,
   RefreshCw,
   Trash2,
   Wallet,
@@ -185,6 +188,63 @@ onMounted(refreshAll);
 
     <template v-else>
       <div class="row g-4 mb-4">
+        <div class="col-md-6 col-xl-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div class="rounded-3 p-2 bg-success bg-opacity-10">
+                <Banknote :size="24" class="text-success" />
+              </div>
+              <div>
+                <p class="text-muted small mb-1">Ventes en espèces</p>
+                <h4 class="mb-0 text-success">{{ formatCurrency(summary?.sales_by_payment?.cash) }}</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div class="rounded-3 p-2 bg-primary bg-opacity-10">
+                <Landmark :size="24" class="text-primary" />
+              </div>
+              <div>
+                <p class="text-muted small mb-1">Ventes par virement bancaire</p>
+                <h4 class="mb-0 text-primary">{{ formatCurrency(summary?.sales_by_payment?.bank) }}</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div class="rounded-3 p-2 bg-warning bg-opacity-10">
+                <HandCoins :size="24" class="text-warning" />
+              </div>
+              <div>
+                <p class="text-muted small mb-1">Ventes à crédit</p>
+                <h4 class="mb-0 text-warning">{{ formatCurrency(summary?.sales_by_payment?.credit) }}</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div class="rounded-3 p-2 bg-danger bg-opacity-10">
+                <ReceiptText :size="24" class="text-danger" />
+              </div>
+              <div>
+                <p class="text-muted small mb-1">Dépenses</p>
+                <h4 class="mb-0 text-danger">{{ formatCurrency(summary?.expenses_total) }}</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4 mb-4">
         <div class="col-md-4">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex align-items-center gap-3">
@@ -198,7 +258,6 @@ onMounted(refreshAll);
             </div>
           </div>
         </div>
-
         <div class="col-md-4">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex align-items-center gap-3">
@@ -212,7 +271,6 @@ onMounted(refreshAll);
             </div>
           </div>
         </div>
-
         <div class="col-md-4">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex align-items-center gap-3">

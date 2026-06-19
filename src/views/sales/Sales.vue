@@ -228,60 +228,6 @@ watch(
   { deep: true }
 );
 
-// --- SUBMISSION LOGIC ---
-const barCategoryKeywords = ['boisson', 'brarudi', 'alcool', 'bière', 'biere', 'vin', 'cocktail', 'jus', 'soda', 'eau', 'drink', 'bar'];
-const restaurantCategoryKeywords = ['cuisine', 'plat', 'repas', 'menu', 'entrée', 'entree', 'dessert', 'restaurant', 'nourriture', 'food'];
-
-const getCaisseSection = (categoryName) => {
-  if (!categoryName) {
-    return 'restaurant';
-  }
-  const lower = categoryName.toLowerCase();
-  if (barCategoryKeywords.some((kw) => lower.includes(kw))) {
-    return 'bar';
-  }
-  if (restaurantCategoryKeywords.some((kw) => lower.includes(kw))) {
-    return 'restaurant';
-  }
-  return 'restaurant';
-};
-
-const registerSaleInCaisse = async (items, invoiceNumber) => {
-  const grouped = {};
-  items.forEach((item) => {
-    const section = getCaisseSection(item.category);
-    if (!grouped[section]) {
-      grouped[section] = { total: 0, names: [] };
-    }
-    const lineTotal = (item.item_price || item.price || 0) * (item.item_quantity || item.quantity || 1);
-    grouped[section].total += lineTotal;
-    grouped[section].names.push(item.item_designation || item.name || '');
-  });
-
-  const sectionLabels = { restaurant: 'Restaurant', bar: 'Bar' };
-
-  for (const [section, data] of Object.entries(grouped)) {
-    if (data.total <= 0) {
-      continue;
-    }
-    try {
-      const res = await api.get('/hotel/caisse/current', { params: { hotel_section: section } });
-      const register = res.data?.data?.register;
-      if (register?.id) {
-        const desc = `Vente ${sectionLabels[section] || section} — ${data.names.slice(0, 3).join(', ')}${data.names.length > 3 ? '...' : ''}`;
-        await api.post(`/hotel/caisse/${register.id}/movements`, {
-          type: 'income',
-          amount: data.total,
-          description: desc,
-          reference: invoiceNumber || 'POS',
-        });
-      }
-    } catch {
-      // No open caisse for this section
-    }
-  }
-};
-
 const getStockErrorMessage = (stockDetails = [], payloadItems = []) => {
   const unavailableItem = stockDetails.find((item) => item && item.is_available === false);
   if (!unavailableItem) return null;
@@ -327,13 +273,6 @@ const handleInvoiceSubmit = async (payload) => {
 
       invoiceToPrint.value = createdInvoice;
       showPrintModal.value = true;
-
-      const cartCopy = [...cart.value];
-      const cartItems = payload.items.map((item) => {
-        const cartMatch = cartCopy.find((c) => c.id === item.product_id);
-        return { ...item, category: cartMatch?.category || null };
-      });
-      registerSaleInCaisse(cartItems, createdInvoice?.invoice_number);
 
       if (payload.invoice_action === "POS") {
         cart.value = [];
