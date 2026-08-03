@@ -254,78 +254,63 @@ defineExpose({ clearClient });
         <div
           v-for="item in cart"
           :key="item.id"
-          class="cart-item p-2 border rounded-3 bg-white"
+          class="cart-item px-2 py-2 border rounded-2 bg-white"
         >
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <div>
-              <div class="fw-bold text-truncate pe-2" :title="item.name">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="min-w-0 flex-grow-1">
+              <div class="cart-item-name fw-semibold text-truncate" :title="item.name">
                 {{ item.name }}
               </div>
-              <span class="badge bg-info text-white small">
-                TVA {{ item.vat_rate ?? 0 }}%
-              </span>
+              <div class="cart-item-meta d-flex align-items-center gap-2 text-muted">
+                <span>TVA {{ item.vat_rate ?? 0 }}%</span>
+                <span class="fw-semibold text-primary">
+                  {{ formatPrice(getItemTTC(item)) }} {{ selectedCurrency }}
+                </span>
+              </div>
             </div>
             <button
               @click="$emit('remove-from-cart', item.id)"
-              class="btn btn-sm btn-link text-danger p-0 align-self-start"
+              class="btn btn-sm btn-link text-danger p-0 cart-delete-btn"
             >
               <Trash2 :size="16" />
             </button>
           </div>
-          <div class="d-flex flex-column gap-2 mt-1">
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="d-flex align-items-center gap-1">
-                <button
-                  @click="$emit('update-quantity', item.id, -1)"
-                  class="btn btn-sm btn-light border p-1"
-                >
-                  <Minus :size="14" />
-                </button>
-                <input
-                  type="number"
-                  v-model.number="item.quantity"
-                  class="form-control form-control-sm text-center p-0 fw-bold"
-                  :class="{ 'is-invalid': !item.quantity || item.quantity <= 0 }"
-                  style="width: 45px; height: 32px"
-                  min="1"
-                  step="1"
-                  required
-                />
-                <button
-                  @click="$emit('update-quantity', item.id, 1)"
-                  class="btn btn-sm btn-light border p-1"
-                >
-                  <Plus :size="14" />
-                </button>
-              </div>
-              <div class="input-group input-group-sm" style="width: 130px">
-                <input
-                  type="number"
-                  v-model.number="item.price"
-                  class="form-control text-end pe-1 fw-bold text-primary"
-                  :class="{ 'is-invalid': !item.price || item.price <= 0 }"
-                  placeholder="Prix"
-                  min="0.01"
-                  step="0.01"
-                  required
-                />
-                <span class="input-group-text px-1 small">{{ selectedCurrency }}</span>
-              </div>
+          <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+            <div class="quantity-control d-flex align-items-center gap-1">
+              <button
+                @click="$emit('update-quantity', item.id, -1)"
+                class="btn btn-sm btn-light border p-0"
+              >
+                <Minus :size="14" />
+              </button>
+              <input
+                type="number"
+                v-model.number="item.quantity"
+                class="form-control form-control-sm text-center p-0 fw-bold quantity-input"
+                :class="{ 'is-invalid': !item.quantity || item.quantity <= 0 }"
+                min="1"
+                step="1"
+                required
+              />
+              <button
+                @click="$emit('update-quantity', item.id, 1)"
+                class="btn btn-sm btn-light border p-0"
+              >
+                <Plus :size="14" />
+              </button>
             </div>
-            <!-- Détails TVA par ligne -->
-            <div class="border-top pt-1 mt-1 small">
-              <div class="d-flex justify-content-between text-muted">
-                <span>HT:</span>
-                <span>{{ formatPrice(item.price * item.quantity) }}</span>
-              </div>
-              <div class="d-flex justify-content-between text-info">
-                <span>TVA ({{ item.vat_rate ?? 0 }}%):</span>
-                <span>{{ formatPrice(getItemVAT(item)) }}</span>
-              </div>
-              <div class="d-flex justify-content-between fw-bold text-dark">
-                <span>TTC:</span>
-                <span>{{ formatPrice(getItemTTC(item)) }} {{ selectedCurrency }}</span>
-              </div>
+            <div class="input-group input-group-sm price-input-group">
+              <input
+                type="number"
+                v-model.number="item.price"
+                class="form-control text-end pe-1 fw-bold text-primary"
+                :class="{ 'is-invalid': !item.price || item.price <= 0 }"
+                placeholder="Prix"
+                min="0.01"
+                step="0.01"
+                required
+              />
+              <span class="input-group-text px-1 small">{{ selectedCurrency }}</span>
             </div>
           </div>
         </div>
@@ -396,6 +381,38 @@ defineExpose({ clearClient });
 }
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+.cart-item {
+  border-color: #e9ecef !important;
+}
+.min-w-0 {
+  min-width: 0;
+}
+.cart-item-name {
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+.cart-item-meta {
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+.cart-delete-btn {
+  width: 22px;
+  height: 22px;
+}
+.quantity-control .btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.quantity-input {
+  width: 42px;
+  height: 28px;
+}
+.price-input-group {
+  width: 118px;
 }
 @keyframes spin {
   from { transform: rotate(0deg); }

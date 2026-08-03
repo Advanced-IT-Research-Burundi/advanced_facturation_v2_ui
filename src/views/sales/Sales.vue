@@ -198,16 +198,19 @@ const addToCart = (product) => {
     category: product.category,
     vat_rate: Number.isNaN(vatRate) ? 0 : vatRate,
     item_code: product.item_code,
+    barcode: product.barcode,
     // Propriétés optionnelles
     item_ct: product.item_ct || 0,
     item_tl: product.item_tl || 0,
   };
   
-  const existing = cart.value.find((i) => i.id === normalizedProduct.id);
-  if (existing) {
+  const existingIndex = cart.value.findIndex((i) => i.id === normalizedProduct.id);
+  if (existingIndex !== -1) {
+    const [existing] = cart.value.splice(existingIndex, 1);
     existing.quantity++;
+    cart.value.unshift(existing);
   } else {
-    cart.value.push(normalizedProduct);
+    cart.value.unshift(normalizedProduct);
   }
 };
 

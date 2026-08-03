@@ -18,7 +18,7 @@
     <h4 class="mb-4 fw-normal">Nouveau Produit</h4>
 
     <div class="bg-white p-4 border rounded shadow-sm">
-      <form @submit.prevent="submitProduct">
+      <form @submit.prevent @keydown.enter="preventInputEnterSubmit">
         <div class="row g-3">
           <div class="col-md-3">
             <label class="form-label text-uppercase small text-muted">Code de produit</label>
@@ -121,7 +121,7 @@
           <button type="button" @click="$router.push('/stock')" class="btn btn-outline-secondary px-4 shadow-sm">
             Annuler
           </button>
-          <button type="submit" class="btn btn-red-dark text-white px-5 py-2 shadow" :disabled="submitting">
+          <button type="button" @click="submitProduct" class="btn btn-red-dark text-white px-5 py-2 shadow" :disabled="submitting">
             <span v-if="submitting" class="spinner-border spinner-border-sm me-2"></span>
             Enregistrer le produit
           </button>
@@ -166,6 +166,15 @@ const calculateFromTtc = () => {
   const ttc = parseFloat(form.selling_price_ttc) || 0;
   const tva = parseFloat(form.tva_rate) || 0;
   form.selling_price_ht = parseFloat((ttc / (1 + tva / 100)).toFixed(2));
+};
+
+const preventInputEnterSubmit = (event) => {
+  const target = event.target;
+  if (!target || target.tagName === "TEXTAREA") return;
+
+  if (target.tagName === "INPUT" || target.tagName === "SELECT") {
+    event.preventDefault();
+  }
 };
 
 const submitProduct = async () => {

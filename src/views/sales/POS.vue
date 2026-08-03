@@ -14,6 +14,7 @@ const isLoadingProducts = ref(false);
 const searchQuery = ref("");
 const selectedCategory = ref("Tous");
 const selectedStock = ref(null);
+const lastAutoAddedScan = ref("");
 let searchTimeout = null;
 
 onMounted(() => {
@@ -53,15 +54,16 @@ watch(selectedStock, (newStockId) => {
 
 const fetchProducts = async (search = "") => {
   isLoadingProducts.value = true;
+  const currentSearch = search.trim();
   try {
     const response = await api.get("/pos-products", {
       params: {
         stock_id: selectedPOSStock.value,
-        search: search
+        search: currentSearch
       }
     });
     if (response.data.success) {
-    store.state.data.productsPOS = response.data.data.map((p) => ({
+      const productsData = response.data.data.map((p) => ({
         id: p.id,
         name: p.name,
         price: p.price,
@@ -69,7 +71,14 @@ const fetchProducts = async (search = "") => {
         stock: p.stock,
         vat_rate: p.vat_rate,
         item_code: p.item_code,
+        barcode: p.barcode,
       }));
+
+      store.state.data.productsPOS = productsData;
+
+      if (normalizeCode(searchQuery.value) === normalizeCode(currentSearch)) {
+        autoAddSingleScanResult(productsData, currentSearch);
+      }
     }
   } catch (error) {
     console.error("Erreur lors de la récupération des produits:", error);
@@ -78,11 +87,48 @@ const fetchProducts = async (search = "") => {
   }
 };
 
+const normalizeCode = (value) => String(value ?? "").trim().toLowerCase();
+
+const isExactScanMatch = (product, search) => {
+  const query = normalizeCode(search);
+  return [product.barcode, product.item_code].some(
+    (code) => normalizeCode(code) === query
+  );
+};
+
+const autoAddSingleScanResult = (productsData, search) => {
+  const query = search.trim();
+  if (!query || productsData.length !== 1) return;
+
+  const product = productsData[0];
+  const looksLikeBarcode = query.length >= 6;
+  if (!looksLikeBarcode && !isExactScanMatch(product, query)) return;
+
+  const scanKey = `${selectedPOSStock.value}-${query}-${product.id}`;
+  if (lastAutoAddedScan.value === scanKey) return;
+
+  lastAutoAddedScan.value = scanKey;
+  emit("add-to-cart", product);
+  searchQuery.value = "";
+  selectedCategory.value = "Tous";
+};
+
+const handleSearchEnter = () => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  fetchProducts(searchQuery.value);
+};
+
 
 
 
 // Debounce search to avoid too many API calls
 watch(searchQuery, (newVal) => {
+  if (!newVal.trim()) {
+    lastAutoAddedScan.value = "";
+  }
+
   if (searchTimeout) {
     clearTimeout(searchTimeout);
   }
@@ -148,6 +194,7 @@ defineExpose({ fetchProducts });
               type="text"
               class="form-control bg-light border-start-0"
               placeholder="Rechercher un produit..."
+              @keyup.enter="handleSearchEnter"
             />
             <span
               v-if="isLoadingProducts"
