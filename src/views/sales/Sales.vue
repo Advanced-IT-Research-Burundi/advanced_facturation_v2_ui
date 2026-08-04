@@ -31,6 +31,7 @@ const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
 const selectedWarehouseId = ref(null);
 const invoiceListKey = ref(0);
 const posProducts = computed(() => store.state.data?.productsPOS || []);
+const posRef = ref(null);
 
 // --- PRINT MODAL STATE ---
 const showPrintModal = ref(false);
@@ -305,6 +306,30 @@ const getInvoiceSubmitErrorMessage = (error, payload) => {
   return error.message || "Erreur lors de la soumission.";
 };
 
+const decrementPOSStockAfterSale = (items = []) => {
+  const soldQuantities = new Map();
+
+  items.forEach((item) => {
+    const key = item.warehouse_product_id || item.product_id;
+    if (!key) return;
+
+    const quantity = Number(item.item_quantity) || 0;
+    soldQuantities.set(key, (soldQuantities.get(key) || 0) + quantity);
+  });
+
+  store.state.data.productsPOS = posProducts.value
+    .map((product) => {
+      const key = product.warehouse_product_id || product.id;
+      const soldQuantity = soldQuantities.get(key) || 0;
+
+      return {
+        ...product,
+        stock: Math.max((Number(product.stock) || 0) - soldQuantity, 0),
+      };
+    })
+    .filter((product) => Number(product.stock) > 0);
+};
+
 const handleInvoiceSubmit = async (payload) => {
   isSubmitting.value = true;
   try {
@@ -316,7 +341,9 @@ const handleInvoiceSubmit = async (payload) => {
       showPrintModal.value = true;
 
       if (payload.invoice_action === "POS") {
+        decrementPOSStockAfterSale(payload.items);
         cart.value = [];
+        await posRef.value?.fetchProducts?.();
       }
     } else {
       showNotification("Erreur: " + response.data.message, 'error');
@@ -415,6 +442,7 @@ const closeProformaDetails = () => {
       >
         <POS
           v-if="activeTab === 'POS'"
+          ref="posRef"
           :cart="cart"
           @add-to-cart="addToCart"
           @stock-changed="handleStockChanged"
