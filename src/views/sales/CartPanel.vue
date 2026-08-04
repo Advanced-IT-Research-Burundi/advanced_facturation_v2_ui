@@ -40,7 +40,7 @@ const emit = defineEmits([
 const selectedClient = ref(null);
 const clientSearchText = ref("");
 const selectedCurrency = ref("BIF");
-const selectedPaymentType = ref("cash");
+const selectedPaymentType = ref("1");
 
 const filteredCustomers = computed(() => {
   if (!clientSearchText.value) return [];
@@ -344,9 +344,10 @@ defineExpose({ clearClient });
               >Paiement</label
             >
             <select v-model="selectedPaymentType" class="form-select form-select-sm">
-              <option value="cash">Espèces</option>
-              <option value="bank_transfer">Banque</option>
-              <option value="credit">Crédit</option>
+              <option value="1">Espèces</option>
+              <option value="2">Banque</option>
+              <option value="3">À crédit</option>
+              <option value="4">Autres</option>
             </select>
           </div>
         </div>

@@ -37,12 +37,17 @@ export function useInvoicePrint() {
     return types[type] || 'Facture';
   };
 
+  const getElectronicSignature = (invoice) => {
+    return invoice?.obr_electronic_signature || invoice?.electronic_signature || '';
+  };
+
   /**
    * Impression format A4 — mise en page professionnelle
    */
   const printA4 = (invoice, company = null) => {
     const items = invoice.invoice_items || invoice.items || [];
     const currency = invoice.invoice_currency || 'BIF';
+    const electronicSignature = getElectronicSignature(invoice);
 
     const itemsHtml = items
       .map(
@@ -110,6 +115,7 @@ export function useInvoicePrint() {
     .obr-info p { margin: 2px 0; }
     .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 10px; color: #666; text-align: center; }
     .footer p { margin: 2px 0; }
+    .electronic-signature { word-break: break-all; }
   </style>
 </head>
 <body>
@@ -174,6 +180,7 @@ export function useInvoicePrint() {
     <div class="footer">
       <p>Merci pour votre confiance !</p>
       <p>Document généré le ${formatDate(new Date())}</p>
+      ${electronicSignature ? `<p class="electronic-signature">Signature électronique : ${electronicSignature}</p>` : ''}
     </div>
   </div>
 </body>
@@ -188,6 +195,7 @@ export function useInvoicePrint() {
   const printPOS = (invoice, company = null) => {
     const items = invoice.invoice_items || invoice.items || [];
     const currency = invoice.invoice_currency || 'BIF';
+    const electronicSignature = getElectronicSignature(invoice);
 
     const itemsHtml = items
       .map(
@@ -318,7 +326,8 @@ export function useInvoicePrint() {
 
   <div class="center" style="font-size: 9px; margin-top: 4px;">
     <div class="bold">Merci pour votre confiance !</div>
-    <div>${formatDate(new Date())}</div>
+    <div>Document généré le ${formatDate(new Date())}</div>
+    ${electronicSignature ? `<div style="word-break:break-all;">Signature électronique : ${electronicSignature}</div>` : ''}
   </div>
 </body>
 </html>`;

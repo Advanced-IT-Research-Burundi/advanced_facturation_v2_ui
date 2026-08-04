@@ -30,6 +30,10 @@ const invoiceTotals = computed(() => ({
   totalAmount: parseFloat(props.invoice?.invoice_total_amount) || 0,
 }));
 
+const electronicSignature = computed(() => {
+  return props.invoice?.obr_electronic_signature || props.invoice?.electronic_signature || "";
+});
+
 const invoiceTypeLabel = computed(() => {
   const types = {
     FN: "Facture Normale",
@@ -174,6 +178,9 @@ const formatDate = (date) => {
             <div class="footer">
               <p>Merci pour votre confiance!</p>
               <p>Document généré le {{ formatDate(new Date()) }}</p>
+              <p v-if="electronicSignature" class="electronic-signature">
+                Signature électronique: {{ electronicSignature }}
+              </p>
             </div>
           </div>
         </div>
@@ -348,6 +355,10 @@ tr:nth-child(even) {
   font-size: 10px;
   color: #666;
   text-align: center;
+}
+
+.electronic-signature {
+  word-break: break-all;
 }
 
 .obr-info {
