@@ -6,6 +6,10 @@ import { useStore } from "vuex";
 
 const props = defineProps({
   isLoading: Boolean,
+  cart: {
+    type: Array,
+    default: () => [],
+  },
 });
 const store = useStore();
 const emit = defineEmits(["add-to-cart", "stock-changed"]);
@@ -98,6 +102,22 @@ const isExactScanMatch = (product, search) => {
   );
 };
 
+const getCartQuantity = (productId) => {
+  const item = props.cart.find((cartItem) => cartItem.id === productId);
+  return Number(item?.quantity) || 0;
+};
+
+const getAvailableStock = (product) => {
+  return Math.max((Number(product.stock) || 0) - getCartQuantity(product.id), 0);
+};
+
+const addProductToCart = (product) => {
+  if (getAvailableStock(product) <= 0) return false;
+
+  emit("add-to-cart", product);
+  return true;
+};
+
 const autoAddSingleScanResult = (productsData, search) => {
   const query = search.trim();
   if (!query || productsData.length !== 1) return;
@@ -110,9 +130,10 @@ const autoAddSingleScanResult = (productsData, search) => {
   if (lastAutoAddedScan.value === scanKey) return;
 
   lastAutoAddedScan.value = scanKey;
-  emit("add-to-cart", product);
-  searchQuery.value = "";
-  selectedCategory.value = "Tous";
+  if (addProductToCart(product)) {
+    searchQuery.value = "";
+    selectedCategory.value = "Tous";
+  }
 };
 
 const handleSearchEnter = () => {
@@ -145,18 +166,23 @@ const stocks = computed(() => store.state.data?.stocksPOS || []);
 const selectedPOSStock = computed(() => selectedStock.value || store.state.data?.stocksPOS?.[0]?.warehouse_id);
 
 const categories = computed(() => {
-  if (!products.value || products.value.length === 0) return ["Tous"];
-  const cats = new Set(products.value.map((p) => p.category).filter(Boolean));
+  if (!availableProducts.value || availableProducts.value.length === 0) return ["Tous"];
+  const cats = new Set(availableProducts.value.map((p) => p.category).filter(Boolean));
   return ["Tous", ...cats];
 });
 
-const filteredProducts = computed(() => {
+const availableProducts = computed(() => {
   return products.value.filter((product) => {
-    const hasStock = Number(product.stock) > 0;
+    return getAvailableStock(product) > 0;
+  });
+});
+
+const filteredProducts = computed(() => {
+  return availableProducts.value.filter((product) => {
     const matchesCategory =
       selectedCategory.value === "Tous" ||
       product.category === selectedCategory.value;
-    return hasStock && matchesCategory;
+    return matchesCategory;
   });
 });
 
@@ -239,7 +265,7 @@ defineExpose({ fetchProducts });
         >
           <div
             class="card h-100 border-0 shadow-sm product-card cursor-pointer"
-            @click="$emit('add-to-cart', product)"
+            @click="addProductToCart(product)"
           >
             <div class="card-body p-3 d-flex flex-column h-100">
               <div
@@ -256,7 +282,7 @@ defineExpose({ fetchProducts });
                   >{{ formatPrice(product.price) }} FBU</span
                 >
                 <span class="badge bg-light text-secondary border">{{
-                  product.stock
+                  getAvailableStock(product)
                 }}</span>
               </div>
             </div>

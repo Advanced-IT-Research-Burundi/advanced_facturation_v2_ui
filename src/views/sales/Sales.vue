@@ -65,6 +65,10 @@ const fetchInvoices = () => {
 
 // Handle warehouse change from POS
 const handleStockChanged = (warehouseId) => {
+  if (selectedWarehouseId.value && selectedWarehouseId.value !== warehouseId) {
+    cart.value = [];
+  }
+
   selectedWarehouseId.value = warehouseId;
 };
 
@@ -375,7 +379,12 @@ const closeProformaDetails = () => {
           activeTab === 'POS' ? 'col-12 col-lg-8 overflow-hidden' : 'col-12',
         ]"
       >
-        <POS v-if="activeTab === 'POS'" @add-to-cart="addToCart" @stock-changed="handleStockChanged" />
+        <POS
+          v-if="activeTab === 'POS'"
+          :cart="cart"
+          @add-to-cart="addToCart"
+          @stock-changed="handleStockChanged"
+        />
         <InvoiceService
           v-else-if="activeTab === 'Service'"
           :is-submitting="isSubmitting"
