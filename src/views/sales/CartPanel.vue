@@ -254,18 +254,12 @@ defineExpose({ clearClient });
         <div
           v-for="item in cart"
           :key="item.id"
-          class="cart-item px-2 py-2 border rounded-2 bg-white"
+          class="cart-item px-2 py-1 border rounded-2 bg-white"
         >
-          <div class="d-flex justify-content-between align-items-start gap-2">
+          <div class="cart-item-row d-flex justify-content-between align-items-center gap-2">
             <div class="min-w-0 flex-grow-1">
               <div class="cart-item-name fw-semibold text-truncate" :title="item.name">
                 {{ item.name }}
-              </div>
-              <div class="cart-item-meta d-flex align-items-center gap-2 text-muted">
-                <span>TVA {{ item.vat_rate ?? 0 }}%</span>
-                <span class="fw-semibold text-primary">
-                  {{ formatPrice(getItemTTC(item)) }} {{ selectedCurrency }}
-                </span>
               </div>
             </div>
             <button
@@ -275,7 +269,7 @@ defineExpose({ clearClient });
               <Trash2 :size="16" />
             </button>
           </div>
-          <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+          <div class="cart-item-row d-flex align-items-center justify-content-between gap-2">
             <div class="quantity-control d-flex align-items-center gap-1">
               <button
                 @click="$emit('update-quantity', item.id, -1)"
@@ -385,34 +379,33 @@ defineExpose({ clearClient });
 .cart-item {
   border-color: #e9ecef !important;
 }
+.cart-item-row {
+  min-height: 28px;
+}
 .min-w-0 {
   min-width: 0;
 }
 .cart-item-name {
-  font-size: 0.9rem;
-  line-height: 1.2;
-}
-.cart-item-meta {
-  font-size: 0.74rem;
-  line-height: 1.2;
+  font-size: 0.86rem;
+  line-height: 1.1;
 }
 .cart-delete-btn {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 .quantity-control .btn {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 .quantity-input {
-  width: 42px;
-  height: 28px;
+  width: 70px;
+  height: 26px;
 }
 .price-input-group {
-  width: 118px;
+  width: 152px;
 }
 @keyframes spin {
   from { transform: rotate(0deg); }

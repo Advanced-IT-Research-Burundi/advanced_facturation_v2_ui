@@ -63,16 +63,18 @@ const fetchProducts = async (search = "") => {
       }
     });
     if (response.data.success) {
-      const productsData = response.data.data.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        category: p.category || "Général",
-        stock: p.stock,
-        vat_rate: p.vat_rate,
-        item_code: p.item_code,
-        barcode: p.barcode,
-      }));
+      const productsData = response.data.data
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          category: p.category || "Général",
+          stock: Number(p.stock) || 0,
+          vat_rate: p.vat_rate,
+          item_code: p.item_code,
+          barcode: p.barcode,
+        }))
+        .filter((product) => product.stock > 0);
 
       store.state.data.productsPOS = productsData;
 
@@ -150,10 +152,11 @@ const categories = computed(() => {
 
 const filteredProducts = computed(() => {
   return products.value.filter((product) => {
+    const hasStock = Number(product.stock) > 0;
     const matchesCategory =
       selectedCategory.value === "Tous" ||
       product.category === selectedCategory.value;
-    return matchesCategory;
+    return hasStock && matchesCategory;
   });
 });
 
