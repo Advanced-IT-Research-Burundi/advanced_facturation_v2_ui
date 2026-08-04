@@ -58,10 +58,27 @@ const selectCustomer = (customer) => {
   clientSearchText.value = customer.customer_name;
 };
 
+const getItemPrice = (item) => {
+  return Number(item.price || item.unit_price) || 0;
+};
+
+watch(
+  () => props.cart,
+  (cartItems) => {
+    cartItems.forEach((item) => {
+      const unitPrice = Number(item.unit_price) || 0;
+      if ((!item.price || Number(item.price) <= 0) && unitPrice > 0) {
+        item.price = unitPrice;
+      }
+    });
+  },
+  { deep: true, immediate: true }
+);
+
 // Calcul du total HT (Hors Taxes)
 const cartTotalHT = computed(() => {
   return props.cart.reduce(
-    (total, item) => total + item.price * item.quantity,
+    (total, item) => total + getItemPrice(item) * item.quantity,
     0
   );
 });
@@ -69,7 +86,7 @@ const cartTotalHT = computed(() => {
 // Calcul du total TVA
 const cartTotalTVA = computed(() => {
   return props.cart.reduce((total, item) => {
-    const lineHT = item.price * item.quantity;
+    const lineHT = getItemPrice(item) * item.quantity;
     const vatRate = item.vat_rate ?? 0;
     return total + (lineHT * vatRate) / 100;
   }, 0);
@@ -82,14 +99,14 @@ const cartTotalTTC = computed(() => {
 
 // Calculer TVA par ligne
 const getItemVAT = (item) => {
-  const lineHT = item.price * item.quantity;
+  const lineHT = getItemPrice(item) * item.quantity;
   const vatRate = item.vat_rate ?? 0;
   return (lineHT * vatRate) / 100;
 };
 
 // Calculer TTC par ligne
 const getItemTTC = (item) => {
-  const lineHT = item.price * item.quantity;
+  const lineHT = getItemPrice(item) * item.quantity;
   return lineHT + getItemVAT(item);
 };
 
@@ -116,7 +133,7 @@ const validateCartItems = () => {
     }
     
     // Vérifier le prix
-    if (item.price === undefined || item.price === null || item.price === '' || Number(item.price) <= 0) {
+    if (getItemPrice(item) <= 0) {
       errors.push(`Article ${index + 1} (${item.name}): Prix manquant ou invalide`);
     }
     
@@ -160,9 +177,10 @@ const submitInvoice = async () => {
       warehouse_id: props.warehouseId,
       items: props.cart.map((item) => ({
         product_id: item.id,
+        warehouse_product_id: item.warehouse_product_id,
         item_designation: item.name,
         item_quantity: Number(item.quantity),
-        item_price: Number(item.price),
+        item_price: getItemPrice(item),
         vat: item.vat_rate ?? 0,
         item_ct: item.item_ct ?? 0,
         item_tl: item.item_tl ?? 0,
@@ -336,7 +354,8 @@ defineExpose({ clearClient });
             <label class="form-label small text-muted pe-1 mb-0">Devise</label>
             <select v-model="selectedCurrency" class="form-select form-select-sm">
               <option value="BIF">BIF</option>
-              <!-- <option value="USD">USD</option> -->
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
             </select>
           </div>
           <div class="col-6 d-flex align-items-center">

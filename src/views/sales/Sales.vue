@@ -30,6 +30,7 @@ const customers = ref([]);
 const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
 const selectedWarehouseId = ref(null);
 const invoiceListKey = ref(0);
+const posProducts = computed(() => store.state.data?.productsPOS || []);
 
 // --- PRINT MODAL STATE ---
 const showPrintModal = ref(false);
@@ -65,7 +66,14 @@ const fetchInvoices = () => {
 
 // Handle warehouse change from POS
 const handleStockChanged = (warehouseId) => {
-  if (selectedWarehouseId.value && selectedWarehouseId.value !== warehouseId) {
+  const hasCartFromAnotherStock = cart.value.some(
+    (item) => !item.warehouse_id || item.warehouse_id !== warehouseId
+  );
+
+  if (
+    (selectedWarehouseId.value && selectedWarehouseId.value !== warehouseId) ||
+    (!selectedWarehouseId.value && hasCartFromAnotherStock)
+  ) {
     cart.value = [];
   }
 
@@ -192,17 +200,21 @@ const addToCart = (product) => {
   const vatRate = product.vat_rate === null || product.vat_rate === undefined
     ? 0
     : Number(product.vat_rate);
+  const productPrice = Number(product.price || product.unit_price) || 0;
 
   // Assurer que le produit a toutes les propriétés requises
   const normalizedProduct = {
     id: product.id,
+    warehouse_product_id: product.warehouse_product_id,
+    warehouse_id: product.warehouse_id || selectedWarehouseId.value,
     name: product.name,
-    price: Number(product.price) || 0,
+    price: productPrice,
     quantity: 1,
     category: product.category,
     vat_rate: Number.isNaN(vatRate) ? 0 : vatRate,
     item_code: product.item_code,
     barcode: product.barcode,
+    unit_price: Number(product.unit_price) || 0,
     // Propriétés optionnelles
     item_ct: product.item_ct || 0,
     item_tl: product.item_tl || 0,
@@ -211,6 +223,9 @@ const addToCart = (product) => {
   const existingIndex = cart.value.findIndex((i) => i.id === normalizedProduct.id);
   if (existingIndex !== -1) {
     const [existing] = cart.value.splice(existingIndex, 1);
+    if ((!existing.price || Number(existing.price) <= 0) && productPrice > 0) {
+      existing.price = productPrice;
+    }
     existing.quantity++;
     cart.value.unshift(existing);
   } else {
@@ -226,6 +241,25 @@ const updateQuantity = (id, delta) => {
 const removeFromCart = (id) => {
   cart.value = cart.value.filter((i) => i.id !== id);
 };
+
+watch(
+  posProducts,
+  (products) => {
+    cart.value.forEach((item) => {
+      if (item.price && Number(item.price) > 0) return;
+
+      const product = products.find((posProduct) => posProduct.id === item.id);
+      const productPrice = Number(product?.price || product?.unit_price) || 0;
+      if (productPrice > 0) {
+        item.price = productPrice;
+        item.unit_price = Number(product?.unit_price) || productPrice;
+        item.warehouse_product_id = product?.warehouse_product_id || item.warehouse_product_id;
+        item.warehouse_id = product?.warehouse_id || item.warehouse_id;
+      }
+    });
+  },
+  { deep: true }
+);
 
 watch(
   cart,

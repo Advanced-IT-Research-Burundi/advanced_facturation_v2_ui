@@ -70,8 +70,11 @@ const fetchProducts = async (search = "") => {
       const productsData = response.data.data
         .map((p) => ({
           id: p.id,
+          warehouse_product_id: p.warehouse_product_id,
+          warehouse_id: selectedPOSStock.value,
           name: p.name,
-          price: p.price,
+          price: Number(p.price || p.unit_price) || 0,
+          unit_price: Number(p.unit_price) || 0,
           category: p.category || "Général",
           stock: Number(p.stock) || 0,
           vat_rate: p.vat_rate,
