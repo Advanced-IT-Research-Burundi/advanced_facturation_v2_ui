@@ -23,7 +23,6 @@ let searchTimeout = null;
 
 onMounted(() => {
   fetchStock();
-  fetchProducts();
 });
 const fetchStock = async () => {
   try {
@@ -47,16 +46,34 @@ const fetchStock = async () => {
 
 // Watch for stock selection changes
 watch(selectedStock, (newStockId) => {
-  const stock = stocks.value?.find(s => s.warehouse_id === newStockId);
-  if (stock) {
-    const warehouseId = stock.warehouse_id || stock.warehouse?.id;
+  const stock = stocks.value?.find((item) =>
+    String(item.warehouse_id || item.warehouse?.id || item.id) === String(newStockId)
+  );
+  if (stock && newStockId) {
+    const warehouseId = stock.warehouse_id || stock.warehouse?.id || stock.id;
     emit("stock-changed", warehouseId);
     fetchProducts();
   }
 });
 
+const getProductStock = (product) => {
+  const value = product.stock
+    ?? product.quantity_available
+    ?? product.available_stock
+    ?? product.stock_quantity
+    ?? product.quantity
+    ?? product.warehouse_product?.quantity
+    ?? 0;
+
+  return Number(value) || 0;
+};
 
 const fetchProducts = async (search = "") => {
+  if (!selectedPOSStock.value) {
+    store.state.data.productsPOS = [];
+    return;
+  }
+
   isLoadingProducts.value = true;
   const currentSearch = search.trim();
   try {
@@ -76,7 +93,7 @@ const fetchProducts = async (search = "") => {
           price: Number(p.price || p.unit_price) || 0,
           unit_price: Number(p.unit_price) || 0,
           category: p.category || "Général",
-          stock: Number(p.stock) || 0,
+          stock: getProductStock(p),
           vat_rate: p.vat_rate,
           item_code: p.item_code,
           barcode: p.barcode,
@@ -264,7 +281,7 @@ defineExpose({ fetchProducts });
         <div
           v-for="product in filteredProducts"
           :key="product.id"
-          class="col-6 col-md-4 col-xl-3"
+          class="col-6 col-md-4"
         >
           <div
             class="card h-100 border-0 shadow-sm product-card cursor-pointer"

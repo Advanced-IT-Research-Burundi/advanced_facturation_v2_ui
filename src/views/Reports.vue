@@ -1393,7 +1393,7 @@ onMounted(() => {
 }
 </style>
 
-<style>
+<style scoped>
 @media print {
   /* Hide everything except data table */
   .no-print,

@@ -216,6 +216,7 @@ const addToCart = (product) => {
     item_code: product.item_code,
     barcode: product.barcode,
     unit_price: Number(product.unit_price) || 0,
+    stock: Number(product.stock) || 0,
     // Propriétés optionnelles
     item_ct: product.item_ct || 0,
     item_tl: product.item_tl || 0,
@@ -437,7 +438,7 @@ const closeProformaDetails = () => {
       <div
         class="d-flex flex-column bg-light border-end"
         :class="[
-          activeTab === 'POS' ? 'col-12 col-lg-8 overflow-hidden' : 'col-12',
+          activeTab === 'POS' ? 'col-12 col-lg-7 overflow-hidden' : 'col-12',
         ]"
       >
         <POS

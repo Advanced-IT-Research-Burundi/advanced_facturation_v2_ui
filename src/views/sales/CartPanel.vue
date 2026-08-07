@@ -203,20 +203,20 @@ defineExpose({ clearClient });
 </script>
 
 <template>
-  <div class="col-12 col-lg-4 d-flex flex-column bg-white shadow-lg z-2 h-100">
+  <div class="col-12 col-lg-5 d-flex flex-column bg-white shadow-lg z-2 h-100 cart-panel">
     <div
-      class="p-3 border-bottom d-flex justify-content-between align-items-center bg-primary text-white"
+      class="cart-header px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-primary text-white"
     >
       <div class="d-flex align-items-center gap-2">
         <ShoppingCart :size="20" />
         <h5 class="mb-0 fw-bold">Panier Actuel</h5>
       </div>
-      <span class="badge bg-white text-primary fw-bold fs-6"
+      <span class="badge bg-white text-primary fw-bold"
         >{{ cart.length }} Articles</span
       >
     </div>
 
-    <div class="p-3 border-bottom bg-light position-relative">
+    <div class="cart-client p-2 border-bottom bg-light position-relative">
       <div class="input-group">
         <span class="input-group-text bg-white border-end-0 text-muted">
           <User :size="18" :class="{ 'text-success': selectedClient }" />
@@ -262,94 +262,82 @@ defineExpose({ clearClient });
       </div>
     </div>
 
-    <div class="flex-grow-1 overflow-auto p-3">
+    <div class="flex-grow-1 overflow-auto p-2 cart-items-area">
       <div v-if="cart.length === 0" class="text-center text-muted mt-5">
         <ShoppingCart :size="48" class="mb-3 opacity-25" />
         <p>Le panier est vide</p>
       </div>
 
-      <div v-else class="d-flex flex-column gap-2">
-        <div
-          v-for="item in cart"
-          :key="item.id"
-          class="cart-item px-2 py-1 border rounded-2 bg-white"
-        >
-          <div class="cart-item-row d-flex justify-content-between align-items-center gap-2">
-            <div class="min-w-0 flex-grow-1">
-              <div class="cart-item-name fw-semibold text-truncate" :title="item.name">
-                {{ item.name }}
-              </div>
-            </div>
-            <button
-              @click="$emit('remove-from-cart', item.id)"
-              class="btn btn-sm btn-link text-danger p-0 cart-delete-btn"
-            >
-              <Trash2 :size="16" />
-            </button>
-          </div>
-          <div class="cart-item-row d-flex align-items-center justify-content-between gap-2">
-            <div class="quantity-control d-flex align-items-center gap-1">
-              <button
-                @click="$emit('update-quantity', item.id, -1)"
-                class="btn btn-sm btn-light border p-0"
-              >
-                <Minus :size="14" />
-              </button>
+      <table v-else class="table table-sm align-middle mb-0 cart-table">
+        <thead class="sticky-top">
+          <tr>
+            <th>Produit</th>
+            <th class="text-center">Quantité</th>
+            <th class="text-end">Prix</th>
+            <th class="text-end">Total</th>
+            <th aria-label="Supprimer"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in cart" :key="item.id">
+            <td class="product-cell">
+              <div class="cart-item-name text-truncate" :title="item.name">{{ item.name }}</div>
+              <small v-if="item.stock !== undefined" class="stock-label">Stock: {{ item.stock }}</small>
+            </td>
+            <td>
               <input
-                type="number"
                 v-model.number="item.quantity"
-                class="form-control form-control-sm text-center p-0 fw-bold quantity-input"
+                type="number"
+                class="form-control form-control-sm text-center compact-input"
                 :class="{ 'is-invalid': !item.quantity || item.quantity <= 0 }"
                 min="1"
                 step="1"
                 required
               />
-              <button
-                @click="$emit('update-quantity', item.id, 1)"
-                class="btn btn-sm btn-light border p-0"
-              >
-                <Plus :size="14" />
-              </button>
-            </div>
-            <div class="input-group input-group-sm price-input-group">
+            </td>
+            <td>
               <input
-                type="number"
                 v-model.number="item.price"
-                class="form-control text-end pe-1 fw-bold text-primary"
+                type="number"
+                class="form-control form-control-sm text-end compact-input"
                 :class="{ 'is-invalid': !item.price || item.price <= 0 }"
-                placeholder="Prix"
                 min="0.01"
                 step="0.01"
                 required
               />
-              <span class="input-group-text px-1 small">{{ selectedCurrency }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+            </td>
+            <td class="text-end line-total">{{ formatPrice(getItemTTC(item)) }}</td>
+            <td class="text-end">
+              <button @click="$emit('remove-from-cart', item.id)" class="btn btn-sm btn-outline-danger p-1 cart-delete-btn" title="Retirer du panier">
+                <Trash2 :size="14" />
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <div class="p-3 border-top bg-light mt-auto">
+    <div class="cart-footer p-2 border-top bg-light mt-auto">
       <!-- Récapitulatif TVA -->
-      <div class="mb-3 p-2 bg-white rounded border">
-        <div class="d-flex justify-content-between mb-1 text-muted small">
+      <div class="cart-summary mb-2 px-2 py-1 bg-white rounded border">
+        <div class="d-flex justify-content-between text-muted small">
           <span>Total Hors Taxes (HT)</span>
           <span>{{ formatPrice(cartTotalHT) }} {{ selectedCurrency }}</span>
         </div>
-        <div class="d-flex justify-content-between mb-1 text-info small">
+        <div class="d-flex justify-content-between text-info small">
           <span>Total TVA</span>
           <span>{{ formatPrice(cartTotalTVA) }} {{ selectedCurrency }}</span>
         </div>
         <div class="d-flex justify-content-between pt-1 border-top">
-          <span class="fs-6 fw-bold text-dark">Total TTC</span>
-          <span class="fs-6 fw-bold text-primary"
+          <span class="fw-bold text-dark">Total TTC</span>
+          <span class="fw-bold text-primary"
             >{{ formatPrice(cartTotalTTC) }} {{ selectedCurrency }}</span
           >
         </div>
       </div>
 
-      <div class="d-grid gap-2">
-        <div class="row g-2 mb-2">
+      <div class="d-grid gap-1">
+        <div class="row g-1 mb-1">
           <div class="col-6 d-flex align-items-center">
             <label class="form-label small text-muted pe-1 mb-0">Devise</label>
             <select v-model="selectedCurrency" class="form-select form-select-sm">
@@ -373,7 +361,7 @@ defineExpose({ clearClient });
 
         <button
           @click="submitInvoice"
-          class="btn btn-primary fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+          class="btn btn-primary fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm cart-submit-btn"
           :disabled="isSubmitting"
         >
           <Loader2 v-if="isSubmitting" :size="20" class="animate-spin" />
@@ -396,36 +384,78 @@ defineExpose({ clearClient });
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-.cart-item {
-  border-color: #e9ecef !important;
-}
-.cart-item-row {
-  min-height: 28px;
-}
 .min-w-0 {
   min-width: 0;
 }
+.cart-items-area {
+  min-height: 0;
+}
+.cart-header {
+  min-height: 46px;
+}
+.cart-client .input-group {
+  min-height: 34px;
+}
+.cart-footer {
+  flex-shrink: 0;
+}
+.cart-summary {
+  line-height: 1.45;
+}
+.cart-table {
+  table-layout: fixed;
+  font-size: 0.78rem;
+}
+.cart-table thead {
+  background: #f1f5f9;
+  box-shadow: inset 0 -1px 0 #dbe2ea;
+}
+.cart-table th {
+  padding: 0.4rem 0.3rem;
+  color: #334155;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.cart-table td {
+  padding: 0.3rem;
+  border-color: #edf0f3;
+}
+.cart-table th:nth-child(1) { width: 36%; }
+.cart-table th:nth-child(2) { width: 19%; }
+.cart-table th:nth-child(3) { width: 19%; }
+.cart-table th:nth-child(4) { width: 20%; }
+.cart-table th:nth-child(5) { width: 6%; }
+.product-cell { min-width: 0; }
 .cart-item-name {
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   line-height: 1.1;
+  font-weight: 700;
 }
 .cart-delete-btn {
-  width: 20px;
-  height: 20px;
+  line-height: 1;
 }
-.quantity-control .btn {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.compact-input {
+  height: 27px;
+  min-width: 0;
+  padding: 0.15rem 0.3rem;
+  font-size: 0.78rem;
 }
-.quantity-input {
-  width: 70px;
-  height: 26px;
+.stock-label {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #e6f7ee;
+  color: #16794a;
+  font-weight: 700;
 }
-.price-input-group {
-  width: 152px;
+.line-total {
+  color: #168154;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cart-submit-btn {
+  min-height: 36px;
 }
 @keyframes spin {
   from { transform: rotate(0deg); }

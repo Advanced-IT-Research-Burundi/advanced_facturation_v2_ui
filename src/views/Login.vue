@@ -111,14 +111,14 @@ const handleLogin = async () => {
         </button>
       </form>
 
-      <div class="text-center mt-4 small text-muted">
+      <!-- <div class="text-center mt-4 small text-muted">
         Vous n'avez pas de compte ?
         <RouterLink
           to="/register-company"
           class="text-primary fw-bold text-decoration-none"
           >Enregistrer l'entreprise</RouterLink
         >
-      </div>
+      </div> -->
     </div>
 
     <div

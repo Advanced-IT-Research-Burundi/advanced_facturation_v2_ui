@@ -140,7 +140,7 @@ watch(filters, () => {
 </script>
 
 <template>
-    <div class="d-flex flex-column bg-white p-3">
+    <div class="sales-report d-flex flex-column bg-white p-3">
         <!-- Filters Header -->
         <div class="card mb-3 no-print">
             <div class="card-body py-3">
@@ -183,8 +183,66 @@ watch(filters, () => {
         </div>
 
         <div v-if="reportData" class="flex-grow-1">
+             <!-- Version imprimée : données tabulaires, sans graphiques -->
+             <div class="sales-report-print d-none d-print-block">
+                 <h5 class="print-section-title">Résumé des ventes</h5>
+                 <table class="table table-bordered print-table mb-4">
+                     <tbody>
+                         <tr>
+                             <th>Chiffre d'affaires</th>
+                             <td>{{ reportData.metrics.revenue.toLocaleString() }} FBU</td>
+                             <th>Nombre de factures</th>
+                             <td>{{ reportData.metrics.count }}</td>
+                         </tr>
+                         <tr>
+                             <th>Panier moyen</th>
+                             <td colspan="3">{{ Math.round(reportData.metrics.average_basket).toLocaleString() }} FBU</td>
+                         </tr>
+                     </tbody>
+                 </table>
+
+                 <h5 class="print-section-title">Ventes par jour</h5>
+                 <table class="table table-bordered print-table mb-4">
+                     <thead><tr><th>Date</th><th class="text-end">Montant (FBU)</th></tr></thead>
+                     <tbody>
+                         <tr v-for="sale in reportData.daily_sales" :key="sale.date">
+                             <td>{{ new Date(sale.date).toLocaleDateString() }}</td>
+                             <td class="text-end">{{ Number(sale.total || 0).toLocaleString() }}</td>
+                         </tr>
+                         <tr v-if="!reportData.daily_sales.length"><td colspan="2" class="text-center">Aucune vente pour cette période</td></tr>
+                     </tbody>
+                 </table>
+
+                 <div class="row g-3">
+                     <div class="col-6">
+                         <h5 class="print-section-title">Ventes par utilisateur</h5>
+                         <table class="table table-bordered print-table">
+                             <thead><tr><th>Utilisateur</th><th class="text-end">Montant (FBU)</th></tr></thead>
+                             <tbody>
+                                 <tr v-for="user in reportData.sales_by_user" :key="user.name">
+                                     <td>{{ user.name }}</td><td class="text-end">{{ Number(user.total || 0).toLocaleString() }}</td>
+                                 </tr>
+                                 <tr v-if="!reportData.sales_by_user.length"><td colspan="2" class="text-center">Aucune donnée</td></tr>
+                             </tbody>
+                         </table>
+                     </div>
+                     <div class="col-6">
+                         <h5 class="print-section-title">Ventes par stock</h5>
+                         <table class="table table-bordered print-table">
+                             <thead><tr><th>Stock</th><th class="text-end">Montant (FBU)</th></tr></thead>
+                             <tbody>
+                                 <tr v-for="warehouse in reportData.sales_by_warehouse" :key="warehouse.name">
+                                     <td>{{ warehouse.name }}</td><td class="text-end">{{ Number(warehouse.total || 0).toLocaleString() }}</td>
+                                 </tr>
+                                 <tr v-if="!reportData.sales_by_warehouse.length"><td colspan="2" class="text-center">Aucune donnée</td></tr>
+                             </tbody>
+                         </table>
+                     </div>
+                 </div>
+             </div>
+
              <!-- KPIs -->
-             <div class="row g-3 mb-4">
+             <div class="row g-3 mb-4 no-print">
                  <div class="col-md-4">
                      <div class="card bg-primary text-white h-100">
                          <div class="card-body">
@@ -212,7 +270,7 @@ watch(filters, () => {
              </div>
 
              <!-- Charts -->
-             <div class="row g-3 mb-4 print-break-inside-avoid">
+             <div class="row g-3 mb-4 print-break-inside-avoid no-print">
                  <div class="col-12">
                      <div class="card h-100">
                          <div class="card-header bg-white fw-bold">Évolution des Ventes</div>
@@ -223,7 +281,7 @@ watch(filters, () => {
                  </div>
              </div>
 
-             <div class="row g-3 print-break-inside-avoid">
+             <div class="row g-3 print-break-inside-avoid no-print">
                  <div class="col-md-6">
                      <div class="card h-100">
                          <div class="card-header bg-white fw-bold">Par Utilisateur</div>
@@ -253,10 +311,21 @@ watch(filters, () => {
 
 <style scoped>
 @media print {
+    .sales-report {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+    }
     .no-print { display: none !important; }
     .card { border: none !important; box-shadow: none !important; }
     .card-header { border-bottom: 2px solid #000 !important; }
     .print-break-inside-avoid { break-inside: avoid; }
     .h-100 { height: auto !important; }
+    canvas { max-width: 100% !important; }
+    .sales-report-print { display: block !important; }
+    .print-section-title { font-size: 14px; margin: 14px 0 6px; }
+    .print-table { font-size: 11px; width: 100%; }
+    .print-table th, .print-table td { padding: 5px 7px; }
 }
 </style>
