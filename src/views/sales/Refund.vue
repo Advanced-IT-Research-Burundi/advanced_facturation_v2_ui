@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import {
   Search,
   Wallet,
@@ -12,6 +12,7 @@ import {
   Calendar,
   FileText,
   DollarSign,
+  RefreshCw,
 } from "lucide-vue-next";
 import api from "@/services/api";
 import { useToast } from '@/composables/useToast';
@@ -32,7 +33,10 @@ const toast = useToast();
 const isLoading = ref(false);
 const refundMode = ref("new"); // 'new' or 'existing'
 const deposits = ref([]);
+const depositsError = ref("");
 const searchQuery = ref("");
+const refunds = ref([]);
+const isLoadingRefunds = ref(false);
 
 // For new deposit
 const selectedClient = ref(null);
@@ -73,22 +77,45 @@ const clearClient = () => {
   selectedClient.value = null;
   clientSearchText.value = "";
   deposits.value = [];
+  depositsError.value = "";
   selectedDeposit.value = null;
 };
 
 // Load deposits for a customer
 const loadCustomerDeposits = async (customerId) => {
   isLoading.value = true;
+  depositsError.value = "";
   try {
     const response = await api.get(`/customers/${customerId}/deposits`);
     if (response.data.success) {
-      deposits.value = response.data.data || [];
+      // L'API peut retourner directement un tableau ou une réponse paginée.
+      deposits.value = response.data.data?.data || response.data.data || [];
     }
   } catch (error) {
     console.error("Erreur lors du chargement des cautions:", error);
     deposits.value = [];
+    depositsError.value = error.response?.data?.message || "Impossible de charger les cautions de ce client.";
   } finally {
     isLoading.value = false;
+  }
+};
+
+// Historique global des cautions et de leurs remboursements.
+const loadRefunds = async () => {
+  isLoadingRefunds.value = true;
+  try {
+    const response = await api.get("/invoices", { params: { per_page: 100 } });
+    if (response.data.success) {
+      const invoices = response.data.data?.data || response.data.data || [];
+      refunds.value = invoices.filter((invoice) =>
+        ["FC", "RC"].includes(invoice.invoice_type)
+      );
+    }
+  } catch (error) {
+    console.error("Erreur lors du chargement des remboursements:", error);
+    refunds.value = [];
+  } finally {
+    isLoadingRefunds.value = false;
   }
 };
 
@@ -166,7 +193,8 @@ const submitRefund = () => {
     invoice_action: "SERVICE",
     invoice_currency: selectedDeposit.value.currency || "BIF",
     customer_id: selectedClient.value.id,
-    reference_deposit_id: selectedDeposit.value.id,
+    // L'API relie le remboursement à la facture de caution d'origine.
+    reference_invoice_id: selectedDeposit.value.id,
     refund_reason: refundReason.value,
     items: [
       {
@@ -198,8 +226,33 @@ const formatPrice = (price) => {
 
 // Format date
 const formatDate = (date) => {
+  if (!date) return "-";
   return new Date(date).toLocaleDateString("fr-FR");
 };
+
+const getRefundCustomer = (refund) =>
+  refund.customer?.customer_name || refund.customer_name || "Client inconnu";
+
+const getRefundReason = (refund) =>
+  refund.refund_reason ||
+  refund.invoice_items?.[0]?.item_designation ||
+  refund.invoiceItems?.[0]?.item_designation ||
+  "-";
+
+const getRefundAmount = (refund) =>
+  Math.abs(Number(refund.invoice_total_amount ?? refund.total_amount ?? 0));
+
+const getRefundType = (refund) =>
+  refund.invoice_type === "RC" ? "Remboursement" : "Caution";
+
+onMounted(loadRefunds);
+
+watch(
+  () => props.isSubmitting,
+  (isSubmitting, wasSubmitting) => {
+    if (wasSubmitting && !isSubmitting) loadRefunds();
+  }
+);
 </script>
 
 <template>
@@ -216,6 +269,50 @@ const formatDate = (date) => {
     </div>
 
     <div class="flex-grow-1 p-4 overflow-auto">
+      <!-- Liste des remboursements déjà effectués -->
+      <div class="card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-0">Liste des cautions et remboursements</h6>
+            <small class="text-muted">Historique des cautions enregistrées et des remboursements effectués</small>
+          </div>
+          <button class="btn btn-sm btn-outline-primary" @click="loadRefunds" :disabled="isLoadingRefunds">
+            <Loader2 v-if="isLoadingRefunds" :size="15" class="animate-spin" />
+            <RefreshCw v-else :size="15" />
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 refund-history-table">
+            <thead>
+              <tr>
+                <th>N° remboursement</th>
+                <th>Date</th>
+                <th>Client</th>
+                <th>Type</th>
+                <th>Motif / référence</th>
+                <th class="text-end">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="isLoadingRefunds">
+                <td colspan="6" class="text-center py-3 text-muted">Chargement des cautions...</td>
+              </tr>
+              <tr v-else-if="!refunds.length">
+                <td colspan="6" class="text-center py-3 text-muted">Aucune caution ou aucun remboursement enregistré.</td>
+              </tr>
+              <tr v-for="refund in refunds" :key="refund.id">
+                <td class="fw-bold">{{ refund.invoice_number || `#${refund.id}` }}</td>
+                <td>{{ formatDate(refund.invoice_date || refund.created_at) }}</td>
+                <td>{{ getRefundCustomer(refund) }}</td>
+                <td><span class="badge" :class="refund.invoice_type === 'RC' ? 'bg-success' : 'bg-warning text-dark'">{{ getRefundType(refund) }}</span></td>
+                <td class="text-muted">{{ getRefundReason(refund) }}</td>
+                <td class="text-end fw-bold text-success">{{ formatPrice(getRefundAmount(refund)) }} {{ refund.invoice_currency || refund.currency || "BIF" }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Client Search -->
       <div class="card mb-4">
         <div class="card-header bg-white">
@@ -507,6 +604,11 @@ const formatDate = (date) => {
               </div>
             </div>
 
+            <!-- API error -->
+            <div v-else-if="depositsError" class="alert alert-danger mb-0">
+              {{ depositsError }}
+            </div>
+
             <!-- No Deposits -->
             <div v-else class="text-center py-4 text-muted">
               <AlertCircle :size="48" class="mb-2 opacity-25" />
@@ -569,6 +671,15 @@ const formatDate = (date) => {
 }
 .cursor-pointer {
   cursor: pointer;
+}
+.refund-history-table thead th {
+  /* background: #007bff; */
+  color: #000000;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.refund-history-table td {
+  font-size: 0.86rem;
 }
 .animate-spin {
   animation: spin 1s linear infinite;

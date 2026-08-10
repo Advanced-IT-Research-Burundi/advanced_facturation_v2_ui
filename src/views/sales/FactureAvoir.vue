@@ -62,21 +62,43 @@ const searchInvoices = async () => {
 };
 
 // Select an invoice for credit note
-const selectInvoice = (invoice) => {
-  selectedInvoice.value = invoice;
-  showInvoiceSearch.value = false;
+const selectInvoice = async (invoice) => {
+  // La recherche renvoie un résumé sans les lignes de facture. On récupère donc
+  // le détail avant de calculer le TTC de l'avoir.
+  isLoading.value = true;
+  try {
+    const response = await api.get(`/invoices/${invoice.id}`);
+    if (!response.data.success) {
+      toast.error("Impossible de charger le détail de cette facture.");
+      return;
+    }
 
-  // Initialize avoir items from invoice items
-  avoirItems.value = (invoice.invoice_items || []).map((item) => ({
-    id: item.id,
-    item_designation: item.item_designation,
-    original_quantity: parseFloat(item.item_quantity),
-    original_price: parseFloat(item.item_price),
-    avoir_quantity: parseFloat(item.item_quantity),
-    avoir_price: parseFloat(item.item_price),
-    vat: Number.isNaN(parseFloat(item.vat)) ? 0 : parseFloat(item.vat),
-    selected: true,
-  }));
+    const fullInvoice = response.data.data;
+    const items = fullInvoice.invoice_items || fullInvoice.invoiceItems || [];
+
+    if (!items.length) {
+      toast.warning("Cette facture ne contient aucun article à créditer.");
+      return;
+    }
+
+    selectedInvoice.value = fullInvoice;
+    avoirItems.value = items.map((item) => ({
+      id: item.id,
+      item_designation: item.item_designation,
+      original_quantity: Number(item.item_quantity) || 0,
+      original_price: Number(item.item_price) || 0,
+      avoir_quantity: Number(item.item_quantity) || 0,
+      avoir_price: Number(item.item_price) || 0,
+      vat: Number(item.vat) || 0,
+      selected: true,
+    }));
+    showInvoiceSearch.value = false;
+  } catch (error) {
+    console.error("Erreur lors du chargement du détail de la facture:", error);
+    toast.error("Impossible de charger le détail de cette facture.");
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 // Clear selection
@@ -151,7 +173,8 @@ const validateAndSubmit = () => {
 
 // Format price
 const formatPrice = (price) => {
-  return typeof price === "number" ? price.toLocaleString() : "0";
+  const amount = Number(price);
+  return Number.isFinite(amount) ? amount.toLocaleString("fr-FR") : "0";
 };
 
 // Format date
