@@ -28,7 +28,7 @@
     <div class="card shadow-sm">
       <div class="card-header bg-success text-white">
         <h5 class="mb-0">
-          <i class="bi bi-plus-circle me-2"></i>Formulaire d'Entrée
+          <i class="bi bi-plus-circle me-2"></i>Formulaire d'Entrée 
         </h5>
       </div>
       <div class="card-body">
@@ -66,7 +66,7 @@
                 <label class="form-label small fw-bold">Produit *</label>
                 <Select
                   v-model="item.product_id"
-                  :options="index === form.items.length - 1 ? availableProductsFiltered : availableProducts"
+                  :options="getAvailableProductsForItem(index)"
                   optionLabel="item_designation"
                   optionValue="id"
                   filter
@@ -142,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Select from 'primevue/select';
 import api from '@/services/api';
@@ -165,10 +165,17 @@ const form = ref({
   items: [{ product_id: '', quantity: '', unit_price: '', currency: 'BIF', date_expiration: '' }]
 });
 
-const availableProductsFiltered = computed(() => {
-  const selectedIds = form.value.items.map(item => item.product_id).filter(id => id);
-  return availableProducts.value.filter(p => !selectedIds.includes(p.id));
-});
+const getAvailableProductsForItem = (index) => {
+  const currentProductId = form.value.items[index]?.product_id;
+  const selectedIds = form.value.items
+    .filter((_, itemIndex) => itemIndex !== index)
+    .map(item => item.product_id)
+    .filter(id => id);
+
+  return availableProducts.value.filter(product => (
+    product.id === currentProductId || !selectedIds.includes(product.id)
+  ));
+};
 
 onMounted(async () => {
   loading.value = true;
