@@ -233,7 +233,7 @@ defineExpose({ clearClient });
 
       <div
         v-if="clientSearchText && !selectedClient && filteredCustomers.length"
-        class="position-absolute bg-white border rounded shadow-sm w-100 mt-1 z-3 overflow-auto"
+        class="client-results position-absolute bg-white border rounded shadow-sm w-100 mt-1 overflow-auto"
         style="max-height: 200px; left: 0"
       >
         <div
@@ -374,9 +374,6 @@ defineExpose({ clearClient });
 </template>
 
 <style scoped>
-.z-3 {
-  z-index: 1030;
-}
 .hover-bg-light:hover {
   background-color: #f8f9fa;
   cursor: pointer;
@@ -395,6 +392,20 @@ defineExpose({ clearClient });
 }
 .cart-client .input-group {
   min-height: 34px;
+}
+.cart-client {
+  z-index: 1050;
+}
+.client-results {
+  top: 100%;
+  z-index: 1050;
+}
+.cart-items-area {
+  position: relative;
+  z-index: 1;
+}
+.cart-table thead.sticky-top {
+  z-index: 2;
 }
 .cart-footer {
   flex-shrink: 0;

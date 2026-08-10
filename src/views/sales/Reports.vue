@@ -176,69 +176,48 @@ watch(filters, () => {
             </div>
         </div>
 
-        <!-- Print Header (Visible only on print) -->
-        <div class="d-none d-print-block mb-4 text-center">
-             <h3>Rapport des Ventes</h3>
-             <p>Période: {{ new Date(filters.date_from).toLocaleDateString() }} - {{ new Date(filters.date_to).toLocaleDateString() }}</p>
+        <!-- En-tête réservé à l'impression : volontairement simple, comme le journal. -->
+        <div class="report-print-header d-none d-print-block">
+             <h3>Rapport des ventes</h3>
+             <p>Période : {{ new Date(filters.date_from).toLocaleDateString() }} au {{ new Date(filters.date_to).toLocaleDateString() }}</p>
         </div>
 
         <div v-if="reportData" class="flex-grow-1">
-             <!-- Version imprimée : données tabulaires, sans graphiques -->
+             <!-- Version imprimée : un seul tableau, clair et complet. -->
              <div class="sales-report-print d-none d-print-block">
-                 <h5 class="print-section-title">Résumé des ventes</h5>
-                 <table class="table table-bordered print-table mb-4">
+                 <table class="table table-bordered print-table report-main-table">
+                     <thead>
+                         <tr>
+                             <th style="width: 28%">Rubrique</th>
+                             <th>Détail</th>
+                             <th class="text-end" style="width: 26%">Valeur</th>
+                         </tr>
+                     </thead>
                      <tbody>
-                         <tr>
-                             <th>Chiffre d'affaires</th>
-                             <td>{{ reportData.metrics.revenue.toLocaleString() }} FBU</td>
-                             <th>Nombre de factures</th>
-                             <td>{{ reportData.metrics.count }}</td>
-                         </tr>
-                         <tr>
-                             <th>Panier moyen</th>
-                             <td colspan="3">{{ Math.round(reportData.metrics.average_basket).toLocaleString() }} FBU</td>
-                         </tr>
-                     </tbody>
-                 </table>
+                         <tr class="print-section-row"><th colspan="3">Résumé des ventes</th></tr>
+                         <tr><td>Chiffre d'affaires</td><td>Montant total des ventes</td><td class="text-end fw-bold">{{ reportData.metrics.revenue.toLocaleString() }} FBU</td></tr>
+                         <tr><td>Nombre de factures</td><td>Factures enregistrées</td><td class="text-end fw-bold">{{ reportData.metrics.count }}</td></tr>
+                         <tr><td>Panier moyen</td><td>Montant moyen par facture</td><td class="text-end fw-bold">{{ Math.round(reportData.metrics.average_basket).toLocaleString() }} FBU</td></tr>
 
-                 <h5 class="print-section-title">Ventes par jour</h5>
-                 <table class="table table-bordered print-table mb-4">
-                     <thead><tr><th>Date</th><th class="text-end">Montant (FBU)</th></tr></thead>
-                     <tbody>
+                         <tr class="print-section-row"><th colspan="3">Ventes par jour</th></tr>
                          <tr v-for="sale in reportData.daily_sales" :key="sale.date">
-                             <td>{{ new Date(sale.date).toLocaleDateString() }}</td>
-                             <td class="text-end">{{ Number(sale.total || 0).toLocaleString() }}</td>
+                             <td>Journalier</td><td>{{ new Date(sale.date).toLocaleDateString() }}</td><td class="text-end">{{ Number(sale.total || 0).toLocaleString() }} FBU</td>
                          </tr>
-                         <tr v-if="!reportData.daily_sales.length"><td colspan="2" class="text-center">Aucune vente pour cette période</td></tr>
+                         <tr v-if="!reportData.daily_sales.length"><td colspan="3" class="text-center text-muted">Aucune vente pour cette période</td></tr>
+
+                         <tr class="print-section-row"><th colspan="3">Ventes par utilisateur</th></tr>
+                         <tr v-for="user in reportData.sales_by_user" :key="user.name">
+                             <td>Utilisateur</td><td>{{ user.name }}</td><td class="text-end">{{ Number(user.total || 0).toLocaleString() }} FBU</td>
+                         </tr>
+                         <tr v-if="!reportData.sales_by_user.length"><td colspan="3" class="text-center text-muted">Aucune donnée</td></tr>
+
+                         <tr class="print-section-row"><th colspan="3">Ventes par stock</th></tr>
+                         <tr v-for="warehouse in reportData.sales_by_warehouse" :key="warehouse.name">
+                             <td>Stock</td><td>{{ warehouse.name }}</td><td class="text-end">{{ Number(warehouse.total || 0).toLocaleString() }} FBU</td>
+                         </tr>
+                         <tr v-if="!reportData.sales_by_warehouse.length"><td colspan="3" class="text-center text-muted">Aucune donnée</td></tr>
                      </tbody>
                  </table>
-
-                 <div class="row g-3">
-                     <div class="col-6">
-                         <h5 class="print-section-title">Ventes par utilisateur</h5>
-                         <table class="table table-bordered print-table">
-                             <thead><tr><th>Utilisateur</th><th class="text-end">Montant (FBU)</th></tr></thead>
-                             <tbody>
-                                 <tr v-for="user in reportData.sales_by_user" :key="user.name">
-                                     <td>{{ user.name }}</td><td class="text-end">{{ Number(user.total || 0).toLocaleString() }}</td>
-                                 </tr>
-                                 <tr v-if="!reportData.sales_by_user.length"><td colspan="2" class="text-center">Aucune donnée</td></tr>
-                             </tbody>
-                         </table>
-                     </div>
-                     <div class="col-6">
-                         <h5 class="print-section-title">Ventes par stock</h5>
-                         <table class="table table-bordered print-table">
-                             <thead><tr><th>Stock</th><th class="text-end">Montant (FBU)</th></tr></thead>
-                             <tbody>
-                                 <tr v-for="warehouse in reportData.sales_by_warehouse" :key="warehouse.name">
-                                     <td>{{ warehouse.name }}</td><td class="text-end">{{ Number(warehouse.total || 0).toLocaleString() }}</td>
-                                 </tr>
-                                 <tr v-if="!reportData.sales_by_warehouse.length"><td colspan="2" class="text-center">Aucune donnée</td></tr>
-                             </tbody>
-                         </table>
-                     </div>
-                 </div>
              </div>
 
              <!-- KPIs -->
@@ -311,6 +290,8 @@ watch(filters, () => {
 
 <style scoped>
 @media print {
+    @page { margin: 12mm; }
+
     .sales-report {
         display: block !important;
         height: auto !important;
@@ -324,8 +305,30 @@ watch(filters, () => {
     .h-100 { height: auto !important; }
     canvas { max-width: 100% !important; }
     .sales-report-print { display: block !important; }
-    .print-section-title { font-size: 14px; margin: 14px 0 6px; }
-    .print-table { font-size: 11px; width: 100%; }
-    .print-table th, .print-table td { padding: 5px 7px; }
+    .report-print-header {
+        display: block !important;
+        text-align: center;
+        border-bottom: 2px solid #007bff;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+    }
+    .report-print-header h3 { font-size: 18px; margin: 0 0 4px; color: #007bff; }
+    .report-print-header p { font-size: 11px; margin: 0; }
+    .print-table { font-size: 11px; width: 100%; margin-bottom: 12px !important; }
+    .print-table th, .print-table td { padding: 5px 7px; vertical-align: middle; }
+    .print-table th, .print-table td { border-color: #ddd !important; }
+    .print-table thead th { background: #007bff !important; color: #fff !important; }
+    .report-main-table { border-color: #ddd !important; }
+    .report-main-table tbody tr:nth-child(even):not(.print-section-row) td { background: #f9f9f9 !important; }
+    .report-main-table .print-section-row th {
+        background: #f5f5f5 !important;
+        color: #333 !important;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        border-left: 3px solid #007bff !important;
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
 }
 </style>

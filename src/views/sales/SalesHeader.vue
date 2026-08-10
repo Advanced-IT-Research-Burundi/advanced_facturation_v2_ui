@@ -20,7 +20,8 @@ const invoiceTypes = [
 </script>
 
 <template>
-  <div class="tabs-wrapper bg-white border-bottom">
+  <!-- Les onglets servent uniquement à la navigation et ne doivent jamais figurer sur un document imprimé. -->
+  <div class="tabs-wrapper bg-white border-bottom no-print">
     <ul class="nav nav-tabs border-bottom-0 tabs-scroll">
       <li class="nav-item" v-for="type in invoiceTypes" :key="type.id">
         <a
@@ -60,5 +61,11 @@ const invoiceTypes = [
   font-weight: 600;
   border-bottom: 2px solid var(--bs-primary) !important;
   color: var(--bs-primary) !important;
+}
+
+@media print {
+  .tabs-wrapper {
+    display: none !important;
+  }
 }
 </style>
