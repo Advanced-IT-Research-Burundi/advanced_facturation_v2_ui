@@ -20,6 +20,8 @@ const selectedCategory = ref("Tous");
 const selectedStock = ref(null);
 const lastAutoAddedScan = ref("");
 let searchTimeout = null;
+let productsRequestVersion = 0;
+const POS_PRODUCTS_PER_PAGE = 100;
 
 onMounted(() => {
   fetchStock();
@@ -68,6 +70,32 @@ const getProductStock = (product) => {
   return Number(value) || 0;
 };
 
+const getProductsPayload = (responseData) => {
+  const payload = responseData?.data;
+
+  if (Array.isArray(payload)) {
+    return { items: payload, meta: responseData?.meta, links: responseData?.links };
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return { items: payload.data, meta: payload.meta, links: payload.links };
+  }
+
+  return { items: [], meta: null, links: null };
+};
+
+const hasNextPage = ({ meta, links, itemCount }, page) => {
+  if (meta?.last_page !== undefined) {
+    return page < Number(meta.last_page);
+  }
+
+  if (links?.next !== undefined) {
+    return Boolean(links.next);
+  }
+
+  return itemCount >= POS_PRODUCTS_PER_PAGE;
+};
+
 const fetchProducts = async (search = "") => {
   if (!selectedPOSStock.value) {
     store.state.data.productsPOS = [];
@@ -75,41 +103,61 @@ const fetchProducts = async (search = "") => {
   }
 
   isLoadingProducts.value = true;
+  store.state.data.productsPOS = [];
   const currentSearch = search.trim();
+  const requestVersion = ++productsRequestVersion;
+
   try {
-    const response = await api.get("/pos-products", {
-      params: {
-        stock_id: selectedPOSStock.value,
-        search: currentSearch
-      }
-    });
-    if (response.data.success) {
-      const productsData = response.data.data
-        .map((p) => ({
-          id: p.id,
-          warehouse_product_id: p.warehouse_product_id,
-          warehouse_id: selectedPOSStock.value,
-          name: p.name,
-          price: Number(p.price || p.unit_price) || 0,
-          unit_price: Number(p.unit_price) || 0,
-          category: p.category || "Général",
-          stock: getProductStock(p),
-          vat_rate: p.vat_rate,
-          item_code: p.item_code,
-          barcode: p.barcode,
-        }))
-        .filter((product) => product.stock > 0);
+    const allItems = [];
+    let page = 1;
+    let shouldContinue = true;
 
-      store.state.data.productsPOS = productsData;
+    while (shouldContinue) {
+      const response = await api.get("/pos-products", {
+        params: {
+          stock_id: selectedPOSStock.value,
+          search: currentSearch,
+          page,
+          per_page: POS_PRODUCTS_PER_PAGE,
+        }
+      });
 
-      if (normalizeCode(searchQuery.value) === normalizeCode(currentSearch)) {
-        autoAddSingleScanResult(productsData, currentSearch);
-      }
+      if (requestVersion !== productsRequestVersion) return;
+      if (!response.data.success) break;
+
+      const { items, meta, links } = getProductsPayload(response.data);
+      allItems.push(...items);
+      shouldContinue = hasNextPage({ meta, links, itemCount: items.length }, page);
+      page += 1;
+    }
+
+    const productsData = allItems
+      .map((p) => ({
+        id: p.id,
+        warehouse_product_id: p.warehouse_product_id,
+        warehouse_id: selectedPOSStock.value,
+        name: p.name,
+        price: Number(p.price || p.unit_price) || 0,
+        unit_price: Number(p.unit_price) || 0,
+        category: p.category || "Général",
+        stock: getProductStock(p),
+        vat_rate: p.vat_rate,
+        item_code: p.item_code,
+        barcode: p.barcode,
+      }))
+      .filter((product) => product.stock > 0);
+
+    store.state.data.productsPOS = productsData;
+
+    if (normalizeCode(searchQuery.value) === normalizeCode(currentSearch)) {
+      autoAddSingleScanResult(productsData, currentSearch);
     }
   } catch (error) {
     console.error("Erreur lors de la récupération des produits:", error);
   } finally {
-    isLoadingProducts.value = false;
+    if (requestVersion === productsRequestVersion) {
+      isLoadingProducts.value = false;
+    }
   }
 };
 
@@ -164,8 +212,6 @@ const handleSearchEnter = () => {
 };
 
 
-
-
 // Debounce search to avoid too many API calls
 watch(searchQuery, (newVal) => {
   if (!newVal.trim()) {
@@ -214,8 +260,8 @@ defineExpose({ fetchProducts });
 </script>
 
 <template>
-  <div class="d-flex flex-column h-100">
-    <div class="p-3 bg-white border-bottom shadow-sm z-1">
+  <div class="pos-products-panel d-flex flex-column h-100">
+    <div class="products-toolbar p-3 bg-white border-bottom shadow-sm z-1">
       <div class="d-flex justify-content-between">
       <div>
         <div v-if=" stocks?.length === 0">
@@ -276,7 +322,7 @@ defineExpose({ fetchProducts });
       </div>
     </div>
 
-    <div class="flex-grow-1 overflow-auto p-3">
+    <div class="products-scroll-area p-3">
       <div class="row g-3">
         <div
           v-for="product in filteredProducts"
@@ -309,11 +355,46 @@ defineExpose({ fetchProducts });
           </div>
         </div>
       </div>
+
+      <div
+        v-if="!isLoadingProducts && filteredProducts.length === 0"
+        class="text-center text-muted py-5"
+      >
+        Aucun produit disponible
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.pos-products-panel {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.products-toolbar {
+  flex: 0 0 auto;
+}
+.products-scroll-area {
+  flex: 1 1 auto;
+  height: calc(100vh - 170px);
+  max-height: calc(100vh - 170px);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.products-scroll-area::-webkit-scrollbar {
+  width: 8px;
+}
+.products-scroll-area::-webkit-scrollbar-thumb {
+  background: #c7cdd6;
+  border-radius: 8px;
+}
+.products-scroll-area::-webkit-scrollbar-track {
+  background: #eef1f5;
+}
 .product-card {
   transition: all 0.2s ease;
   user-select: none;

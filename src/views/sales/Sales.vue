@@ -427,18 +427,18 @@ const closeProformaDetails = () => {
 
 <template>
   <!-- overflow-hidden only for POS (fixed split layout); other tabs scroll via page-content -->
-  <div class="d-flex flex-column h-100" :class="{ 'overflow-hidden': activeTab === 'POS' }">
+  <div class="sales-page d-flex flex-column h-100" :class="{ 'overflow-hidden': activeTab === 'POS' }">
     <SalesHeader v-model="activeTab" />
 
     <div
       class="row g-0"
-      :class="activeTab === 'POS' ? 'flex-grow-1 overflow-hidden' : ''"
+      :class="activeTab === 'POS' ? 'pos-sales-row flex-grow-1 overflow-hidden' : ''"
     >
       <!-- Main Content Area -->
       <div
-        class="d-flex flex-column bg-light border-end"
+        class="d-flex flex-column bg-light border-end products-section"
         :class="[
-          activeTab === 'POS' ? 'col-12 col-lg-7 overflow-hidden' : 'col-12',
+          activeTab === 'POS' ? 'pos-main-column col-12 col-lg-7 overflow-hidden' : 'col-12',
         ]"
       >
         <POS
@@ -490,6 +490,7 @@ const closeProformaDetails = () => {
       <!-- Right Panel (Cart - only for POS) -->
       <CartPanel
         v-if="activeTab === 'POS'"
+        class="cart-section"
         :cart="cart"
         :customers="customers"
         :is-submitting="isSubmitting"
@@ -579,6 +580,27 @@ const closeProformaDetails = () => {
 }
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+.pos-sales-row,
+.pos-main-column {
+  min-height: 0;
+}
+.pos-sales-row {
+  align-items: stretch;
+  flex: 1 1 0;
+  height: 0;
+}
+.sales-page {
+  height: 100%;
+  min-height: 0;
+}
+.products-section,
+.cart-section {
+  height: 100%;
+  min-height: 0;
+}
+.products-section {
+  overflow: hidden;
 }
 @keyframes spin {
   from {
