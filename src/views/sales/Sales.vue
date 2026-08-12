@@ -271,6 +271,12 @@ watch(
   { deep: true }
 );
 
+watch(activeTab, (tab) => {
+  if (tab === "POS") {
+    setTimeout(() => posRef.value?.focusSearchInput?.(), 0);
+  }
+});
+
 const getStockErrorMessage = (stockDetails = [], payloadItems = []) => {
   const unavailableItem = stockDetails.find((item) => item && item.is_available === false);
   if (!unavailableItem) return null;

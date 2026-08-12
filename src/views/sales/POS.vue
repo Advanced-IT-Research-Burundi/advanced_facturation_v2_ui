@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, nextTick, onMounted, watch } from "vue";
 import { Search, Loader2 } from "lucide-vue-next";
 import api from "@/services/api";
 import { useStore } from "vuex";
@@ -15,17 +15,29 @@ const store = useStore();
 const emit = defineEmits(["add-to-cart", "stock-changed"]);
 
 const isLoadingProducts = ref(false);
+const isLoadingMoreProducts = ref(false);
 const searchQuery = ref("");
 const selectedCategory = ref("Tous");
 const selectedStock = ref(null);
+const productScrollEl = ref(null);
+const searchInputEl = ref(null);
 const lastAutoAddedScan = ref("");
+const currentPage = ref(0);
+const hasMoreProducts = ref(true);
 let searchTimeout = null;
 let productsRequestVersion = 0;
-const POS_PRODUCTS_PER_PAGE = 100;
+const POS_PRODUCTS_PER_PAGE = 15;
 
 onMounted(() => {
+  focusSearchInput();
   fetchStock();
 });
+
+const focusSearchInput = async () => {
+  await nextTick();
+  searchInputEl.value?.focus();
+};
+
 const fetchStock = async () => {
   try {
     const response = await api.get("/mes_stock");
@@ -96,42 +108,68 @@ const hasNextPage = ({ meta, links, itemCount }, page) => {
   return itemCount >= POS_PRODUCTS_PER_PAGE;
 };
 
-const fetchProducts = async (search = "") => {
+const mergeUniqueProducts = (existingProducts, newProducts) => {
+  const seen = new Set(
+    existingProducts.map((product) => product.warehouse_product_id || product.id)
+  );
+
+  return [
+    ...existingProducts,
+    ...newProducts.filter((product) => {
+      const key = product.warehouse_product_id || product.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  ];
+};
+
+const fetchProducts = async (search = "", options = {}) => {
   if (!selectedPOSStock.value) {
     store.state.data.productsPOS = [];
+    currentPage.value = 0;
+    hasMoreProducts.value = false;
     return;
   }
 
-  isLoadingProducts.value = true;
-  store.state.data.productsPOS = [];
+  const reset = options.reset !== false;
+  const page = reset ? 1 : currentPage.value + 1;
+  const requestVersion = reset ? ++productsRequestVersion : productsRequestVersion;
+
+  if (!reset && (!hasMoreProducts.value || isLoadingMoreProducts.value || isLoadingProducts.value)) {
+    return;
+  }
+
+  if (reset) {
+    isLoadingProducts.value = true;
+    isLoadingMoreProducts.value = false;
+    currentPage.value = 0;
+    hasMoreProducts.value = true;
+    store.state.data.productsPOS = [];
+    if (productScrollEl.value) {
+      productScrollEl.value.scrollTop = 0;
+    }
+  } else {
+    isLoadingMoreProducts.value = true;
+  }
+
   const currentSearch = search.trim();
-  const requestVersion = ++productsRequestVersion;
 
   try {
-    const allItems = [];
-    let page = 1;
-    let shouldContinue = true;
+    const response = await api.get("/pos-products", {
+      params: {
+        stock_id: selectedPOSStock.value,
+        search: currentSearch,
+        page,
+        per_page: POS_PRODUCTS_PER_PAGE,
+      }
+    });
 
-    while (shouldContinue) {
-      const response = await api.get("/pos-products", {
-        params: {
-          stock_id: selectedPOSStock.value,
-          search: currentSearch,
-          page,
-          per_page: POS_PRODUCTS_PER_PAGE,
-        }
-      });
+    if (requestVersion !== productsRequestVersion) return;
+    if (!response.data.success) return;
 
-      if (requestVersion !== productsRequestVersion) return;
-      if (!response.data.success) break;
-
-      const { items, meta, links } = getProductsPayload(response.data);
-      allItems.push(...items);
-      shouldContinue = hasNextPage({ meta, links, itemCount: items.length }, page);
-      page += 1;
-    }
-
-    const productsData = allItems
+    const { items, meta, links } = getProductsPayload(response.data);
+    const productsData = items
       .map((p) => ({
         id: p.id,
         warehouse_product_id: p.warehouse_product_id,
@@ -147,9 +185,13 @@ const fetchProducts = async (search = "") => {
       }))
       .filter((product) => product.stock > 0);
 
-    store.state.data.productsPOS = productsData;
+    store.state.data.productsPOS = reset
+      ? productsData
+      : mergeUniqueProducts(products.value, productsData);
+    currentPage.value = page;
+    hasMoreProducts.value = hasNextPage({ meta, links, itemCount: items.length }, page);
 
-    if (normalizeCode(searchQuery.value) === normalizeCode(currentSearch)) {
+    if (reset && normalizeCode(searchQuery.value) === normalizeCode(currentSearch)) {
       autoAddSingleScanResult(productsData, currentSearch);
     }
   } catch (error) {
@@ -157,6 +199,7 @@ const fetchProducts = async (search = "") => {
   } finally {
     if (requestVersion === productsRequestVersion) {
       isLoadingProducts.value = false;
+      isLoadingMoreProducts.value = false;
     }
   }
 };
@@ -208,7 +251,19 @@ const handleSearchEnter = () => {
   if (searchTimeout) {
     clearTimeout(searchTimeout);
   }
-  fetchProducts(searchQuery.value);
+  fetchProducts(searchQuery.value, { reset: true });
+};
+
+const handleProductScroll = () => {
+  const element = productScrollEl.value;
+  if (!element) return;
+
+  const distanceFromBottom =
+    element.scrollHeight - element.scrollTop - element.clientHeight;
+
+  if (distanceFromBottom <= 120) {
+    fetchProducts(searchQuery.value, { reset: false });
+  }
 };
 
 
@@ -222,7 +277,7 @@ watch(searchQuery, (newVal) => {
     clearTimeout(searchTimeout);
   }
   searchTimeout = setTimeout(() => {
-    fetchProducts(newVal);
+    fetchProducts(newVal, { reset: true });
   }, 300); // 300ms debounce
 });
 
@@ -256,7 +311,7 @@ const formatPrice = (price) => {
   return typeof price === "number" ? price.toLocaleString() : "0";
 };
 
-defineExpose({ fetchProducts });
+defineExpose({ fetchProducts, focusSearchInput });
 </script>
 
 <template>
@@ -285,6 +340,7 @@ defineExpose({ fetchProducts });
               <Search :size="18" />
             </span>
             <input
+              ref="searchInputEl"
               v-model="searchQuery"
               type="text"
               class="form-control bg-light border-start-0"
@@ -322,7 +378,11 @@ defineExpose({ fetchProducts });
       </div>
     </div>
 
-    <div class="products-scroll-area p-3">
+    <div
+      ref="productScrollEl"
+      class="products-scroll-area p-3"
+      @scroll.passive="handleProductScroll"
+    >
       <div class="row g-3">
         <div
           v-for="product in filteredProducts"
@@ -354,6 +414,14 @@ defineExpose({ fetchProducts });
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        v-if="isLoadingMoreProducts"
+        class="d-flex align-items-center justify-content-center gap-2 py-3 text-muted"
+      >
+        <Loader2 :size="18" class="animate-spin" />
+        <span>Chargement des autres produits...</span>
       </div>
 
       <div
