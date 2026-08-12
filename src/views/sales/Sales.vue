@@ -32,6 +32,9 @@ const selectedWarehouseId = ref(null);
 const invoiceListKey = ref(0);
 const posProducts = computed(() => store.state.data?.productsPOS || []);
 const posRef = ref(null);
+const SAVED_CARTS_KEY = "pos_saved_carts";
+const activeSavedCartId = ref(null);
+const savedCarts = ref(JSON.parse(localStorage.getItem(SAVED_CARTS_KEY) || "[]"));
 const splitContainerRef = ref(null);
 const productsPaneWidth = ref(Number(localStorage.getItem("pos_products_width")) || 60);
 const isResizingPOS = ref(false);
@@ -108,6 +111,79 @@ const showNotification = (message, type = 'success') => {
 
 const fetchInvoices = () => {
   invoiceListKey.value++;
+};
+
+const persistSavedCarts = () => {
+  localStorage.setItem(SAVED_CARTS_KEY, JSON.stringify(savedCarts.value));
+};
+
+const padNumber = (value) => String(value).padStart(2, "0");
+
+const buildSavedCartIdentifier = () => {
+  const now = new Date();
+  const datePart = [
+    now.getFullYear(),
+    padNumber(now.getMonth() + 1),
+    padNumber(now.getDate()),
+  ].join("");
+  const timePart = [
+    padNumber(now.getHours()),
+    padNumber(now.getMinutes()),
+    padNumber(now.getSeconds()),
+  ].join("");
+
+  return `FACT-ATT-${datePart}-${timePart}`;
+};
+
+const handleSaveCart = (draft) => {
+  const existingIndex = activeSavedCartId.value
+    ? savedCarts.value.findIndex((item) => item.id === activeSavedCartId.value)
+    : -1;
+  const existingDraft = existingIndex >= 0 ? savedCarts.value[existingIndex] : null;
+  const savedDraft = {
+    id: existingDraft?.id || `saved-cart-${Date.now()}`,
+    identifier: existingDraft?.identifier || buildSavedCartIdentifier(),
+    created_at: existingDraft?.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...draft,
+    items: draft.items.map((item) => ({ ...item })),
+  };
+
+  if (existingIndex >= 0) {
+    savedCarts.value.splice(existingIndex, 1, savedDraft);
+  } else {
+    savedCarts.value.unshift(savedDraft);
+  }
+
+  activeSavedCartId.value = savedDraft.id;
+  persistSavedCarts();
+  showNotification(`Facture enregistrée: ${savedDraft.identifier}`);
+};
+
+const handleRestoreSavedCart = (savedCart) => {
+  if (cart.value.length > 0 && activeSavedCartId.value !== savedCart.id) {
+    const shouldReplace = window.confirm("Remplacer le panier actuel par cette facture enregistrée ?");
+    if (!shouldReplace) return;
+  }
+
+  cart.value = savedCart.items.map((item) => ({ ...item }));
+  selectedWarehouseId.value = savedCart.warehouse_id || selectedWarehouseId.value;
+  activeSavedCartId.value = savedCart.id;
+  showNotification(`Facture reprise: ${savedCart.identifier}`);
+};
+
+const handleDeleteSavedCart = (savedCartId) => {
+  const savedCart = savedCarts.value.find((item) => item.id === savedCartId);
+  savedCarts.value = savedCarts.value.filter((item) => item.id !== savedCartId);
+  if (activeSavedCartId.value === savedCartId) {
+    activeSavedCartId.value = null;
+  }
+  persistSavedCarts();
+  showNotification(
+    savedCart
+      ? `Facture enregistrée supprimée: ${savedCart.identifier}`
+      : "Facture enregistrée supprimée"
+  );
 };
 
 // Handle warehouse change from POS
@@ -398,6 +474,11 @@ const handleInvoiceSubmit = async (payload) => {
 
       if (payload.invoice_action === "POS") {
         decrementPOSStockAfterSale(payload.items);
+        if (activeSavedCartId.value) {
+          savedCarts.value = savedCarts.value.filter((item) => item.id !== activeSavedCartId.value);
+          activeSavedCartId.value = null;
+          persistSavedCarts();
+        }
         cart.value = [];
         await posRef.value?.fetchProducts?.();
       }
@@ -562,10 +643,14 @@ const closeProformaDetails = () => {
         :cart="cart"
         :customers="customers"
         :is-submitting="isSubmitting"
+        :saved-carts="savedCarts"
         :warehouse-id="selectedWarehouseId"
         @remove-from-cart="removeFromCart"
         @update-quantity="updateQuantity"
         @invoice-submitted="handleInvoiceSubmit"
+        @save-cart="handleSaveCart"
+        @restore-saved-cart="handleRestoreSavedCart"
+        @delete-saved-cart="handleDeleteSavedCart"
         @add-client="openClientForm"
       />
     </div>

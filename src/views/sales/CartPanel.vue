@@ -7,6 +7,7 @@ import {
   Trash2,
   Minus,
   CreditCard,
+  Save,
   Loader2,
   Percent,
 } from "lucide-vue-next";
@@ -29,18 +30,27 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  savedCarts: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const emit = defineEmits([
+  "add-client",
   "remove-from-cart",
   "update-quantity",
   "invoice-submitted",
+  "save-cart",
+  "restore-saved-cart",
+  "delete-saved-cart",
 ]);
 
 const selectedClient = ref(null);
 const clientSearchText = ref("");
 const selectedCurrency = ref("BIF");
 const selectedPaymentType = ref("1");
+const selectedSavedCartId = ref("");
 
 const filteredCustomers = computed(() => {
   if (!clientSearchText.value) return [];
@@ -112,6 +122,18 @@ const getItemTTC = (item) => {
 
 const formatPrice = (price) => {
   return typeof price === "number" ? price.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : "0";
+};
+
+const savedCartOptions = computed(() => {
+  return [...props.savedCarts].sort((a, b) => {
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+});
+
+const formatSavedCartLabel = (savedCart) => {
+  const customerName = savedCart.customer?.customer_name || "Client non identifié";
+  const total = formatPrice(Number(savedCart.total_ttc) || 0);
+  return `${savedCart.identifier} - ${customerName} - ${total} ${savedCart.currency || "BIF"}`;
 };
 
 const formatValidationMessage = (errors) => {
@@ -192,6 +214,58 @@ const submitInvoice = async () => {
     console.error("Erreur lors de la préparation de la facture:", error);
     toast.error("Erreur lors de la préparation de la facture");
   }
+};
+
+const saveCart = () => {
+  if (props.cart.length === 0) {
+    toast.warning("Le panier est vide.");
+    return;
+  }
+
+  const validationErrors = validateCartItems();
+  if (validationErrors.length > 0) {
+    toast.error(formatValidationMessage(validationErrors), 7000);
+    return;
+  }
+
+  emit("save-cart", {
+    customer: selectedClient.value
+      ? {
+          id: selectedClient.value.id,
+          customer_name: selectedClient.value.customer_name,
+          customer_TIN: selectedClient.value.customer_TIN,
+        }
+      : null,
+    currency: selectedCurrency.value,
+    payment_type: selectedPaymentType.value,
+    warehouse_id: props.warehouseId,
+    total_ht: cartTotalHT.value,
+    total_tva: cartTotalTVA.value,
+    total_ttc: cartTotalTTC.value,
+    items: props.cart.map((item) => ({ ...item })),
+  });
+};
+
+const restoreSavedCart = () => {
+  const savedCart = props.savedCarts.find((cart) => cart.id === selectedSavedCartId.value);
+  if (!savedCart) return;
+
+  const selectedCustomer = savedCart.customer?.id
+    ? props.customers.find((customer) => customer.id === savedCart.customer.id)
+    : null;
+
+  selectedClient.value = selectedCustomer || savedCart.customer || null;
+  clientSearchText.value = savedCart.customer?.customer_name || "";
+  selectedCurrency.value = savedCart.currency || "BIF";
+  selectedPaymentType.value = savedCart.payment_type || "1";
+  emit("restore-saved-cart", savedCart);
+  selectedSavedCartId.value = "";
+};
+
+const deleteSelectedSavedCart = () => {
+  if (!selectedSavedCartId.value) return;
+  emit("delete-saved-cart", selectedSavedCartId.value);
+  selectedSavedCartId.value = "";
 };
 
 const clearClient = () => {
@@ -359,15 +433,51 @@ defineExpose({ clearClient });
           </div>
         </div>
 
-        <button
-          @click="submitInvoice"
-          class="btn btn-primary fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm cart-submit-btn"
-          :disabled="isSubmitting"
-        >
-          <Loader2 v-if="isSubmitting" :size="20" class="animate-spin" />
-          <CreditCard v-else :size="24" />
-          {{ isSubmitting ? "Traitement..." : "Valider la facture" }}
-        </button>
+        <div v-if="savedCartOptions.length" class="saved-cart-row d-flex gap-1">
+          <select v-model="selectedSavedCartId" class="form-select form-select-sm">
+            <option value="">Factures enregistrées</option>
+            <option v-for="savedCart in savedCartOptions" :key="savedCart.id" :value="savedCart.id">
+              {{ formatSavedCartLabel(savedCart) }}
+            </option>
+          </select>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="!selectedSavedCartId"
+            @click="restoreSavedCart"
+            title="Reprendre cette facture"
+          >
+            Reprendre
+          </button>
+          <button
+            class="btn btn-outline-danger btn-sm px-2"
+            :disabled="!selectedSavedCartId"
+            @click="deleteSelectedSavedCart"
+            title="Supprimer cette facture enregistrée"
+          >
+            <Trash2 :size="14" />
+          </button>
+        </div>
+
+        <div class="cart-actions-grid">
+          <button
+            @click="saveCart"
+            class="btn btn-outline-primary fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm cart-submit-btn"
+            :disabled="isSubmitting || cart.length === 0"
+          >
+            <Save :size="20" />
+            Enregistrer la facture
+          </button>
+
+          <button
+            @click="submitInvoice"
+            class="btn btn-primary fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm cart-submit-btn"
+            :disabled="isSubmitting"
+          >
+            <Loader2 v-if="isSubmitting" :size="20" class="animate-spin" />
+            <CreditCard v-else :size="24" />
+            {{ isSubmitting ? "Traitement..." : "Valider la facture" }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -467,6 +577,27 @@ defineExpose({ clearClient });
 }
 .cart-submit-btn {
   min-height: 36px;
+}
+.cart-actions-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.4rem;
+}
+.cart-actions-grid .btn {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.15;
+}
+.saved-cart-row {
+  min-width: 0;
+}
+.saved-cart-row .form-select {
+  min-width: 0;
+}
+@media (max-width: 575.98px) {
+  .cart-actions-grid {
+    grid-template-columns: 1fr;
+  }
 }
 @keyframes spin {
   from { transform: rotate(0deg); }
