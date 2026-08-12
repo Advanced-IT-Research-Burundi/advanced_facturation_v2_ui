@@ -25,13 +25,14 @@
               <option value="PERSONNE MORAL">PERSONNE MORAL</option>
             </select>
 
-            <label class="form-label text-muted small fw-bold text-uppercase"
-              >Nif du client</label
-            >
+            <label class="form-label text-muted small fw-bold text-uppercase">
+              Nif du client <span v-if="form.type === 'PERSONNE MORAL'" class="text-danger">*</span>
+            </label>
             <div class="position-relative">
               <input
                 v-model="form.customer_TIN"
                 type="text"
+                :required="form.type === 'PERSONNE MORAL'"
                 class="form-control border-success-subtle"
               />
               <span
@@ -142,14 +143,17 @@ const form = reactive({
   customer_phone: "",
   customer_address: "",
   vat_customer_payer: "Non assujetti",
-  company_id: 1,
   type: "",
-  description: "",
 });
 
 const saveClient = async () => {
   if (!form.customer_name || !form.type) {
     toast.error("Veuillez remplir les champs obligatoires.");
+    return;
+  }
+
+  if (form.type === "PERSONNE MORAL" && !form.customer_TIN?.trim()) {
+    toast.error("Le NIF du client est obligatoire pour un client de type personne morale.");
     return;
   }
 

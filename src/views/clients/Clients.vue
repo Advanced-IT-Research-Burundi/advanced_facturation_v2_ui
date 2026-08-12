@@ -110,8 +110,15 @@
                 <option value="PERSONNE MORAL">PERSONNE MORAL</option>
               </select>
 
-              <label class="form-label text-muted small fw-bold text-uppercase">Nif du client</label>
-              <input v-model="editForm.customer_TIN" type="text" class="form-control border-success-subtle" />
+              <label class="form-label text-muted small fw-bold text-uppercase">
+                Nif du client <span v-if="editForm.type === 'PERSONNE MORAL'" class="text-danger">*</span>
+              </label>
+              <input
+                v-model="editForm.customer_TIN"
+                type="text"
+                :required="editForm.type === 'PERSONNE MORAL'"
+                class="form-control border-success-subtle"
+              />
             </div>
 
             <div class="col-md-4">
@@ -228,12 +235,17 @@ const openEditModal = (client) => {
   editForm.customer_phone = client.customer_phone || '';
   editForm.customer_address = client.customer_address || '';
   editForm.vat_customer_payer = client.vat_customer_payer || 'Non assujetti';
-  editForm.type = client.type || '';
+  editForm.type = client.type || 'PERSONNE PHYSIQUE';
 };
 
 const saveEdit = async () => {
   if (!editForm.customer_name || !editForm.type) {
     editError.value = 'Veuillez remplir les champs obligatoires.';
+    return;
+  }
+
+  if (editForm.type === 'PERSONNE MORAL' && !editForm.customer_TIN?.trim()) {
+    editError.value = 'Le NIF du client est obligatoire pour un client de type personne morale.';
     return;
   }
 
