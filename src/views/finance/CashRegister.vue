@@ -2,18 +2,39 @@
 import { ref, onMounted, computed } from 'vue';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
-  Clock, CheckCircle, XCircle, Plus, RefreshCw, Printer
+  Clock, XCircle, Plus, RefreshCw, Printer, Users, Calendar
 } from 'lucide-vue-next';
+import { useStore } from 'vuex';
 import api from '@/services/api';
 import FinanceHeader from './FinanceHeader.vue';
 
+const store = useStore();
+
 // State
 const loading = ref(true);
+const dailySummaryLoading = ref(false);
 const currentRegister = ref(null);
 const registers = ref([]);
+const dailySummary = ref(null);
+const users = ref([]);
 const showOpenModal = ref(false);
 const showCloseModal = ref(false);
 const showMovementModal = ref(false);
+const getStoredUser = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem('user') || 'null');
+  } catch (error) {
+    return null;
+  }
+};
+const currentUser = computed(() => store.getters['auth/currentUser'] || getStoredUser());
+const selectedUserId = ref('all');
+const todayIso = () => {
+  const now = new Date();
+  const timezoneOffset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 10);
+};
+const selectedSummaryDate = ref(todayIso());
 
 // Forms
 const openForm = ref({
@@ -58,6 +79,81 @@ const summary = computed(() => currentRegister.value?.summary || {
   total_expense: 0,
   expected_balance: 0
 });
+const dailyTotals = computed(() => dailySummary.value?.summary || {
+  total_opening: 0,
+  total_income: 0,
+  total_expense: 0,
+  total_adjustment: 0,
+  net_amount: 0,
+  total_transactions: 0
+});
+const userSummaries = computed(() => dailySummary.value?.user_summaries || []);
+const recentDailyMovements = computed(() => dailySummary.value?.recent_movements || []);
+const adminRoleNames = ['admin', 'super_admin'];
+const isAdminRole = (role) => {
+  const name = role?.name?.toLowerCase();
+  const label = role?.label?.toLowerCase();
+
+  return adminRoleNames.includes(name)
+    || label === 'administrateur'
+    || label === 'super administrateur';
+};
+const isAdmin = computed(() => {
+  const roles = currentUser.value?.roles || [];
+  const roleNames = currentUser.value?.role_names || [];
+
+  return roles.some(isAdminRole)
+    || roleNames.some((name) => adminRoleNames.includes(name?.toLowerCase()));
+});
+const canFilterUsers = computed(() => isAdmin.value || dailySummary.value?.can_filter_users === true);
+const effectiveUserId = computed(() => (canFilterUsers.value ? selectedUserId.value : currentUser.value?.id));
+const displayedCurrentMovements = computed(() => {
+  const movements = currentRegister.value?.register?.movements || [];
+  const userId = effectiveUserId.value;
+
+  if (canFilterUsers.value && (!userId || userId === 'all')) return movements;
+  return movements.filter((mov) => Number(mov.created_by?.id || mov.created_by) === Number(userId));
+});
+const emptyUserCashRow = (user, fallbackId = null) => ({
+  user_id: user?.id ?? fallbackId,
+  user_name: user?.name || 'Utilisateur',
+  user_email: user?.email || null,
+  transaction_count: 0,
+  total_income: 0,
+  total_expense: 0,
+  total_adjustment: 0,
+  net_amount: 0,
+  latest_transaction_at: null
+});
+const userCashRows = computed(() => {
+  const summariesByUser = new Map(userSummaries.value.map((row) => [Number(row.user_id), row]));
+
+  if (canFilterUsers.value && selectedUserId.value === 'all') {
+    const rows = users.value.map((user) => ({
+      ...emptyUserCashRow(user),
+      ...(summariesByUser.get(Number(user.id)) || {})
+    }));
+
+    userSummaries.value.forEach((row) => {
+      if (!rows.some((user) => Number(user.user_id) === Number(row.user_id))) {
+        rows.push(row);
+      }
+    });
+
+    return rows;
+  }
+
+  if (canFilterUsers.value && selectedUserId.value !== 'all') {
+    const selectedUser = users.value.find((user) => Number(user.id) === Number(selectedUserId.value));
+    return [{
+      ...emptyUserCashRow(selectedUser, selectedUserId.value),
+      ...(summariesByUser.get(Number(selectedUserId.value)) || {})
+    }];
+  }
+
+  if (userSummaries.value.length) return userSummaries.value;
+  return [emptyUserCashRow(currentUser.value)];
+});
 
 // Fetch current register
 const fetchCurrentRegister = async () => {
@@ -83,6 +179,51 @@ const fetchRegisters = async () => {
   }
 };
 
+// Fetch users for admin filter
+const fetchUsers = async () => {
+  if (!canFilterUsers.value) return;
+
+  try {
+    const res = await api.get('/users', { params: { per_page: 100 } });
+    if (res.data.success) {
+      users.value = res.data.data.data || res.data.data || [];
+    }
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    showNotification('Erreur lors du chargement des utilisateurs', 'error');
+  }
+};
+
+// Fetch daily summary by user
+const fetchDailySummary = async () => {
+  dailySummaryLoading.value = true;
+  try {
+    const params = {
+      date: selectedSummaryDate.value,
+      hotel_section: 'null'
+    };
+
+    if (canFilterUsers.value) {
+      params.user_id = selectedUserId.value;
+    }
+
+    const res = await api.get('/cash-registers/daily-summary', {
+      params
+    });
+    if (res.data.success) {
+      dailySummary.value = res.data.data;
+      if (dailySummary.value?.can_filter_users && users.value.length === 0) {
+        await fetchUsers();
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching daily summary:', error);
+    showNotification('Erreur lors du chargement du résumé journalier', 'error');
+  } finally {
+    dailySummaryLoading.value = false;
+  }
+};
+
 // Open register
 const openRegister = async () => {
   try {
@@ -92,6 +233,7 @@ const openRegister = async () => {
       openForm.value = { opening_balance: 0, warehouse_id: null, opening_note: '' };
       await fetchCurrentRegister();
       await fetchRegisters();
+      await fetchDailySummary();
     }
   } catch (error) {
     showNotification(error.response?.data?.message || 'Erreur lors de l\'ouverture', 'error');
@@ -109,6 +251,7 @@ const closeRegister = async () => {
       closeForm.value = { closing_balance: 0, closing_note: '' };
       currentRegister.value = null;
       await fetchRegisters();
+      await fetchDailySummary();
     }
   } catch (error) {
     showNotification(error.response?.data?.message || 'Erreur lors de la fermeture', 'error');
@@ -134,6 +277,7 @@ const addMovement = async () => {
       showMovementModal.value = false;
       movementForm.value = { type: 'income', amount: 0, description: '', reference: '' };
       await fetchCurrentRegister();
+      await fetchDailySummary();
     }
   } catch (error) {
     showNotification(error.response?.data?.message || 'Erreur lors de l\'ajout', 'error');
@@ -189,7 +333,13 @@ const printReceipt = () => {
 // Init
 onMounted(async () => {
   loading.value = true;
-  await Promise.all([fetchCurrentRegister(), fetchRegisters()]);
+
+  const requests = [fetchCurrentRegister(), fetchRegisters(), fetchDailySummary()];
+  if (canFilterUsers.value) {
+    requests.push(fetchUsers());
+  }
+
+  await Promise.all(requests);
   loading.value = false;
 });
 </script>
@@ -307,22 +457,24 @@ onMounted(async () => {
                     <tr>
                       <th>Heure</th>
                       <th>Type</th>
+                      <th>Utilisateur</th>
                       <th>Description</th>
                       <th>Référence</th>
                       <th class="text-end">Montant</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-if="!currentRegister.register.movements?.length">
-                      <td colspan="5" class="text-center text-muted py-4">Aucun mouvement</td>
+                    <tr v-if="!displayedCurrentMovements.length">
+                      <td colspan="6" class="text-center text-muted py-4">Aucun mouvement</td>
                     </tr>
-                    <tr v-for="mov in currentRegister.register.movements" :key="mov.id">
+                    <tr v-for="mov in displayedCurrentMovements" :key="mov.id">
                       <td>{{ formatDateTime(mov.created_at) }}</td>
                       <td>
                         <span :class="['badge', mov.type === 'income' ? 'bg-success' : mov.type === 'expense' ? 'bg-danger' : 'bg-warning']">
                           {{ mov.type === 'income' ? 'Entrée' : mov.type === 'expense' ? 'Sortie' : 'Ajustement' }}
                         </span>
                       </td>
+                      <td>{{ mov.created_by?.name || '-' }}</td>
                       <td>{{ mov.description }}</td>
                       <td>{{ mov.reference || '-' }}</td>
                       <td class="text-end fw-bold" :class="mov.type === 'income' ? 'text-success' : mov.type === 'expense' ? 'text-danger' : ''">
@@ -345,6 +497,154 @@ onMounted(async () => {
         <button class="btn btn-primary btn-lg" @click="showOpenModal = true">
           <Wallet :size="20" class="me-2" /> Ouvrir la caisse
         </button>
+      </div>
+
+      <!-- Daily User Summary -->
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
+            <Users :size="18" class="text-primary" />
+            <h6 class="mb-0 fw-bold">Caisse journalière par utilisateur</h6>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <Calendar :size="16" class="text-muted" />
+            <input
+              type="date"
+              v-model="selectedSummaryDate"
+              class="form-control form-control-sm"
+              style="width: 150px"
+              @change="fetchDailySummary"
+            >
+            <select
+              v-if="canFilterUsers"
+              v-model="selectedUserId"
+              class="form-select form-select-sm user-filter"
+              @change="fetchDailySummary"
+            >
+              <option value="all">Tous les utilisateurs</option>
+              <option v-for="user in users" :key="user.id" :value="user.id">{{ user.name }}</option>
+            </select>
+            <span v-else class="badge bg-light text-dark border">
+              {{ currentUser?.name || 'Mon compte' }}
+            </span>
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="dailySummaryLoading"
+              @click="fetchDailySummary"
+            >
+              <RefreshCw :size="16" class="me-1" :class="{ 'spin-icon': dailySummaryLoading }" />
+              Actualiser
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div v-if="dailySummaryLoading" class="text-center py-4">
+            <div class="spinner-border text-primary"></div>
+          </div>
+          <template v-else>
+            <div class="row g-3 mb-4">
+              <div class="col-6 col-lg-3">
+                <div class="summary-tile">
+                  <p class="text-muted small mb-1">Transactions</p>
+                  <h5 class="mb-0">{{ dailyTotals.total_transactions || 0 }}</h5>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="summary-tile">
+                  <p class="text-muted small mb-1">Entrées du jour</p>
+                  <h5 class="mb-0 text-success">+{{ formatCurrency(dailyTotals.total_income) }}</h5>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="summary-tile">
+                  <p class="text-muted small mb-1">Sorties du jour</p>
+                  <h5 class="mb-0 text-danger">-{{ formatCurrency(dailyTotals.total_expense) }}</h5>
+                </div>
+              </div>
+              <div class="col-6 col-lg-3">
+                <div class="summary-tile">
+                  <p class="text-muted small mb-1">Montant net caisse</p>
+                  <h5 class="mb-0" :class="dailyTotals.net_amount < 0 ? 'text-danger' : 'text-success'">
+                    {{ dailyTotals.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(dailyTotals.net_amount || 0)) }}
+                  </h5>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-responsive mb-4">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Utilisateur</th>
+                    <th class="text-center">Transactions</th>
+                    <th class="text-end">Entrées</th>
+                    <th class="text-end">Sorties</th>
+                    <th class="text-end">Ajustements</th>
+                    <th class="text-end">Montant caisse</th>
+                    <th>Dernière transaction</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!userCashRows.length">
+                    <td colspan="7" class="text-center text-muted py-4">Aucune transaction pour cette date</td>
+                  </tr>
+                  <tr v-for="user in userCashRows" :key="user.user_id">
+                    <td>
+                      <div class="fw-semibold">{{ user.user_name }}</div>
+                      <small class="text-muted">{{ user.user_email || '-' }}</small>
+                    </td>
+                    <td class="text-center">{{ user.transaction_count }}</td>
+                    <td class="text-end text-success">+{{ formatCurrency(user.total_income) }}</td>
+                    <td class="text-end text-danger">-{{ formatCurrency(user.total_expense) }}</td>
+                    <td class="text-end">{{ formatCurrency(user.total_adjustment) }}</td>
+                    <td class="text-end fw-bold" :class="user.net_amount < 0 ? 'text-danger' : 'text-success'">
+                      {{ user.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(user.net_amount || 0)) }}
+                    </td>
+                    <td>{{ user.latest_transaction_at ? formatDateTime(user.latest_transaction_at) : '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <Clock :size="16" class="text-muted" />
+              <h6 class="mb-0 fw-bold">Historique des transactions du jour</h6>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Heure</th>
+                    <th>Utilisateur</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Référence</th>
+                    <th class="text-end">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!recentDailyMovements.length">
+                    <td colspan="6" class="text-center text-muted py-4">Aucune transaction enregistrée</td>
+                  </tr>
+                  <tr v-for="mov in recentDailyMovements" :key="mov.id">
+                    <td>{{ formatDateTime(mov.created_at) }}</td>
+                    <td>{{ mov.created_by?.name || '-' }}</td>
+                    <td>
+                      <span :class="['badge', mov.type === 'income' ? 'bg-success' : mov.type === 'expense' ? 'bg-danger' : 'bg-warning']">
+                        {{ mov.type === 'income' ? 'Entrée' : mov.type === 'expense' ? 'Sortie' : 'Ajustement' }}
+                      </span>
+                    </td>
+                    <td>{{ mov.description }}</td>
+                    <td>{{ mov.reference || '-' }}</td>
+                    <td class="text-end fw-bold" :class="mov.type === 'income' ? 'text-success' : mov.type === 'expense' ? 'text-danger' : ''">
+                      {{ mov.type === 'expense' ? '-' : '+' }}{{ formatCurrency(mov.amount) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </div>
       </div>
 
       <!-- History -->
@@ -502,5 +802,31 @@ onMounted(async () => {
 <style scoped>
 .card {
   border-radius: 12px;
+}
+
+.summary-tile {
+  background: #f8f9fa;
+  border: 1px solid #eef0f2;
+  border-radius: 8px;
+  min-height: 86px;
+  padding: 14px;
+}
+
+.user-filter {
+  min-width: 210px;
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -84,6 +84,8 @@
                     :id="`role-${role.id}`"
                     :value="role.id"
                     v-model="form.roles"
+                    :disabled="isRoleDisabled(role)"
+                    @change="normalizeSelectedRoles(role)"
                   />
                   <label class="form-check-label" :for="`role-${role.id}`">
                     <strong>{{ role.label }}</strong>
@@ -144,6 +146,35 @@ const form = reactive({
 
 const roles = computed(() => store.getters['users/allRoles']);
 const loadingRoles = computed(() => store.getters['users/isLoadingRoles']);
+const privilegedRoleNames = ['super_admin', 'admin'];
+
+const getRoleName = (roleId) => roles.value.find((role) => role.id === roleId)?.name;
+const isPrivilegedRole = (role) => privilegedRoleNames.includes(role.name?.toLowerCase());
+const selectedPrivilegedRoleIds = computed(() => form.roles.filter((roleId) => {
+  const roleName = getRoleName(roleId);
+  return privilegedRoleNames.includes(roleName?.toLowerCase());
+}));
+const hasPrivilegedRole = computed(() => selectedPrivilegedRoleIds.value.length > 0);
+const highestPrivilegedRoleId = computed(() => {
+  const selectedRoles = roles.value.filter((role) => form.roles.includes(role.id));
+  const superAdmin = selectedRoles.find((role) => role.name?.toLowerCase() === 'super_admin');
+  const admin = selectedRoles.find((role) => role.name?.toLowerCase() === 'admin');
+
+  return superAdmin?.id || admin?.id || null;
+});
+
+const isRoleDisabled = (role) => hasPrivilegedRole.value && !isPrivilegedRole(role) && !form.roles.includes(role.id);
+
+const normalizeSelectedRoles = (changedRole = null) => {
+  if (changedRole && isPrivilegedRole(changedRole) && form.roles.includes(changedRole.id)) {
+    form.roles = [changedRole.id];
+    return;
+  }
+
+  if (hasPrivilegedRole.value && highestPrivilegedRoleId.value) {
+    form.roles = [highestPrivilegedRoleId.value];
+  }
+};
 
 const passwordError = computed(() => {
   if (!isEdit.value || form.password) {
@@ -171,6 +202,7 @@ watch(
       form.email = user.email;
       form.company_id = user.company_id;
       form.roles = user.roles?.map(r => r.id) || [];
+      normalizeSelectedRoles();
       form.password = '';
       form.password_confirmation = '';
     } else {
@@ -180,8 +212,11 @@ watch(
   { immediate: true }
 );
 
+watch(roles, () => normalizeSelectedRoles());
+
 const saveUser = async () => {
   if (passwordError.value || form.roles.length === 0) return;
+  normalizeSelectedRoles();
 
   isSaving.value = true;
   errorMessage.value = '';

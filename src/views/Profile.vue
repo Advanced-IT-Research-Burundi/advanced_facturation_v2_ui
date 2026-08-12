@@ -41,7 +41,16 @@ const domainConfig = computed(() => {
   return configs[companyDomain.value] ?? configs.general;
 });
 
-const allRoles = computed(() => user.value?.roles || []);
+const allRoles = computed(() => {
+  const roles = user.value?.roles || [];
+  const superAdmin = roles.find((role) => role.name?.toLowerCase() === 'super_admin');
+  if (superAdmin) return [superAdmin];
+
+  const admin = roles.find((role) => role.name?.toLowerCase() === 'admin');
+  if (admin) return [admin];
+
+  return roles;
+});
 
 const DOMAIN_PERMISSIONS = {
   general:        ['dashboard', 'sales', 'clients', 'stock', 'journal', 'reports', 'expenses', 'company', 'users'],

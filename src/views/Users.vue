@@ -76,7 +76,7 @@
               </td>
               <td>{{ user.email }}</td>
               <td>
-                <span v-for="role in user.roles" :key="role.id" :class="`badge ${getRoleBadgeClass(role.name)} me-1`">
+                <span v-for="role in displayRoles(user.roles)" :key="role.id" :class="`badge ${getRoleBadgeClass(role.name)} me-1`">
                   {{ role.label }}
                 </span>
               </td>
@@ -162,11 +162,21 @@ const getAvatarColor = (name) => {
 
 const getRoleBadgeClass = (role) => {
   const classes = {
-    admin: 'bg-danger', manager: 'bg-warning text-dark', user: 'bg-secondary',
+    super_admin: 'bg-dark', admin: 'bg-danger', manager: 'bg-warning text-dark', user: 'bg-secondary',
     cashier: 'bg-success', sales: 'bg-info', stock_manager: 'bg-primary',
     pharmacist: 'bg-primary', baker: 'bg-warning text-dark', accountant: 'bg-info'
   };
   return classes[role] || 'bg-secondary';
+};
+
+const displayRoles = (roles = []) => {
+  const superAdmin = roles.find((role) => role.name?.toLowerCase() === 'super_admin');
+  if (superAdmin) return [superAdmin];
+
+  const admin = roles.find((role) => role.name?.toLowerCase() === 'admin');
+  if (admin) return [admin];
+
+  return roles;
 };
 
 const calculateIndex = (index) => (pagination.value.current_page - 1) * pagination.value.per_page + index + 1;
