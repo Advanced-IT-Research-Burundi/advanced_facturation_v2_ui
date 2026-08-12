@@ -117,6 +117,99 @@ const persistSavedCarts = () => {
   localStorage.setItem(SAVED_CARTS_KEY, JSON.stringify(savedCarts.value));
 };
 
+const normalizeBackendSavedCart = (savedCart) => ({
+  id: savedCart.local_id,
+  server_id: savedCart.id,
+  identifier: savedCart.identifier,
+  created_at: savedCart.created_at,
+  updated_at: savedCart.updated_at,
+  customer: savedCart.customer || savedCart.customer_snapshot,
+  currency: savedCart.currency,
+  payment_type: savedCart.payment_type,
+  warehouse_id: savedCart.warehouse_id,
+  total_ht: Number(savedCart.total_ht) || 0,
+  total_tva: Number(savedCart.total_tva) || 0,
+  total_ttc: Number(savedCart.total_ttc) || 0,
+  items: savedCart.items || [],
+  sync_status: "synced",
+});
+
+const savedCartPayload = (savedCart) => ({
+  local_id: savedCart.id,
+  identifier: savedCart.identifier,
+  customer_id: savedCart.customer?.id || null,
+  warehouse_id: savedCart.warehouse_id || null,
+  currency: savedCart.currency || "BIF",
+  payment_type: savedCart.payment_type || "1",
+  total_ht: Number(savedCart.total_ht) || 0,
+  total_tva: Number(savedCart.total_tva) || 0,
+  total_ttc: Number(savedCart.total_ttc) || 0,
+  customer_snapshot: savedCart.customer || null,
+  items: savedCart.items.map((item) => ({ ...item })),
+});
+
+const updateSavedCartSyncState = (savedCartId, updates) => {
+  const index = savedCarts.value.findIndex((item) => item.id === savedCartId);
+  if (index === -1) return;
+
+  savedCarts.value.splice(index, 1, {
+    ...savedCarts.value[index],
+    ...updates,
+  });
+  persistSavedCarts();
+};
+
+const syncSavedCartToBackend = (savedCart) => {
+  updateSavedCartSyncState(savedCart.id, { sync_status: "syncing" });
+
+  api.post("/saved-pos-carts", savedCartPayload(savedCart))
+    .then((response) => {
+      const backendCart = response.data?.data;
+      updateSavedCartSyncState(savedCart.id, {
+        server_id: backendCart?.id,
+        sync_status: "synced",
+        updated_at: backendCart?.updated_at || savedCart.updated_at,
+      });
+    })
+    .catch((error) => {
+      console.error("Erreur synchro facture enregistrée:", error);
+      updateSavedCartSyncState(savedCart.id, { sync_status: "pending" });
+    });
+};
+
+const deleteSavedCartFromBackend = (savedCart) => {
+  if (!savedCart) return;
+
+  const key = encodeURIComponent(savedCart.id || savedCart.identifier);
+  api.delete(`/saved-pos-carts/${key}`).catch((error) => {
+    console.error("Erreur suppression facture enregistrée:", error);
+  });
+};
+
+const fetchSavedCartsFromBackend = () => {
+  api.get("/saved-pos-carts", { params: { per_page: 100 } })
+    .then((response) => {
+      const records = response.data?.data?.data || response.data?.data || [];
+      const backendCarts = records.map(normalizeBackendSavedCart);
+      const localById = new Map(savedCarts.value.map((item) => [item.id, item]));
+
+      backendCarts.forEach((backendCart) => {
+        const localCart = localById.get(backendCart.id);
+        if (!localCart || localCart.sync_status === "synced") {
+          localById.set(backendCart.id, backendCart);
+        }
+      });
+
+      savedCarts.value = Array.from(localById.values()).sort((a, b) => {
+        return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
+      });
+      persistSavedCarts();
+    })
+    .catch((error) => {
+      console.error("Erreur chargement factures enregistrées:", error);
+    });
+};
+
 const padNumber = (value) => String(value).padStart(2, "0");
 
 const buildSavedCartIdentifier = () => {
@@ -155,9 +248,11 @@ const handleSaveCart = (draft) => {
     savedCarts.value.unshift(savedDraft);
   }
 
-  activeSavedCartId.value = savedDraft.id;
+  activeSavedCartId.value = null;
+  cart.value = [];
   persistSavedCarts();
   showNotification(`Facture enregistrée: ${savedDraft.identifier}`);
+  syncSavedCartToBackend(savedDraft);
 };
 
 const handleRestoreSavedCart = (savedCart) => {
@@ -179,6 +274,7 @@ const handleDeleteSavedCart = (savedCartId) => {
     activeSavedCartId.value = null;
   }
   persistSavedCarts();
+  deleteSavedCartFromBackend(savedCart);
   showNotification(
     savedCart
       ? `Facture enregistrée supprimée: ${savedCart.identifier}`
@@ -315,6 +411,7 @@ onMounted(() => {
   fetchCustomers();
   fetchProformas();
   fetchCompany();
+  fetchSavedCartsFromBackend();
 });
 
 // --- CART LOGIC ---
@@ -475,9 +572,11 @@ const handleInvoiceSubmit = async (payload) => {
       if (payload.invoice_action === "POS") {
         decrementPOSStockAfterSale(payload.items);
         if (activeSavedCartId.value) {
+          const savedCartToDelete = savedCarts.value.find((item) => item.id === activeSavedCartId.value);
           savedCarts.value = savedCarts.value.filter((item) => item.id !== activeSavedCartId.value);
           activeSavedCartId.value = null;
           persistSavedCarts();
+          deleteSavedCartFromBackend(savedCartToDelete);
         }
         cart.value = [];
         await posRef.value?.fetchProducts?.();
