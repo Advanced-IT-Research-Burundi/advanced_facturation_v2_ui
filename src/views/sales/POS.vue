@@ -26,7 +26,7 @@ const currentPage = ref(0);
 const hasMoreProducts = ref(true);
 let searchTimeout = null;
 let productsRequestVersion = 0;
-const POS_PRODUCTS_PER_PAGE = 15;
+const POS_PRODUCTS_PER_PAGE = 20;
 
 onMounted(() => {
   focusSearchInput();

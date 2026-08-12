@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onBeforeUnmount, onMounted, watch, computed } from "vue";
 import { useStore } from "vuex";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
@@ -32,6 +32,51 @@ const selectedWarehouseId = ref(null);
 const invoiceListKey = ref(0);
 const posProducts = computed(() => store.state.data?.productsPOS || []);
 const posRef = ref(null);
+const splitContainerRef = ref(null);
+const productsPaneWidth = ref(Number(localStorage.getItem("pos_products_width")) || 60);
+const isResizingPOS = ref(false);
+
+const MIN_PRODUCTS_WIDTH = 38;
+const MAX_PRODUCTS_WIDTH = 76;
+
+const clampPaneWidth = (value) => {
+  return Math.min(MAX_PRODUCTS_WIDTH, Math.max(MIN_PRODUCTS_WIDTH, value));
+};
+
+const posResizeStyles = computed(() => ({
+  "--pos-products-width": `${productsPaneWidth.value}%`,
+  "--pos-resizer-width": "10px",
+}));
+
+const handlePOSResizeMove = (event) => {
+  if (!isResizingPOS.value || !splitContainerRef.value) return;
+
+  const bounds = splitContainerRef.value.getBoundingClientRect();
+  const nextWidth = ((event.clientX - bounds.left) / bounds.width) * 100;
+  productsPaneWidth.value = clampPaneWidth(nextWidth);
+};
+
+const stopPOSResize = () => {
+  if (!isResizingPOS.value) return;
+
+  isResizingPOS.value = false;
+  localStorage.setItem("pos_products_width", String(productsPaneWidth.value));
+  document.body.classList.remove("pos-resizing");
+  window.removeEventListener("pointermove", handlePOSResizeMove);
+  window.removeEventListener("pointerup", stopPOSResize);
+  window.removeEventListener("pointercancel", stopPOSResize);
+};
+
+const startPOSResize = (event) => {
+  if (activeTab.value !== "POS") return;
+
+  event.preventDefault();
+  isResizingPOS.value = true;
+  document.body.classList.add("pos-resizing");
+  window.addEventListener("pointermove", handlePOSResizeMove);
+  window.addEventListener("pointerup", stopPOSResize);
+  window.addEventListener("pointercancel", stopPOSResize);
+};
 
 // --- PRINT MODAL STATE ---
 const showPrintModal = ref(false);
@@ -277,6 +322,10 @@ watch(activeTab, (tab) => {
   }
 });
 
+onBeforeUnmount(() => {
+  stopPOSResize();
+});
+
 const getStockErrorMessage = (stockDetails = [], payloadItems = []) => {
   const unavailableItem = stockDetails.find((item) => item && item.is_available === false);
   if (!unavailableItem) return null;
@@ -437,8 +486,10 @@ const closeProformaDetails = () => {
     <SalesHeader v-model="activeTab" />
 
     <div
+      ref="splitContainerRef"
       class="row g-0"
       :class="activeTab === 'POS' ? 'pos-sales-row flex-grow-1 overflow-hidden' : ''"
+      :style="activeTab === 'POS' ? posResizeStyles : null"
     >
       <!-- Main Content Area -->
       <div
@@ -491,6 +542,17 @@ const closeProformaDetails = () => {
           @cancel="openCancelModal"
         />
         <Reports v-else-if="activeTab === 'Rapports'" />
+      </div>
+
+      <div
+        v-if="activeTab === 'POS'"
+        class="pos-resizer"
+        role="separator"
+        aria-label="Ajuster la largeur produits panier"
+        title="Ajuster la largeur"
+        @pointerdown="startPOSResize"
+      >
+        <span class="pos-resizer-line"></span>
       </div>
 
       <!-- Right Panel (Cart - only for POS) -->
@@ -607,6 +669,51 @@ const closeProformaDetails = () => {
 }
 .products-section {
   overflow: hidden;
+}
+.pos-resizer {
+  display: none;
+}
+.pos-resizing,
+.pos-resizing * {
+  cursor: w-resize !important;
+  user-select: none !important;
+}
+@media (min-width: 992px) {
+  .pos-sales-row {
+    flex-wrap: nowrap;
+  }
+  .pos-main-column {
+    flex: 0 0 var(--pos-products-width) !important;
+    width: var(--pos-products-width) !important;
+    max-width: var(--pos-products-width) !important;
+  }
+  .pos-sales-row > .cart-section {
+    flex: 0 0 calc(100% - var(--pos-products-width) - var(--pos-resizer-width)) !important;
+    width: calc(100% - var(--pos-products-width) - var(--pos-resizer-width)) !important;
+    max-width: calc(100% - var(--pos-products-width) - var(--pos-resizer-width)) !important;
+  }
+  .pos-resizer {
+    cursor: w-resize;
+    display: flex;
+    flex: 0 0 var(--pos-resizer-width);
+    width: var(--pos-resizer-width);
+    align-items: stretch;
+    justify-content: center;
+    background: #eef1f5;
+    border-left: 1px solid #d9dee7;
+    border-right: 1px solid #d9dee7;
+    touch-action: none;
+    z-index: 5;
+  }
+  .pos-resizer:hover,
+  .pos-resizer:active {
+    background: #dde3ec;
+  }
+  .pos-resizer-line {
+    width: 2px;
+    margin: 0 1px;
+    background: #9aa6b8;
+  }
 }
 @keyframes spin {
   from {
