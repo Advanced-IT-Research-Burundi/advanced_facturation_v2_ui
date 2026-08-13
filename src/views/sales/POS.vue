@@ -31,7 +31,14 @@ const POS_PRODUCTS_PER_PAGE = 20;
 
 onMounted(() => {
   focusSearchInput();
+  restoreCachedPOSData();
   fetchStock();
+  if (selectedPOSStock.value) {
+    fetchProducts("", {
+      reset: true,
+      keepExisting: cachedDefaultProducts.value.length > 0,
+    });
+  }
 });
 
 const focusSearchInput = async () => {
@@ -44,7 +51,7 @@ const fetchStock = async () => {
     const response = await api.get("/mes_stock");
     if (response.data.success) {
       const stocksData = response.data.data || [];
-      store.state.data.stocksPOS = stocksData;
+      store.commit("SET_POS_STOCKS", stocksData);
       
       // Vérifier si des stocks existent
       if (stocksData.length > 0) {
@@ -67,7 +74,8 @@ watch(selectedStock, (newStockId) => {
   if (stock && newStockId) {
     const warehouseId = stock.warehouse_id || stock.warehouse?.id || stock.id;
     emit("stock-changed", warehouseId);
-    fetchProducts();
+    const hasCachedProducts = applyCachedProductsForStock(warehouseId);
+    fetchProducts("", { reset: true, keepExisting: hasCachedProducts });
   }
 });
 
@@ -127,13 +135,14 @@ const mergeUniqueProducts = (existingProducts, newProducts) => {
 
 const fetchProducts = async (search = "", options = {}) => {
   if (!selectedPOSStock.value) {
-    store.state.data.productsPOS = [];
+    store.commit("SET_POS_PRODUCTS", { stockId: null, products: [] });
     currentPage.value = 0;
     hasMoreProducts.value = false;
     return;
   }
 
   const reset = options.reset !== false;
+  const keepExisting = options.keepExisting !== false;
   const page = reset ? 1 : currentPage.value + 1;
   const requestVersion = reset ? ++productsRequestVersion : productsRequestVersion;
 
@@ -146,9 +155,11 @@ const fetchProducts = async (search = "", options = {}) => {
     isLoadingMoreProducts.value = false;
     currentPage.value = 0;
     hasMoreProducts.value = true;
-    store.state.data.productsPOS = [];
     if (productScrollEl.value) {
       productScrollEl.value.scrollTop = 0;
+    }
+    if (!keepExisting) {
+      store.commit("SET_POS_PRODUCTS", { stockId: selectedPOSStock.value, products: [] });
     }
   } else {
     isLoadingMoreProducts.value = true;
@@ -189,7 +200,10 @@ const fetchProducts = async (search = "", options = {}) => {
     const nextProducts = reset
       ? productsData
       : mergeUniqueProducts(products.value, productsData);
-    store.state.data.productsPOS = nextProducts;
+    store.commit("SET_POS_PRODUCTS", {
+      stockId: selectedPOSStock.value,
+      products: nextProducts,
+    });
     if (!currentSearch) {
       cachedDefaultProducts.value = nextProducts;
     }
@@ -257,7 +271,10 @@ const handleSearchEnter = () => {
     clearTimeout(searchTimeout);
   }
   if (!searchQuery.value.trim()) {
-    store.state.data.productsPOS = cachedDefaultProducts.value;
+    store.commit("SET_POS_PRODUCTS", {
+      stockId: selectedPOSStock.value,
+      products: cachedDefaultProducts.value,
+    });
     return;
   }
   fetchProducts(searchQuery.value, { reset: true });
@@ -283,7 +300,10 @@ watch(searchQuery, (newVal) => {
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
-    store.state.data.productsPOS = cachedDefaultProducts.value;
+    store.commit("SET_POS_PRODUCTS", {
+      stockId: selectedPOSStock.value,
+      products: cachedDefaultProducts.value,
+    });
     return;
   }
 
@@ -299,6 +319,47 @@ const products = computed(() => store.state.data?.productsPOS || []);
 const stocks = computed(() => store.state.data?.stocksPOS || []);
 
 const selectedPOSStock = computed(() => selectedStock.value || store.state.data?.stocksPOS?.[0]?.warehouse_id);
+
+const getStockCacheKey = (stockId) => String(stockId || "");
+
+const getCachedProductsForStock = (stockId) => {
+  return (
+    store.state.data?.productsPOSByStock?.[getStockCacheKey(stockId)] ||
+    []
+  );
+};
+
+const applyCachedProductsForStock = (stockId) => {
+  const cachedProducts = getCachedProductsForStock(stockId);
+  cachedDefaultProducts.value = cachedProducts;
+  store.commit("SET_POS_PRODUCTS", { stockId, products: cachedProducts });
+  currentPage.value = cachedProducts.length > 0 ? 1 : 0;
+  hasMoreProducts.value = true;
+
+  return cachedProducts.length > 0;
+};
+
+const restoreCachedPOSData = () => {
+  const cachedStocks = store.state.data?.stocksPOS || [];
+  if (!selectedStock.value && cachedStocks.length > 0) {
+    selectedStock.value =
+      cachedStocks[0].warehouse_id ||
+      cachedStocks[0].warehouse?.id ||
+      cachedStocks[0].id;
+  }
+
+  const stockId = selectedPOSStock.value;
+  const cachedProducts = getCachedProductsForStock(stockId);
+  const fallbackProducts = store.state.data?.productsPOS || [];
+  const productsToRestore = cachedProducts.length > 0 ? cachedProducts : fallbackProducts;
+
+  if (productsToRestore.length > 0) {
+    cachedDefaultProducts.value = productsToRestore;
+    store.commit("SET_POS_PRODUCTS", { stockId, products: productsToRestore });
+    currentPage.value = 1;
+    hasMoreProducts.value = true;
+  }
+};
 
 const categories = computed(() => {
   if (!availableProducts.value || availableProducts.value.length === 0) return ["Tous"];

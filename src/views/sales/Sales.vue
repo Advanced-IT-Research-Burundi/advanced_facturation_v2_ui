@@ -546,7 +546,7 @@ const decrementPOSStockAfterSale = (items = []) => {
     soldQuantities.set(key, (soldQuantities.get(key) || 0) + quantity);
   });
 
-  store.state.data.productsPOS = posProducts.value
+  const updatedProducts = posProducts.value
     .map((product) => {
       const key = product.warehouse_product_id || product.id;
       const soldQuantity = soldQuantities.get(key) || 0;
@@ -557,6 +557,11 @@ const decrementPOSStockAfterSale = (items = []) => {
       };
     })
     .filter((product) => Number(product.stock) > 0);
+
+  store.commit("SET_POS_PRODUCTS", {
+    stockId: selectedWarehouseId.value,
+    products: updatedProducts,
+  });
 };
 
 const handleInvoiceSubmit = async (payload) => {

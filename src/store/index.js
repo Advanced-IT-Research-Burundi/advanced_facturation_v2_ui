@@ -23,6 +23,8 @@ const defaultRootState = () => ({
     categoriesProducts: [],
     productsItems : [],
     productsPOS : [],
+    productsPOSByStock: {},
+    stocksPOS: [],
   } ,
   configs: [],
   pagination: {},
@@ -54,6 +56,21 @@ const store = createStore({
     },
     SET_ERROR(state, error) {
       state.error = error;
+    },
+    SET_DATA_FIELD(state, { key, value }) {
+      state.data[key] = value;
+    },
+    SET_POS_PRODUCTS(state, { stockId, products }) {
+      state.data.productsPOS = products;
+      if (stockId) {
+        state.data.productsPOSByStock = {
+          ...(state.data.productsPOSByStock || {}),
+          [stockId]: products,
+        };
+      }
+    },
+    SET_POS_STOCKS(state, stocks) {
+      state.data.stocksPOS = stocks;
     },
   },
   actions: {
