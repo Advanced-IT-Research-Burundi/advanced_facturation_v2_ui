@@ -41,10 +41,7 @@
                 placeholder="Rechercher..."
               />
             </div>
-            <div v-if="loadingProductsNotInStock" class="text-center py-4">
-              <div class="spinner-border text-primary"></div>
-            </div>
-            <div v-else class="table-responsive">
+            <div class="table-responsive">
               <table class="table table-sm table-hover mb-0">
                 <thead class="table-light">
                   <tr>
@@ -67,7 +64,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="!notInStock.length">
+                  <tr v-if="!loadingProductsNotInStock && !notInStock.length">
                     <td colspan="3" class="text-center py-3 text-muted">
                       Tous les produits sont inclus
                     </td>
@@ -121,10 +118,7 @@
                 placeholder="Rechercher..."
               />
             </div>
-            <div v-if="loadingProductsInStock" class="text-center py-4">
-              <div class="spinner-border text-success"></div>
-            </div>
-            <div v-else class="table-responsive">
+            <div class="table-responsive">
               <table class="table table-sm table-hover mb-0">
                 <thead class="table-light">
                   <tr>
@@ -170,7 +164,7 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="!inStock.length">
+                  <tr v-if="!loadingProductsInStock && !inStock.length">
                     <td colspan="5" class="text-center py-3 text-muted">
                       Vide
                     </td>

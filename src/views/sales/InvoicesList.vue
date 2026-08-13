@@ -3,7 +3,6 @@ import { ref, computed, onMounted, watch } from "vue";
 import {
   FileText,
   Search,
-  Loader2,
   Eye,
   Printer,
   RefreshCw,
@@ -212,12 +211,7 @@ const changePage = (page) => {
 
     <!-- Table -->
     <div class="flex-grow-1 overflow-auto">
-      <div v-if="isLoading" class="text-center py-5">
-        <Loader2 :size="32" class="animate-spin text-primary" />
-        <p class="text-muted mt-2">Chargement...</p>
-      </div>
-
-      <div v-else-if="invoices.length === 0" class="text-center py-5 text-muted">
+      <div v-if="!isLoading && invoices.length === 0" class="text-center py-5 text-muted">
         <FileText :size="48" class="opacity-25 mb-2" />
         <p>Aucune facture trouvée</p>
       </div>

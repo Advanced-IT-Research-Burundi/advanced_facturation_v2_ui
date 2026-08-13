@@ -11,12 +11,12 @@ import FinanceHeader from './FinanceHeader.vue';
 const store = useStore();
 
 // State
-const loading = ref(true);
+const loading = ref(false);
 const dailySummaryLoading = ref(false);
-const currentRegister = ref(null);
-const registers = ref([]);
-const dailySummary = ref(null);
-const users = ref([]);
+const currentRegister = ref(store.state.data.financeCashRegisterCurrent || null);
+const registers = ref(store.state.data.financeCashRegisterHistory || []);
+const dailySummary = ref(store.state.data.financeCashRegisterDailySummary || null);
+const users = ref(store.state.data.financeCashRegisterUsers || []);
 const showOpenModal = ref(false);
 const showCloseModal = ref(false);
 const showMovementModal = ref(false);
@@ -161,6 +161,7 @@ const fetchCurrentRegister = async () => {
     const res = await api.get('/cash-registers/current');
     if (res.data.success) {
       currentRegister.value = res.data.data;
+      store.state.data.financeCashRegisterCurrent = currentRegister.value;
     }
   } catch (error) {
     console.error('Error fetching current register:', error);
@@ -173,6 +174,7 @@ const fetchRegisters = async () => {
     const res = await api.get('/cash-registers');
     if (res.data.success) {
       registers.value = res.data.data.data || [];
+      store.state.data.financeCashRegisterHistory = registers.value;
     }
   } catch (error) {
     console.error('Error fetching registers:', error);
@@ -187,6 +189,7 @@ const fetchUsers = async () => {
     const res = await api.get('/users', { params: { per_page: 100 } });
     if (res.data.success) {
       users.value = res.data.data.data || res.data.data || [];
+      store.state.data.financeCashRegisterUsers = users.value;
     }
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -212,6 +215,7 @@ const fetchDailySummary = async () => {
     });
     if (res.data.success) {
       dailySummary.value = res.data.data;
+      store.state.data.financeCashRegisterDailySummary = dailySummary.value;
       if (dailySummary.value?.can_filter_users && users.value.length === 0) {
         await fetchUsers();
       }
@@ -332,15 +336,12 @@ const printReceipt = () => {
 
 // Init
 onMounted(async () => {
-  loading.value = true;
-
   const requests = [fetchCurrentRegister(), fetchRegisters(), fetchDailySummary()];
   if (canFilterUsers.value) {
     requests.push(fetchUsers());
   }
 
   await Promise.all(requests);
-  loading.value = false;
 });
 </script>
 
@@ -363,12 +364,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary"></div>
-    </div>
-
-    <template v-else>
+    <div class="cash-register-content">
       <!-- Current Register -->
       <div v-if="currentRegister?.register" class="row g-4 mb-4">
         <!-- Summary Cards -->
@@ -538,10 +534,7 @@ onMounted(async () => {
           </div>
         </div>
         <div class="card-body">
-          <div v-if="dailySummaryLoading" class="text-center py-4">
-            <div class="spinner-border text-primary"></div>
-          </div>
-          <template v-else>
+          <div>
             <div class="row g-3 mb-4">
               <div class="col-6 col-lg-3">
                 <div class="summary-tile">
@@ -643,7 +636,7 @@ onMounted(async () => {
                 </tbody>
               </table>
             </div>
-          </template>
+          </div>
         </div>
       </div>
 
@@ -690,7 +683,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-    </template>
+    </div>
 
     <!-- Open Modal -->
     <div v-if="showOpenModal" class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">

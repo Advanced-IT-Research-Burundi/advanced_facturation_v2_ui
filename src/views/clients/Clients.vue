@@ -12,7 +12,9 @@
           <i class="bi bi-plus-lg me-1"></i> Ajouter
         </button>
         
-        <h4 class="m-0 fw-normal text-dark">Liste des clients</h4>
+        <div class="d-flex align-items-center gap-2">
+          <h4 class="m-0 fw-normal text-dark">Liste des clients</h4>
+        </div>
         
         <div class="search-box" style="width: 300px;">
           <input v-model="search" @input="handleSearch" type="text" class="form-control border-danger-subtle" placeholder="Rechercher ici" />
@@ -36,8 +38,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading"><td colspan="8" class="text-center py-5 text-danger">Chargement...</td></tr>
-            <tr v-else-if="clients.length === 0"><td colspan="8" class="text-center py-5">Aucun client trouvé</td></tr>
+            <tr v-if="!loading && clients.length === 0"><td colspan="8" class="text-center py-5">Aucun client trouvé</td></tr>
             <tr v-for="(client, index) in clients" :key="client.id">
               <td class="ps-3 fw-bold">{{ calculateIndex(index) }}</td>
               <td>{{ client.id }}</td>
@@ -284,7 +285,9 @@ const handleModalClose = () => {
 };
 
 onMounted(() => {
-  fetchClients(1, '');
+  const lastQuery = store.getters['clients/lastQuery'] || {};
+  search.value = lastQuery.search || '';
+  fetchClients(lastQuery.page || 1, search.value);
 });
 </script>
 
@@ -319,6 +322,7 @@ onMounted(() => {
 .border-success-subtle {
   border-color: #a3cfbb !important;
 }
+
 
 /* Table styles */
 .table th {

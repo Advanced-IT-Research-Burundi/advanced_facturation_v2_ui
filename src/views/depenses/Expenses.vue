@@ -68,10 +68,7 @@
     <!-- Table -->
     <div class="card shadow-sm border-0">
       <div class="card-body p-0">
-        <div v-if="loading && expenses.length === 0" class="text-center py-5">
-          <div class="spinner-border text-primary" role="status"></div>
-        </div>
-        <div v-else class="table-responsive">
+        <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
             <thead class="bg-light">
               <tr>
@@ -109,7 +106,7 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="expenses.length === 0">
+              <tr v-if="!loading && expenses.length === 0">
                  <td colspan="6" class="text-center py-5 text-muted">
                      <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
                      Aucune dépense trouvée pour cette période.
@@ -235,7 +232,12 @@ const pagination = computed(() => store.getters["expenses/paginationExpenses"]);
 const totalVal = computed(() => store.getters["expenses/totalExpensesVal"]);
 
 onMounted(() => {
-  fetchData();
+  const lastQuery = store.state.expenses.lastQuery || {};
+  filters.search = lastQuery.search || "";
+  filters.category_id = lastQuery.category_id || "";
+  filters.start_date = lastQuery.start_date || "";
+  filters.end_date = lastQuery.end_date || "";
+  fetchData(lastQuery.page || 1);
   // Fetch categories for dropdown
   store.dispatch("expenses/fetchCategories", { page: -1 }); 
 });

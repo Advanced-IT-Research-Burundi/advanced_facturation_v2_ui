@@ -33,15 +33,8 @@
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading && fournisseurs.length === 0" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Chargement...</span>
-        </div>
-      </div>
-
       <!-- Table -->
-      <div v-else class="card shadow-sm border-0">
+      <div class="card shadow-sm border-0">
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
@@ -73,7 +66,7 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="suppliers && suppliers?.length === 0">
+                <tr v-if="!loading && suppliers && suppliers?.length === 0">
                   <td colspan="6" class="text-center py-5 text-muted">
                     Aucun fournisseur trouvé
                   </td>
@@ -195,7 +188,6 @@ const formLoading = ref(false)
 const suppliers = ref([])
 const searchQuery = ref('')
 const dbSearch = ref(null) // for debounce
-const fournisseurs = ref([])
 
 const pagination = ref({
     current_page: 1,
@@ -353,5 +345,4 @@ const deleteSupplier = async () => {
     background-color: transparent;
 }
 </style>
-
 

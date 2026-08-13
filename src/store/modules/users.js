@@ -1,14 +1,20 @@
 import apiClient from "@/services/api";
+import { getCachedModuleState } from "@/store/cache";
 
-const state = {
+const defaultState = () => ({
   users: [],
   companies: [],
   roles: [],
   pagination: {},
+  lastQuery: {
+    page: 1,
+    search: "",
+  },
+  lastUpdatedAt: null,
   loading: false,
   loadingRoles: false,
   error: null,
-};
+});
 
 const getters = {
   allUsers: (state) => state.users,
@@ -17,11 +23,14 @@ const getters = {
   allCompanies: (state) => state.companies,
   allRoles: (state) => state.roles,
   isLoadingRoles: (state) => state.loadingRoles,
+  hasUsers: (state) => state.users.length > 0,
+  lastQuery: (state) => state.lastQuery,
 };
 
 const actions = {
   async fetchUsers({ commit }, { page = 1, search = '' } = {}) {
     commit('setLoading', true);
+    commit('setLastQuery', { page, search });
     commit('setError', null);
 
     try {
@@ -39,6 +48,7 @@ const actions = {
           prev_page_url: response.data.data.prev_page_url,
           next_page_url: response.data.data.next_page_url,
         });
+        commit('setUpdatedAt');
       }
     } catch (error) {
       commit('setError', error.message);
@@ -56,6 +66,7 @@ const actions = {
 
       if (response.data.success && response.data.data) {
         commit('setCompanies', response.data.data.data);
+        commit('setUpdatedAt');
       }
     } catch (error) {
       console.error('Erreur fetchCompanies:', error);
@@ -74,6 +85,7 @@ const actions = {
 
       if (response.data.success || response.data.data) {
         commit('setRoles', response.data.data || []);
+        commit('setUpdatedAt');
       }
     } catch (error) {
       console.error('Erreur fetchRoles:', error);
@@ -162,11 +174,18 @@ const mutations = {
   setError: (state, error) => (state.error = error),
   setCompanies: (state, companies) => (state.companies = companies),
   setRoles: (state, roles) => (state.roles = roles),
+  setLastQuery: (state, query) => {
+    state.lastQuery = {
+      page: query.page || 1,
+      search: query.search || "",
+    };
+  },
+  setUpdatedAt: (state) => (state.lastUpdatedAt = Date.now()),
 };
 
 export default {
   namespaced: true,
-  state,
+  state: () => getCachedModuleState("users", defaultState()),
   getters,
   actions,
   mutations,

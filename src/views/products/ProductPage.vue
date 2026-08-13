@@ -2,7 +2,6 @@
 import { ref, onMounted, computed } from "vue";
 import { useStore } from "vuex";
 import StockHeader from "../stocks/StockHeader.vue";
-import api from "@/services/api";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 
@@ -15,31 +14,19 @@ import ProductFormModal from "./ProductFormModal.vue";
 const store = useStore();
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
-const searchQuery = ref("");
+const searchQuery = ref(store.getters["products/lastQuery"]?.search || "");
 const isEditing = ref(false);
 const editId = ref(null);
 const showModal = ref(false);
 const selectedProduct = ref(null);
 const successMessage = ref(null);
 
-// Initial Data Fetch
-onMounted(async () => {
-  const [catResp, unitResp] = await Promise.all([
-    api.get("/category-products"),
-    api.get("/product-units"),
-  ]);
-  store.state.data.categoriesProducts = catResp.data?.data?.data;
-  store.state.data.product_units = unitResp.data?.data?.data;
-
-  store.dispatch("products/fetchProducts", { page: 1, search: "" });
-});
-
 // State from Vuex
 const products = computed(() => store.getters["products/allProducts"]);
 const loading = computed(() => store.getters["products/isLoading"]);
 const pagination = computed(() => store.state.products.pagination);
-const categories = computed(() => store.state.data.categoriesProducts);
-const productUnits = computed(() => store.state.data.product_units);
+const categories = computed(() => store.getters["products/categories"]);
+const productUnits = computed(() => store.getters["products/productUnits"]);
 
 const handleSearch = (val) => {
   searchQuery.value = val;
@@ -112,6 +99,16 @@ const handleDelete = async (product) => {
     }
   }
 };
+
+onMounted(() => {
+  store.dispatch("products/fetchProductLookups");
+
+  const lastQuery = store.getters["products/lastQuery"] || {};
+  store.dispatch("products/fetchProducts", {
+    page: lastQuery.page || 1,
+    search: searchQuery.value,
+  });
+});
 </script>
 
 <template>

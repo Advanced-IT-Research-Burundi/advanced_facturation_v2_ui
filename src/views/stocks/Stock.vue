@@ -3,6 +3,10 @@
     <StockHeader />
       <div class="d-flex align-items-center gap-2">
         <h4 class="m-0 fw-normal me-4">Liste des produits</h4>
+        <span v-if="loading && products.length" class="refresh-badge">
+          <i class="bi bi-arrow-clockwise refresh-spin"></i>
+          Actualisation
+        </span>
         <select v-model="stockFilter" @change="fetchStock(1)" class="form-select border-secondary-subtle" style="width: auto">
           <option value="TOUT">TOUT</option>
           <option value="STOCK VIDE">STOCK VIDE</option>
@@ -35,13 +39,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading && products.length === 0">
-              <td colspan="12" class="text-center py-5 text-danger fw-bold">
-                <span class="spinner-border spinner-border-sm me-2"></span> Chargement des données...
-              </td>
-            </tr>
-            
-            <tr v-else-if="products.length === 0">
+            <tr v-if="!loading && products.length === 0">
               <td colspan="12" class="text-center py-5">Aucun produit trouvé</td>
             </tr>
 
@@ -159,7 +157,12 @@ const confirmDelete = async (id) => {
   }
 };
 
-onMounted(() => fetchStock(1));
+onMounted(() => {
+  const lastQuery = store.getters["stock/lastQuery"] || {};
+  search.value = lastQuery.search || "";
+  stockFilter.value = lastQuery.filter || "TOUT";
+  fetchStock(lastQuery.page || 1);
+});
 </script>
 
 <style scoped>
@@ -183,4 +186,23 @@ onMounted(() => fetchStock(1));
 .table th { font-size: 0.75rem; background-color: #f8f9fa; color: #444; }
 .table td { font-size: 0.85rem; }
 .bi-arrow-down-up { font-size: 0.7rem; opacity: 0.4; }
+.refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(197, 24, 24, 0.2);
+  border-radius: 999px;
+  color: #c51818;
+  background: rgba(197, 24, 24, 0.06);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.refresh-spin {
+  animation: refresh-spin 0.9s linear infinite;
+}
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 </style>

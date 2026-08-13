@@ -1,24 +1,29 @@
 <script setup>
-import { ref, onMounted, watch, onUnmounted, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue';
+import { useStore } from 'vuex';
 import {
   TrendingUp, TrendingDown, Package, Users, DollarSign,
   ShoppingCart, AlertTriangle, BarChart3, RefreshCw
 } from 'lucide-vue-next';
 import Chart from 'chart.js/auto';
-import api from '@/services/api';
 
-// Loading states
-const loading = ref(true);
+const store = useStore();
+
 const refreshing = ref(false);
-const loadError = ref('');
 
-// Data
-const stats = ref(null);
-const salesChart = ref(null);
-const topProducts = ref([]);
-const topCustomers = ref([]);
-const lowStockAlerts = ref([]);
-const recentInvoices = ref([]);
+const loading = computed(() => store.getters['dashboard/isLoading']);
+const loadError = computed(() => store.getters['dashboard/error']);
+const stats = computed(() => store.getters['dashboard/stats']);
+const salesChart = computed(() => store.getters['dashboard/salesChart']);
+const topProducts = computed(() => store.getters['dashboard/topProducts']);
+const topCustomers = computed(() => store.getters['dashboard/topCustomers']);
+const lowStockAlerts = computed(() => store.getters['dashboard/lowStockAlerts']);
+const recentInvoices = computed(() => store.getters['dashboard/recentInvoices']);
+const hasDashboardData = computed(() => store.getters['dashboard/hasData']);
+const salesPeriod = computed({
+  get: () => store.getters['dashboard/salesPeriod'],
+  set: (period) => store.commit('dashboard/SET_SALES_PERIOD', period),
+});
 
 // Chart instances
 let salesChartInstance = null;
@@ -28,67 +33,16 @@ let productsChartInstance = null;
 const salesChartCanvas = ref(null);
 const productsChartCanvas = ref(null);
 
-// Period filter for sales chart
-const salesPeriod = ref('month');
-
 // Formatters
 const formatNumber = (num) => new Intl.NumberFormat('fr-FR').format(num || 0);
 const formatCurrency = (num) => `${formatNumber(num)} FBU`;
 
 // Fetch all dashboard data
 const fetchDashboardData = async () => {
-  try {
-    loading.value = true;
-    loadError.value = '';
-
-    const results = await Promise.allSettled([
-      api.get('/analytics/dashboard-stats'),
-      api.get('/analytics/sales-chart', { params: { period: salesPeriod.value } }),
-      api.get('/analytics/top-products', { params: { limit: 5 } }),
-      api.get('/analytics/top-customers', { params: { limit: 5 } }),
-      api.get('/analytics/low-stock', { params: { threshold: 10 } }),
-      api.get('/dashboard'),
-    ]);
-
-    const [statsRes, salesRes, productsRes, customersRes, stockRes, invoicesRes] = results;
-
-    if (statsRes.status === 'fulfilled' && statsRes.value?.data?.success) {
-      stats.value = statsRes.value.data.data;
-    } else {
-      console.error('Stats request failed:', statsRes.reason || statsRes.value?.data);
-    }
-
-    if (salesRes.status === 'fulfilled' && salesRes.value?.data?.success) {
-      salesChart.value = salesRes.value.data.data;
-    }
-
-    if (productsRes.status === 'fulfilled' && productsRes.value?.data?.success) {
-      topProducts.value = productsRes.value.data?.data?.products || [];
-    }
-
-    if (customersRes.status === 'fulfilled' && customersRes.value?.data?.success) {
-      topCustomers.value = customersRes.value.data?.data?.customers || [];
-    }
-
-    if (stockRes.status === 'fulfilled' && stockRes.value?.data?.success) {
-      lowStockAlerts.value = (stockRes.value.data?.data?.alerts || []).slice(0, 5);
-    }
-
-    if (invoicesRes.status === 'fulfilled' && invoicesRes.value?.data?.success) {
-      recentInvoices.value = invoicesRes.value.data?.data?.recent_invoices || [];
-    }
-
-    loading.value = false;
-
-    await nextTick();
-    renderSalesChart();
-    renderProductsChart();
-
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    loadError.value = 'Erreur lors du chargement des données du tableau de bord.';
-    loading.value = false;
-  }
+  await store.dispatch('dashboard/fetchDashboardData');
+  await nextTick();
+  renderSalesChart();
+  renderProductsChart();
 };
 
 // Refresh data
@@ -105,7 +59,8 @@ const renderSalesChart = () => {
   if (salesChartInstance) salesChartInstance.destroy();
 
   const ctx = salesChartCanvas.value.getContext('2d');
-  const data = salesChart.value.chart;
+  const data = Array.isArray(salesChart.value?.chart) ? salesChart.value.chart : [];
+  if (!data.length) return;
 
   salesChartInstance = new Chart(ctx, {
     type: 'bar',
@@ -167,7 +122,7 @@ const renderProductsChart = () => {
   productsChartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: topProducts.value.map(p => p.product_name.substring(0, 20)),
+      labels: topProducts.value.map(p => (p.product_name || '').substring(0, 20)),
       datasets: [{
         data: topProducts.value.map(p => p.total_amount),
         backgroundColor: [
@@ -201,15 +156,9 @@ const renderProductsChart = () => {
 
 // Watch period changes
 watch(salesPeriod, async () => {
-  try {
-    const res = await api.get('/analytics/sales-chart', { params: { period: salesPeriod.value } });
-    if (res.data.success) {
-      salesChart.value = res.data.data;
-      renderSalesChart();
-    }
-  } catch (e) {
-    console.error('Error updating sales chart:', e);
-  }
+  await store.dispatch('dashboard/fetchSalesChart');
+  await nextTick();
+  renderSalesChart();
 });
 
 // Get alert badge class
@@ -241,7 +190,10 @@ const getStatusLabel = (status) => {
   return labels[status] || status;
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick();
+  renderSalesChart();
+  renderProductsChart();
   fetchDashboardData();
 });
 
@@ -265,20 +217,14 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="mt-2 text-muted">Chargement du tableau de bord...</p>
-    </div>
-
     <!-- Error -->
-    <div v-else-if="loadError" class="alert alert-danger d-flex align-items-center" role="alert">
+    <div v-if="loadError && !hasDashboardData" class="alert alert-danger d-flex align-items-center" role="alert">
       <span class="me-2">&#9888;</span>
       {{ loadError }}
       <button class="btn btn-sm btn-outline-danger ms-auto" @click="fetchDashboardData">Réessayer</button>
     </div>
 
-    <template v-else>
+    <div class="dashboard-content">
       <!-- Stats Cards -->
       <div class="row g-3 mb-4">
         <!-- Ventes du mois -->
@@ -580,7 +526,7 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 

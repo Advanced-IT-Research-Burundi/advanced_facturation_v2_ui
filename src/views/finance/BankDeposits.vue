@@ -12,6 +12,7 @@ import {
   Trash2,
   Wallet,
 } from 'lucide-vue-next';
+import { useStore } from 'vuex';
 import api from '@/services/api';
 import { useConfirm } from '@/composables/useConfirm';
 import { useToast } from '@/composables/useToast';
@@ -19,12 +20,13 @@ import FinanceHeader from './FinanceHeader.vue';
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
+const store = useStore();
 
-const loading = ref(true);
+const loading = ref(false);
 const saving = ref(false);
-const deposits = ref([]);
-const summary = ref(null);
-const currentRegister = ref(null);
+const deposits = ref(store.state.data.financeBankDeposits || []);
+const summary = ref(store.state.data.financeBankDepositsSummary || null);
+const currentRegister = ref(store.state.data.financeBankDepositsCurrentRegister || null);
 const showCreateModal = ref(false);
 
 const today = new Date().toISOString().split('T')[0];
@@ -56,6 +58,7 @@ const fetchCurrentRegister = async () => {
   const res = await api.get('/cash-registers/current');
   if (res.data.success) {
     currentRegister.value = res.data.data;
+    store.state.data.financeBankDepositsCurrentRegister = currentRegister.value;
     form.value.cash_register_id = res.data.data?.register?.id || null;
   }
 };
@@ -67,6 +70,7 @@ const fetchDeposits = async () => {
   const res = await api.get('/bank-deposits', { params });
   if (res.data.success) {
     deposits.value = res.data.data.data || [];
+    store.state.data.financeBankDeposits = deposits.value;
   }
 };
 
@@ -77,6 +81,7 @@ const fetchSummary = async () => {
   const res = await api.get('/bank-deposits/summary', { params });
   if (res.data.success) {
     summary.value = res.data.data;
+    store.state.data.financeBankDepositsSummary = summary.value;
   }
 };
 
@@ -182,11 +187,7 @@ onMounted(refreshAll);
       </div>
     </div>
 
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary"></div>
-    </div>
-
-    <template v-else>
+    <div class="bank-deposits-content">
       <div class="row g-4 mb-4">
         <div class="col-md-6 col-xl-3">
           <div class="card border-0 shadow-sm h-100">
@@ -362,7 +363,7 @@ onMounted(refreshAll);
           </div>
         </div>
       </div>
-    </template>
+    </div>
 
     <div v-if="showCreateModal" class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
       <div class="modal-dialog modal-lg">

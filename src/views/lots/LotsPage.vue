@@ -220,17 +220,12 @@ const totalPages = computed(() => Math.ceil(pagination.value.total / pagination.
               </tr>
             </thead>
             <tbody>
-              <tr v-if="loading">
-                <td colspan="7" class="text-center py-4">
-                  <div class="spinner-border text-primary" role="status"></div>
-                </td>
-              </tr>
-              <tr v-else-if="lots.length === 0">
+              <tr v-if="!loading && lots.length === 0">
                 <td colspan="7" class="text-center py-4 text-muted">
                   Aucun lot trouve
                 </td>
               </tr>
-              <tr v-for="lot in lots" :key="lot.id" v-else>
+              <tr v-for="lot in lots" :key="lot.id">
                 <td><code class="fs-6">{{ lot.lot_number }}</code></td>
                 <td>
                   <div>{{ lot.product?.item_designation || "-" }}</div>

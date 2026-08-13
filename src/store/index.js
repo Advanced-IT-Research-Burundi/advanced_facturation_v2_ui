@@ -9,27 +9,29 @@ import products from "./modules/products";
 import stock from "./modules/stock";
 import expenses from "./modules/expenses";
 import pharmaceutical from "./modules/pharmaceutical";
+import dashboard from "./modules/dashboard";
+import { createStoreCachePlugin, getCachedModuleState } from "./cache";
 import api from "@/services/api";
 
-
+const defaultRootState = () => ({
+  data: {
+    product_units : [],
+    warehouses: [],
+    stockProducts: [],
+    stockItems: [],
+    categories: [],
+    categoriesProducts: [],
+    productsItems : [],
+    productsPOS : [],
+  } ,
+  configs: [],
+  pagination: {},
+  loading: false,
+  error: null,
+});
 
 const store = createStore({
-  state: {
-    data: {
-      product_units : [],
-      warehouses: [],
-      stockProducts: [],
-      stockItems: [],
-      categories: [],
-      categoriesProducts: [],
-      productsItems : [],
-      productsPOS : [],
-    } ,
-    configs: [],
-    pagination: {},
-    loading: false,
-    error: null,
-  },
+  state: () => getCachedModuleState("root", defaultRootState()),
   mutations: {
     SET_CONFIGS(state, { data, meta }) {
       state.configs = data;
@@ -148,7 +150,9 @@ const store = createStore({
     stock,
     expenses,
     pharmaceutical,
+    dashboard,
   },
+  plugins: [createStoreCachePlugin()],
 });
 
 export default store;

@@ -49,15 +49,8 @@
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Chargement...</span>
-      </div>
-    </div>
-
     <!-- Products Table -->
-    <div v-else class="card">
+    <div class="card">
       <div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead class="table-light">
@@ -72,7 +65,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="products.length === 0">
+            <tr v-if="!loading && products.length === 0">
               <td colspan="7" class="text-center text-muted py-4">
                 Aucun produit pharmaceutique trouvé
               </td>

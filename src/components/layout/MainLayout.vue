@@ -16,11 +16,13 @@ import {
   UserCog,
   LogOut,
   Menu,
+  RefreshCw,
   X,
 } from "lucide-vue-next";
 import { RouterLink, RouterView, useRouter, useRoute } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
+import { networkActivity } from "@/services/api";
 
 const store = useStore();
 const router = useRouter();
@@ -115,6 +117,7 @@ watch(
 );
 
 const userName = computed(() => store.state.auth.user?.name || "Utilisateur");
+const isSyncing = computed(() => networkActivity.activeRequests > 0);
 
 const userRole = computed(() => {
   const roles = store.state.auth.user?.roles;
@@ -300,6 +303,15 @@ const filteredNavItems = computed(() => {
         <h4 class="mb-0 fw-bold text-primary company-title text-truncate">{{ companyName }}</h4>
 
         <div class="d-flex align-items-center gap-2 ms-auto">
+          <div
+            class="sync-indicator d-none d-sm-inline-flex align-items-center gap-1"
+            :class="{ active: isSyncing }"
+            :title="isSyncing ? 'Mise à jour des informations en cours' : 'Informations à jour'"
+          >
+            <RefreshCw :size="14" :class="{ 'sync-spin': isSyncing }" />
+            <span>{{ isSyncing ? "Mise à jour" : "À jour" }}</span>
+          </div>
+
           <div class="dropdown">
             <a
               href="#"
@@ -485,6 +497,30 @@ const filteredNavItems = computed(() => {
 .hamburger-btn {
   flex-shrink: 0;
   padding: 0.35rem 0.5rem;
+}
+
+.sync-indicator {
+  min-height: 28px;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.sync-indicator.active {
+  color: var(--bs-primary);
+  border-color: rgba(var(--bs-primary-rgb), 0.28);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+}
+.sync-spin {
+  animation: sync-spin 0.9s linear infinite;
+}
+@keyframes sync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ===== SCROLLBARS ===== */

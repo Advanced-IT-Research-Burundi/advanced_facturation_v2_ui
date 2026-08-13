@@ -9,7 +9,7 @@ const store = useStore();
 const router = useRouter();
 const toast = useToast();
 
-const stats = computed(() => store.getters["pharmaceutical/dashboardStats"]);
+const stats = computed(() => store.getters["pharmaceutical/dashboardStats"] || {});
 const loading = computed(() => store.getters["pharmaceutical/dashboardLoading"]);
 const expiringSoon = computed(() => store.getters["pharmaceutical/expiringSoonLots"]);
 const alertStats = computed(() => store.getters["pharmaceutical/alertStats"]);
@@ -64,14 +64,7 @@ const generateAlerts = async () => {
       </button>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Chargement...</span>
-      </div>
-    </div>
-
-    <template v-else-if="stats">
+    <div>
       <!-- Stats Cards Row 1 -->
       <div class="row g-3 mb-4">
         <div class="col-md-3">
@@ -269,7 +262,7 @@ const generateAlerts = async () => {
           </div>
         </div>
       </div>
-    </template>
+    </div>
   </div>
   </div>
 </template>

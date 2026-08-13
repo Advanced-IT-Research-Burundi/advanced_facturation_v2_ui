@@ -19,12 +19,7 @@
     <!-- Table -->
     <div class="card shadow-sm">
       <div class="card-body">
-        <div v-if="loading && configs.length === 0" class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-          </div>
-        </div>
-        <div v-else class="table-responsive">
+        <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
@@ -50,7 +45,7 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="configs.length === 0">
+              <tr v-if="!loading && configs.length === 0">
                 <td colspan="4" class="text-center py-5 text-muted">
                   <i class="bi bi-sliders fs-1 d-block mb-2"></i>
                   Aucune configuration trouvée.

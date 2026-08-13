@@ -1,6 +1,7 @@
 import api from "@/services/api";
+import { getCachedModuleState } from "@/store/cache";
 
-const state = {
+const defaultState = () => ({
   clients: [],
   pagination: {
     total: 0,
@@ -12,20 +13,28 @@ const state = {
     next_page_url: null,
     prev_page_url: null,
   },
+  lastQuery: {
+    page: 1,
+    search: "",
+  },
+  lastUpdatedAt: null,
   loading: false,
   error: null,
-};
+});
 
 const getters = {
   allClients: (state) => state.clients,
   totalClients: (state) => state.pagination.total,
   isLoading: (state) => state.loading,
+  hasClients: (state) => state.clients.length > 0,
+  lastQuery: (state) => state.lastQuery,
   getError: (state) => state.error,
 };
 
 const actions = {
   async fetchClients({ commit }, { page = 1, search = '' } = {}) {
     commit("SET_LOADING", true);
+    commit("SET_LAST_QUERY", { page, search });
     commit("SET_ERROR", null);
     try {
       const response = await api.get("/customers", {
@@ -34,6 +43,7 @@ const actions = {
       if (response.data.success) {
         commit("SET_CLIENTS", response.data.data.data || response.data.data);
         commit("SET_PAGINATION", response.data.data);
+        commit("SET_UPDATED_AT");
       }
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -153,6 +163,15 @@ const mutations = {
   SET_LOADING(state, status) {
     state.loading = status;
   },
+  SET_LAST_QUERY(state, query) {
+    state.lastQuery = {
+      page: query.page || 1,
+      search: query.search || "",
+    };
+  },
+  SET_UPDATED_AT(state) {
+    state.lastUpdatedAt = Date.now();
+  },
   SET_ERROR(state, error) {
     state.error = error;
   },
@@ -160,7 +179,7 @@ const mutations = {
 
 export default {
   namespaced: true,
-  state,
+  state: () => getCachedModuleState("clients", defaultState()),
   getters,
   actions,
   mutations,

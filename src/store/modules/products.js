@@ -1,25 +1,37 @@
 import api from "@/services/api";
+import { getCachedModuleState } from "@/store/cache";
+
+const defaultState = () => ({
+  items: [],
+  pagination: {
+    total: 0,
+    current_page: 1,
+    next_page_url: null,
+    prev_page_url: null,
+  },
+  categories: [],
+  productUnits: [],
+  lastQuery: {
+    page: 1,
+    search: "",
+  },
+  lastUpdatedAt: null,
+  loading: false,
+  error: null,
+});
 
 export default {
   namespaced: true,
 
-  state: () => ({
-    items: [],
-    pagination: {
-      total: 0,
-      current_page: 1,
-      next_page_url: null,
-      prev_page_url: null,
-    },
-    categories: [],
-    loading: false,
-    error: null,
-  }),
+  state: () => getCachedModuleState("products", defaultState()),
 
   getters: {
     allProducts: (state) => state.items,
     isLoading: (state) => state.loading,
     categories: (state) => state.categories,
+    productUnits: (state) => state.productUnits,
+    hasProducts: (state) => state.items.length > 0,
+    lastQuery: (state) => state.lastQuery,
   },
 
   mutations: {
@@ -28,6 +40,9 @@ export default {
     },
     SET_CATEGORIES(state, categories) {
       state.categories = categories;
+    },
+    SET_PRODUCT_UNITS(state, units) {
+      state.productUnits = units;
     },
     SET_PAGINATION(state, data) {
       state.pagination = {
@@ -40,6 +55,15 @@ export default {
     SET_LOADING(state, status) {
       state.loading = status;
     },
+    SET_LAST_QUERY(state, query) {
+      state.lastQuery = {
+        page: query.page || 1,
+        search: query.search || "",
+      };
+    },
+    SET_UPDATED_AT(state) {
+      state.lastUpdatedAt = Date.now();
+    },
     SET_ERROR(state, error) {
       state.error = error;
     }
@@ -48,11 +72,13 @@ export default {
   actions: {
     async fetchProducts({ commit }, { page = 1, search = '' } = {}) {
       commit("SET_LOADING", true);
+      commit("SET_LAST_QUERY", { page, search });
       try {
         const response = await api.get(`/products?page=${page}&search=${search}`);
      
           commit("SET_PRODUCTS", response.data.data.data);
           commit("SET_PAGINATION", response.data.data);
+          commit("SET_UPDATED_AT");
         
       } catch (error) {
         console.error("Erreur chargement produits:", error);
@@ -66,8 +92,28 @@ export default {
       try {
         const response = await api.get('/category-products');
         commit("SET_CATEGORIES", response.data.data);
+        commit("SET_UPDATED_AT");
       } catch (error) {
         console.error("Erreur chargement categories:", error);
+      }
+    },
+
+    async fetchProductLookups({ commit, state }, { force = false } = {}) {
+      if (!force && state.categories.length && state.productUnits.length) {
+        return;
+      }
+
+      try {
+        const [catResp, unitResp] = await Promise.all([
+          api.get("/category-products"),
+          api.get("/product-units"),
+        ]);
+        commit("SET_CATEGORIES", catResp.data?.data?.data || catResp.data?.data || []);
+        commit("SET_PRODUCT_UNITS", unitResp.data?.data?.data || unitResp.data?.data || []);
+        commit("SET_UPDATED_AT");
+      } catch (error) {
+        console.error("Erreur chargement donnees produit:", error);
+        commit("SET_ERROR", error);
       }
     },
 

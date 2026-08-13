@@ -70,11 +70,7 @@ const confirmDelete = async (proforma) => {
       </div>
     </div>
 
-    <div v-if="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
-    </div>
-
-    <div v-else class="table-responsive">
+    <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead class="bg-light">
           <tr>
@@ -89,7 +85,7 @@ const confirmDelete = async (proforma) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="filteredProformas.length === 0">
+          <tr v-if="!isLoading && filteredProformas.length === 0">
             <td colspan="8" class="text-center text-muted py-4">
               Aucune proforma trouvée
             </td>

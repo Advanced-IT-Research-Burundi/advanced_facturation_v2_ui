@@ -11,15 +11,8 @@
         </button>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading && categories.length === 0" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Chargement...</span>
-        </div>
-      </div>
-
       <!-- Table -->
-      <div v-else class="card shadow-sm border-0">
+      <div class="card shadow-sm border-0">
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
@@ -43,7 +36,7 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="categories.length === 0">
+                <tr v-if="!loading && categories.length === 0">
                   <td colspan="3" class="text-center py-5 text-muted">
                     Aucune catégorie trouvée
                   </td>

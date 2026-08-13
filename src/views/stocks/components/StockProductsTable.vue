@@ -26,14 +26,8 @@
 
     <!-- Ligne 3: Corps de la carte -->
     <div class="card-body">
-      <!-- Ligne 4: État de chargement -->
-      <div v-if="loading" class="text-center py-4">
-        <div class="spinner-border text-primary"></div>
-        <p class="text-muted mt-2">Chargement des produits...</p>
-      </div>
-
       <!-- Ligne 5: Contenu principal -->
-      <div v-else>
+      <div>
         <!-- Ligne 6: Tableau responsive -->
         <div class="table-responsive">
           <table class="table table-hover align-middle">
@@ -114,7 +108,7 @@
                 </td>
               </tr>
               <!-- Ligne 18: Message si aucun produit -->
-              <tr v-if="stockProducts.length === 0">
+              <tr v-if="!loading && stockProducts.length === 0">
                 <td colspan="9" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   <span v-if="searchQuery">Aucun produit trouvé pour "{{ searchQuery }}"</span>

@@ -1,13 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { Printer, Loader2 } from 'lucide-vue-next';
+import { Printer } from 'lucide-vue-next';
+import { useStore } from 'vuex';
 import api from '@/services/api';
 import { useToast } from '@/composables/useToast';
 
 const toast = useToast();
+const store = useStore();
 
 // State
-const invoices = ref([]);
+const invoices = ref(store.state.data.journalInvoices || []);
 const loading = ref(false);
 const error = ref(null);
 
@@ -69,6 +71,7 @@ const fetchInvoices = async () => {
     if (response.data.success) {
       // Exactement comme InvoicesList
       invoices.value = response.data.data.data || response.data.data;
+      store.state.data.journalInvoices = invoices.value;
       console.log('Journal: Invoices loaded:', invoices.value.length, 'factures');
     } else {
       console.log('Journal: API returned success=false');
@@ -299,14 +302,8 @@ onMounted(() => {
       <button type="button" class="btn-close" @click="error = null"></button>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-5">
-      <Loader2 :size="32" class="animate-spin text-primary" />
-      <p class="text-muted mt-2">Chargement...</p>
-    </div>
-
     <!-- Main Table - exactement comme la démo -->
-    <table v-else class="table table-sm">
+    <table class="table table-sm">
       <thead class="table-dark">
         <tr>
           <th scope="col">#</th>

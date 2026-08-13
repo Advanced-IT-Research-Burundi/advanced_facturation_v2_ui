@@ -1,13 +1,15 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { Boxes, RefreshCw } from 'lucide-vue-next';
+import { useStore } from 'vuex';
 import api from '@/services/api';
 import { useToast } from '@/composables/useToast';
 import FinanceHeader from './FinanceHeader.vue';
 
 const toast = useToast();
-const loading = ref(true);
-const stocks = ref([]);
+const store = useStore();
+const loading = ref(false);
+const stocks = ref(store.state.data.financeStockValues || []);
 
 const formatCurrency = (amount, currency = 'FBU') =>
   `${new Intl.NumberFormat('fr-FR').format(Number(amount) || 0)} ${currency || 'FBU'}`;
@@ -19,6 +21,7 @@ const fetchStockValue = async () => {
       params: { per_page: 1 },
     });
     stocks.value = response.data?.data?.summary?.value_by_warehouse || [];
+    store.state.data.financeStockValues = stocks.value;
   } catch (error) {
     toast.error(error.response?.data?.message || 'Erreur lors du chargement de la valeur du stock');
   } finally {
@@ -40,11 +43,7 @@ onMounted(fetchStockValue);
       </button>
     </div>
 
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary"></div>
-    </div>
-
-    <div v-else-if="stocks.length" class="row g-4">
+    <div v-if="stocks.length" class="row g-4">
       <div
         v-for="stock in stocks"
         :key="stock.warehouse_id"

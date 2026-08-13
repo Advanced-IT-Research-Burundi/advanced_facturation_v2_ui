@@ -1,18 +1,29 @@
 import api from "@/services/api";
+import { getCachedModuleState } from "@/store/cache";
+
+const defaultState = () => ({
+  expenses: [],
+  categories: [],
+  pagination: {
+    expenses: {},
+    categories: {}
+  },
+  lastQuery: {
+    page: 1,
+    search: "",
+    start_date: "",
+    end_date: "",
+    category_id: "",
+  },
+  lastUpdatedAt: null,
+  loading: false,
+  error: null,
+  expenseTotals: 0
+});
 
 const expensesModule = {
   namespaced: true,
-  state: {
-    expenses: [],
-    categories: [],
-    pagination: {
-      expenses: {},
-      categories: {}
-    },
-    loading: false,
-    error: null,
-    expenseTotals: 0
-  },
+  state: () => getCachedModuleState("expenses", defaultState()),
   mutations: {
     SET_EXPENSES(state, { data, meta }) {
       state.expenses = data;
@@ -51,6 +62,18 @@ const expensesModule = {
     SET_LOADING(state, status) {
       state.loading = status;
     },
+    SET_LAST_QUERY(state, query) {
+      state.lastQuery = {
+        page: query.page || 1,
+        search: query.search || "",
+        start_date: query.start_date || "",
+        end_date: query.end_date || "",
+        category_id: query.category_id || "",
+      };
+    },
+    SET_UPDATED_AT(state) {
+      state.lastUpdatedAt = Date.now();
+    },
     SET_ERROR(state, error) {
       state.error = error;
     }
@@ -59,12 +82,14 @@ const expensesModule = {
     // --- Expenses ---
     async fetchExpenses({ commit }, { page = 1, search = '', start_date = '', end_date = '', category_id = '' } = {}) {
       commit("SET_LOADING", true);
+      commit("SET_LAST_QUERY", { page, search, start_date, end_date, category_id });
       commit("SET_ERROR", null);
       try {
         const params = { page, search, start_date, end_date, category_id };
         const response = await api.get('/depenses', { params });
         const { data, ...meta } = response.data.data;
         commit("SET_EXPENSES", { data, meta });
+        commit("SET_UPDATED_AT");
         return response.data;
       } catch (error) {
         commit("SET_ERROR", error.response?.data?.message || "Erreur chargement dépenses");
@@ -141,6 +166,7 @@ const expensesModule = {
         const response = await api.get('/depense-categories', { params });
         const { data, ...meta } = response.data.data;
         commit("SET_CATEGORIES", { data, meta });
+        commit("SET_UPDATED_AT");
         return data; 
       } catch (error) {
          console.error(error);

@@ -2,7 +2,13 @@
   <div class="container-fluid p-0">
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h5 mb-0">Gestion des Utilisateurs</h1>
+      <div class="d-flex align-items-center gap-2">
+        <h1 class="h5 mb-0">Gestion des Utilisateurs</h1>
+        <!-- <span v-if="isLoading && users.length" class="refresh-badge">
+          <i class="bi bi-arrow-clockwise refresh-spin"></i>
+          Actualisation
+        </span> -->
+      </div>
       <button @click="openCreateModal" class="btn btn-primary">
         <i class="bi bi-plus-circle me-2"></i>Ajouter
       </button>
@@ -33,17 +39,12 @@
     <!-- MODAL -->
     <UsersAdd v-if="showModal" :user="selectedUser" @close="closeModal" @refresh="fetchUsers" />
 
-    <!-- LOADING -->
-    <div v-if="isLoading" class="text-center p-5">
-      <div class="spinner-border text-primary"></div>
-    </div>
-
     <!-- ERROR -->
-    <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
+    <div v-if="error && users.length === 0" class="alert alert-danger">{{ error }}</div>
 
     <!-- TABLE -->
-    <div v-else class="card shadow-sm">
-      <div v-if="filteredUsers.length === 0" class="p-5 text-center">
+    <div class="card shadow-sm">
+      <div v-if="!isLoading && filteredUsers.length === 0" class="p-5 text-center">
         <i class="bi bi-people display-1 text-muted"></i>
         <h5 class="text-muted mt-3">Aucun utilisateur trouvé</h5>
         <button @click="openCreateModal" class="btn btn-primary mt-3">
@@ -275,7 +276,11 @@ const showDeleteConfirmation = (user) => {
   });
 };
 
-onMounted(() => fetchUsers(1));
+onMounted(() => {
+  const lastQuery = store.getters['users/lastQuery'] || {};
+  searchQuery.value = lastQuery.search || '';
+  fetchUsers(lastQuery.page || 1, searchQuery.value);
+});
 </script>
 
 <style scoped>
@@ -295,4 +300,23 @@ onMounted(() => fetchUsers(1));
 .badge { font-size: 0.75rem; padding: 0.375rem 0.75rem; }
 .card { transition: box-shadow 0.2s; }
 .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
+.refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  border-radius: 999px;
+  color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.06);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.refresh-spin {
+  animation: refresh-spin 0.9s linear infinite;
+}
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 </style>

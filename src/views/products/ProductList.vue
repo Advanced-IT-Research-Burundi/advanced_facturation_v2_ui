@@ -33,13 +33,14 @@ const totalPages = computed(() => {
 <template>
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-      <div v-if="loading" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Chargement...</span>
-        </div>
+      <div v-if="loading && products?.length" class="px-3 py-2 border-bottom bg-light">
+        <span class="refresh-badge">
+          <i class="bi bi-arrow-clockwise refresh-spin"></i>
+          Actualisation
+        </span>
       </div>
 
-      <div v-else class="table-responsive">
+      <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
@@ -97,7 +98,7 @@ const totalPages = computed(() => {
                 </button>
               </td>
             </tr>
-            <tr v-if="products && products.length === 0">
+            <tr v-if="!loading && products && products.length === 0">
               <td colspan="7" class="text-center py-5 text-muted">
                 Aucun produit trouvé
               </td>
@@ -145,5 +146,24 @@ const totalPages = computed(() => {
 <style scoped>
 .table-hover tbody tr:hover {
   background-color: #f8fafc;
+}
+.refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  border-radius: 999px;
+  color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.06);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.refresh-spin {
+  animation: refresh-spin 0.9s linear infinite;
+}
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

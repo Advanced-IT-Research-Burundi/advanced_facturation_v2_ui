@@ -12,12 +12,7 @@
     <!-- Table -->
     <div class="card shadow-sm">
       <div class="card-body">
-        <div v-if="loading && categories.length === 0" class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-          </div>
-        </div>
-        <div v-else class="table-responsive">
+        <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
@@ -39,7 +34,7 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="categories.length === 0">
+              <tr v-if="!loading && categories.length === 0">
                 <td colspan="3" class="text-center py-5 text-muted">Aucune catégorie trouvée.</td>
               </tr>
             </tbody>

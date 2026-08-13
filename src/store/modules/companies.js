@@ -1,4 +1,5 @@
 import api from "@/services/api";
+import { getCachedModuleState } from "@/store/cache";
 
 // Helper to check if payload has files
 const hasFiles = (data) => {
@@ -30,7 +31,7 @@ const objectToFormData = (data, method = null) => {
 
 const companiesModule = {
   namespaced: true,
-  state: {
+  state: () => getCachedModuleState("companies", {
     companies: [],
     pagination: {
       current_page: 1,
@@ -38,9 +39,14 @@ const companiesModule = {
       per_page: 15,
       total: 0,
     },
+    lastQuery: {
+      page: 1,
+      search: "",
+    },
+    lastUpdatedAt: null,
     loading: false,
     error: null,
-  },
+  }),
   mutations: {
     SET_COMPANIES(state, { data, meta }) {
       state.companies = data;
@@ -64,6 +70,15 @@ const companiesModule = {
     SET_LOADING(state, status) {
       state.loading = status;
     },
+    SET_LAST_QUERY(state, query) {
+      state.lastQuery = {
+        page: query.page || 1,
+        search: query.search || "",
+      };
+    },
+    SET_UPDATED_AT(state) {
+      state.lastUpdatedAt = Date.now();
+    },
     SET_ERROR(state, error) {
       state.error = error;
     },
@@ -71,6 +86,7 @@ const companiesModule = {
   actions: {
     async fetchCompanies({ commit }, { page = 1, search = "" } = {}) {
       commit("SET_LOADING", true);
+      commit("SET_LAST_QUERY", { page, search });
       commit("SET_ERROR", null);
       try {
         const params = { page };
@@ -79,6 +95,7 @@ const companiesModule = {
         const response = await api.get(`/companies`, { params });
         const { data, ...meta } = response.data.data;
         commit("SET_COMPANIES", { data, meta });
+        commit("SET_UPDATED_AT");
       } catch (error) {
         commit(
           "SET_ERROR",
@@ -208,6 +225,7 @@ const companiesModule = {
     isLoading: (state) => state.loading,
     getError: (state) => state.error,
     getPagination: (state) => state.pagination,
+    lastQuery: (state) => state.lastQuery,
   },
 };
 

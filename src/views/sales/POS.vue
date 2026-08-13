@@ -22,6 +22,7 @@ const selectedStock = ref(null);
 const productScrollEl = ref(null);
 const searchInputEl = ref(null);
 const lastAutoAddedScan = ref("");
+const cachedDefaultProducts = ref([]);
 const currentPage = ref(0);
 const hasMoreProducts = ref(true);
 let searchTimeout = null;
@@ -185,9 +186,13 @@ const fetchProducts = async (search = "", options = {}) => {
       }))
       .filter((product) => product.stock > 0);
 
-    store.state.data.productsPOS = reset
+    const nextProducts = reset
       ? productsData
       : mergeUniqueProducts(products.value, productsData);
+    store.state.data.productsPOS = nextProducts;
+    if (!currentSearch) {
+      cachedDefaultProducts.value = nextProducts;
+    }
     currentPage.value = page;
     hasMoreProducts.value = hasNextPage({ meta, links, itemCount: items.length }, page);
 
@@ -251,6 +256,10 @@ const handleSearchEnter = () => {
   if (searchTimeout) {
     clearTimeout(searchTimeout);
   }
+  if (!searchQuery.value.trim()) {
+    store.state.data.productsPOS = cachedDefaultProducts.value;
+    return;
+  }
   fetchProducts(searchQuery.value, { reset: true });
 };
 
@@ -271,6 +280,11 @@ const handleProductScroll = () => {
 watch(searchQuery, (newVal) => {
   if (!newVal.trim()) {
     lastAutoAddedScan.value = "";
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    store.state.data.productsPOS = cachedDefaultProducts.value;
+    return;
   }
 
   if (searchTimeout) {
@@ -348,7 +362,7 @@ defineExpose({ fetchProducts, focusSearchInput });
               @keyup.enter="handleSearchEnter"
             />
             <span
-              v-if="isLoadingProducts"
+              v-if="isLoadingProducts && searchQuery.trim()"
               class="input-group-text bg-light border-start-0"
             >
               <Loader2 :size="18" class="animate-spin" />

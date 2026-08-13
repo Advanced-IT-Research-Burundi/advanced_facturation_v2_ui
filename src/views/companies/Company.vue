@@ -2,7 +2,13 @@
   <div class="container-fluid p-0">
     <CompanyHader />
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h3">Entreprises</h1>
+      <div class="d-flex align-items-center gap-2">
+        <h1 class="h3 mb-0">Entreprises</h1>
+        <!-- <span v-if="loading && companies.length" class="refresh-badge">
+          <i class="bi bi-arrow-clockwise refresh-spin"></i>
+          Actualisation
+        </span> -->
+      </div>
       <button class="btn btn-primary" @click="openModal()">
         <i class="bi bi-plus-lg"></i> Ajouter une entreprise
       </button>
@@ -34,12 +40,7 @@
     <!-- Table -->
     <div class="card shadow-sm">
       <div class="card-body">
-        <div v-if="loading && companies.length === 0" class="text-center py-4">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-          </div>
-        </div>
-        <div v-else class="table-responsive">
+        <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
@@ -85,7 +86,7 @@
                   </button>
                 </td>
               </tr>
-              <tr v-if="companies.length === 0">
+              <tr v-if="!loading && companies.length === 0">
                 <td colspan="6" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   Aucune entreprise trouvée.
@@ -418,7 +419,12 @@ const initForm = () => ({
 const form = reactive(initForm());
 
 onMounted(() => {
-  store.dispatch("companies/fetchCompanies");
+  const lastQuery = store.getters["companies/lastQuery"] || {};
+  searchQuery.value = lastQuery.search || "";
+  store.dispatch("companies/fetchCompanies", {
+    page: lastQuery.page || 1,
+    search: searchQuery.value,
+  });
 });
 
 const changePage = (page) => {
@@ -558,5 +564,24 @@ const confirmDelete = async (id) => {
 }
 .group-hover:hover .shadow-sm {
     box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+.refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  border-radius: 999px;
+  color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.06);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.refresh-spin {
+  animation: refresh-spin 0.9s linear infinite;
+}
+@keyframes refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
