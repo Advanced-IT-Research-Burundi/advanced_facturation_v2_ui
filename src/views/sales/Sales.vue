@@ -256,11 +256,6 @@ const handleSaveCart = (draft) => {
 };
 
 const handleRestoreSavedCart = (savedCart) => {
-  if (cart.value.length > 0 && activeSavedCartId.value !== savedCart.id) {
-    const shouldReplace = window.confirm("Remplacer le panier actuel par cette facture enregistrée ?");
-    if (!shouldReplace) return;
-  }
-
   cart.value = savedCart.items.map((item) => ({ ...item }));
   selectedWarehouseId.value = savedCart.warehouse_id || selectedWarehouseId.value;
   activeSavedCartId.value = savedCart.id;
@@ -460,6 +455,11 @@ const updateQuantity = (id, delta) => {
 
 const removeFromCart = (id) => {
   cart.value = cart.value.filter((i) => i.id !== id);
+};
+
+const clearCart = () => {
+  cart.value = [];
+  activeSavedCartId.value = null;
 };
 
 watch(
@@ -744,6 +744,7 @@ const closeProformaDetails = () => {
         :is-submitting="isSubmitting"
         :saved-carts="savedCarts"
         :warehouse-id="selectedWarehouseId"
+        @clear-cart="clearCart"
         @remove-from-cart="removeFromCart"
         @update-quantity="updateQuantity"
         @invoice-submitted="handleInvoiceSubmit"

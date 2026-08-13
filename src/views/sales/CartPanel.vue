@@ -13,8 +13,10 @@ import {
 } from "lucide-vue-next";
 import api from "@/services/api";
 import { useToast } from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
 
 const toast = useToast();
+const { confirm: confirmDialog } = useConfirm();
 
 const props = defineProps({
   cart: {
@@ -38,6 +40,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   "add-client",
+  "clear-cart",
   "remove-from-cart",
   "update-quantity",
   "invoice-submitted",
@@ -246,9 +249,45 @@ const saveCart = () => {
   });
 };
 
-const restoreSavedCart = () => {
+const clearCart = async () => {
+  if (props.cart.length === 0) {
+    toast.warning("Le panier est déjà vide.");
+    return;
+  }
+
+  const confirmed = await confirmDialog(
+    "Voulez-vous vider tous les produits du panier ?",
+    {
+      title: "Vider le panier",
+      confirmText: "Vider",
+      cancelText: "Annuler",
+      confirmClass: "btn-danger",
+    }
+  );
+
+  if (!confirmed) return;
+
+  emit("clear-cart");
+  clearClient();
+};
+
+const restoreSavedCart = async () => {
   const savedCart = props.savedCarts.find((cart) => cart.id === selectedSavedCartId.value);
   if (!savedCart) return;
+
+  if (props.cart.length > 0) {
+    const confirmed = await confirmDialog(
+      "Le panier actuel sera remplacé par cette facture enregistrée.",
+      {
+        title: "Changer de facture enregistrée",
+        confirmText: "Remplacer",
+        cancelText: "Annuler",
+        confirmClass: "btn-primary",
+      }
+    );
+
+    if (!confirmed) return;
+  }
 
   const selectedCustomer = savedCart.customer?.id
     ? props.customers.find((customer) => customer.id === savedCart.customer.id)
@@ -285,9 +324,20 @@ defineExpose({ clearClient });
         <ShoppingCart :size="20" />
         <h5 class="mb-0 fw-bold">Panier Actuel</h5>
       </div>
-      <span class="badge bg-white text-primary fw-bold"
-        >{{ cart.length }} Articles</span
-      >
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-white text-primary fw-bold"
+          >{{ cart.length }} Articles</span
+        >
+        <button
+          type="button"
+          class="btn btn-sm btn-light text-danger cart-clear-all-btn"
+          :disabled="cart.length === 0 || isSubmitting"
+          title="Vider le panier"
+          @click="clearCart"
+        >
+          <Trash2 :size="15" />
+        </button>
+      </div>
     </div>
 
     <div class="cart-client p-2 border-bottom bg-light position-relative">
@@ -499,6 +549,18 @@ defineExpose({ clearClient });
 }
 .cart-header {
   min-height: 46px;
+}
+.cart-clear-all-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+}
+.cart-clear-all-btn:disabled {
+  opacity: 0.55;
 }
 .cart-client .input-group {
   min-height: 34px;
