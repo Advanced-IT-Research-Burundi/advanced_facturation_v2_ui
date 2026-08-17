@@ -338,8 +338,8 @@ const openCancelModal = (invoice) => {
 };
 
 const confirmCancelInvoice = async () => {
-  if (!cancelMotif.value || cancelMotif.value.length < 10) {
-    cancelError.value = 'Le motif doit contenir au moins 10 caractères.';
+  if (!cancelMotif.value?.trim()) {
+    cancelError.value = "Le motif d'annulation est requis.";
     return;
   }
   cancelError.value = '';
@@ -813,7 +813,7 @@ const closeProformaDetails = () => {
           <div class="modal-body">
             <div v-if="cancelError" class="alert alert-danger">{{ cancelError }}</div>
             <div class="mb-3">
-              <label class="form-label">Motif d'annulation (min. 10 caractères)</label>
+              <label class="form-label">Motif d'annulation</label>
               <textarea v-model="cancelMotif" class="form-control" rows="3" placeholder="Saisissez le motif d'annulation..."></textarea>
             </div>
             <div class="form-check">
