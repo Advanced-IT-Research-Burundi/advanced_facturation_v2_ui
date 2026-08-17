@@ -235,7 +235,7 @@ const fetchSuppliers = async (pageOrUrl = 1) => {
 
     const resp = await api.get(endpoint, { params })
     const payload = resp.data?.data
-    const rows = payload?.data || []
+    const rows = payload?.data || resp.data?.data?.data || resp.data?.data || []
     suppliers.value = rows
 
     pagination.value = {
@@ -249,6 +249,7 @@ const fetchSuppliers = async (pageOrUrl = 1) => {
 
   } catch (error) {
     console.error("Erreur chargement fournisseurs:", error)
+    toast.error("Impossible de charger la liste des fournisseurs.")
   } finally {
     loading.value = false
   }
@@ -345,4 +346,3 @@ const deleteSupplier = async () => {
     background-color: transparent;
 }
 </style>
-
