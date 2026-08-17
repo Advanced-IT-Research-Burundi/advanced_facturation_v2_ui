@@ -5,9 +5,21 @@ import {
   Printer, FileText, Package, ArrowDownCircle, ArrowUpCircle,
   CreditCard, FileCheck, History, Download, Eye, FileSpreadsheet, Wallet
 } from 'lucide-vue-next';
+import { useStore } from 'vuex';
 import { useToast } from '@/composables/useToast';
 
+const store = useStore();
 const toast = useToast();
+const currentUser = computed(() => store.getters['auth/currentUser']);
+const isAdmin = computed(() => {
+  const user = currentUser.value;
+  const adminRoles = ['admin', 'super_admin'];
+  const roles = user?.roles || [];
+  const roleNames = user?.role_names || [];
+
+  return roles.some((role) => adminRoles.includes(role?.name?.toLowerCase()))
+    || roleNames.some((roleName) => adminRoles.includes(roleName?.toLowerCase()));
+});
 
 // Active tab
 const activeTab = ref('invoices-history');
@@ -42,6 +54,57 @@ const tabs = [
   { id: 'credit-invoices', label: 'Factures à Crédit', icon: CreditCard },
   { id: 'proformas', label: 'Proformas', icon: FileCheck },
 ];
+
+const visibleTabs = computed(() => {
+  if (isAdmin.value) return tabs;
+  return tabs.filter((tab) => tab.id === 'invoices-history');
+});
+
+const invoiceBelongsToCurrentUser = (invoice) => {
+  const user = currentUser.value;
+  const invoiceUserId = invoice.user_id
+    ?? invoice.created_by_id
+    ?? invoice.created_by?.id
+    ?? invoice.user?.id;
+
+  if (invoiceUserId !== undefined && invoiceUserId !== null) {
+    return Number(invoiceUserId) === Number(user?.id);
+  }
+
+  return invoice.user_name?.trim().toLowerCase() === user?.name?.trim().toLowerCase();
+};
+
+const restrictReportToCurrentUser = (report) => {
+  if (isAdmin.value || activeTab.value !== 'invoices-history') return report;
+
+  const invoicesPayload = report?.invoices;
+  const invoices = Array.isArray(invoicesPayload)
+    ? invoicesPayload
+    : invoicesPayload?.data || [];
+  const ownInvoices = invoices.filter(invoiceBelongsToCurrentUser);
+  const sum = (key) => ownInvoices.reduce((total, invoice) => total + Number(invoice[key] || 0), 0);
+
+  return {
+    ...report,
+    invoices: Array.isArray(invoicesPayload)
+      ? ownInvoices
+      : {
+          ...invoicesPayload,
+          data: ownInvoices,
+          total: ownInvoices.length,
+          from: ownInvoices.length ? 1 : 0,
+          to: ownInvoices.length,
+        },
+    summary: {
+      ...report?.summary,
+      total_invoices: ownInvoices.length,
+      total_amount_htva: sum('amount_htva'),
+      total_htva: sum('amount_htva'),
+      total_tva: sum('tva'),
+      total_amount_tvac: sum('amount_tvac'),
+    },
+  };
+};
 
 const invoiceTypes = [
   { value: 'all', label: 'Tous les types' },
@@ -102,13 +165,19 @@ const fetchReport = async () => {
   try {
     const paginatedTabs = ['invoices-history', 'stock-sheet', 'stock-movements', 'stock-entries', 'credit-invoices', 'proformas'];
     const params = { ...filters.value };
+    if (!isAdmin.value) {
+      if (!currentUser.value?.id) {
+        throw new Error('Utilisateur connecté introuvable');
+      }
+      params.user_id = currentUser.value.id;
+    }
     if (paginatedTabs.includes(activeTab.value)) {
       params.page = reportPage.value;
       params.per_page = reportPerPage;
     }
     const response = await api.get(endpoints[activeTab.value], { params });
     if (response.data.success) {
-      reportData.value = response.data.data;
+      reportData.value = restrictReportToCurrentUser(response.data.data);
     }
   } catch (e) {
     console.error('Error fetching report:', e);
@@ -669,7 +738,10 @@ onMounted(() => {
 <template>
   <div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-      <h1 class="h3 mb-0 fw-bold">Rapports & Historique</h1>
+      <div>
+        <h1 class="h3 mb-0 fw-bold">{{ isAdmin ? 'Rapports & Historique' : 'Mon rapport de ventes' }}</h1>
+        <small v-if="!isAdmin" class="text-muted">Seules vos propres factures sont affichées.</small>
+      </div>
 
       <!-- Export Buttons -->
       <div class="btn-group no-print">
@@ -687,7 +759,7 @@ onMounted(() => {
 
     <!-- Tabs Navigation -->
     <ul class="nav nav-tabs mb-4 no-print flex-nowrap overflow-auto">
-      <li class="nav-item" v-for="tab in tabs" :key="tab.id">
+      <li class="nav-item" v-for="tab in visibleTabs" :key="tab.id">
         <button
           class="nav-link d-flex align-items-center gap-2 text-nowrap"
           :class="{ active: activeTab === tab.id }"

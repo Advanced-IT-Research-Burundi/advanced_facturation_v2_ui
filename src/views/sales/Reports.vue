@@ -1,8 +1,18 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import Chart from 'chart.js/auto';
+import { useStore } from 'vuex';
 import api from '@/services/api';
 import { Printer } from 'lucide-vue-next';
+
+const store = useStore();
+const currentUser = computed(() => store.getters['auth/currentUser']);
+const isAdmin = computed(() => {
+    const user = currentUser.value;
+    const adminRoles = ['admin', 'super_admin'];
+    return (user?.roles || []).some((role) => adminRoles.includes(role?.name?.toLowerCase()))
+        || (user?.role_names || []).some((roleName) => adminRoles.includes(roleName?.toLowerCase()));
+});
 
 const isLoading = ref(false);
 const filters = ref({
@@ -28,11 +38,11 @@ const warehouseChartCanvas = ref(null);
 
 const fetchFiltersData = async () => {
     try {
-        const [usersRes, warehousesRes] = await Promise.all([
-            api.get('/users'),
-            api.get('/warehouses')
-        ]);
-        if(usersRes.data.success) users.value = usersRes.data.data.data || usersRes.data.data;
+        const requests = isAdmin.value
+            ? [api.get('/users'), api.get('/warehouses')]
+            : [Promise.resolve(null), api.get('/warehouses')];
+        const [usersRes, warehousesRes] = await Promise.all(requests);
+        if(usersRes?.data.success) users.value = usersRes.data.data.data || usersRes.data.data;
         if(warehousesRes.data.success) warehouses.value = warehousesRes.data.data.data || warehousesRes.data.data;
     } catch (e) {
         console.error("Error loading filters", e);
@@ -42,7 +52,12 @@ const fetchFiltersData = async () => {
 const fetchReport = async () => {
     isLoading.value = true;
     try {
-        const response = await api.get('/reports/sales', { params: filters.value });
+        const params = { ...filters.value };
+        if (!isAdmin.value) {
+            if (!currentUser.value?.id) throw new Error('Utilisateur connecté introuvable');
+            params.user_id = currentUser.value.id;
+        }
+        const response = await api.get('/reports/sales', { params });
         if (response.data.success) {
             reportData.value = response.data.data;
             // Delay chart update slightly to ensure DOM is ready if switching states
@@ -130,6 +145,9 @@ const handlePrint = () => {
 };
 
 onMounted(() => {
+    if (!isAdmin.value && currentUser.value?.id) {
+        filters.value.user_id = currentUser.value.id;
+    }
     fetchFiltersData();
     fetchReport();
 });
@@ -153,7 +171,7 @@ watch(filters, () => {
                         <label class="form-label small text-muted">Au</label>
                         <input type="date" v-model="filters.date_to" class="form-control form-control-sm">
                     </div>
-                    <div class="col-md-2">
+                    <div v-if="isAdmin" class="col-md-2">
                         <label class="form-label small text-muted">Utilisateur</label>
                         <select v-model="filters.user_id" class="form-select form-select-sm">
                             <option value="all">Tous</option>
