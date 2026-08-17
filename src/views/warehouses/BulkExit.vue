@@ -155,10 +155,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Select from 'primevue/select';
 import api from '@/services/api';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const router = useRouter();
 const warehouseId = route.params.id;
+const toast = useToast();
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -199,6 +201,11 @@ const getStockQuantity = (productId) => {
   return stock ? stock.quantity : 0;
 };
 
+const getProductLabel = (productId) => {
+  const stock = stocks.value.find((s) => s.product_id == productId);
+  return stock?.product?.item_designation || stock?.product?.item_code || "ce produit";
+};
+
 const onExitProductChange = (item) => {
   const stock = stocks.value.find(s => s.product_id === item.product_id);
   if (stock) {
@@ -226,12 +233,15 @@ const submitBulkExit = async () => {
   for (const item of form.value.items) {
     if (!item.product_id || !item.quantity) {
       error.value = 'Veuillez remplir tous les champs obligatoires';
+      toast.error(error.value);
       window.scrollTo(0, 0);
       return;
     }
     
     if (parseFloat(item.quantity) > getStockQuantity(item.product_id)) {
-      error.value = 'Quantité supérieure au stock disponible';
+      const productLabel = getProductLabel(item.product_id);
+      error.value = `La quantité de sortie pour "${productLabel}" dépasse le stock actuel`;
+      toast.error(error.value);
       window.scrollTo(0, 0);
       return;
     }
@@ -248,6 +258,7 @@ const submitBulkExit = async () => {
     }
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors de l\'enregistrement';
+    toast.error(error.value);
     window.scrollTo(0, 0);
   } finally {
     submitting.value = false;
