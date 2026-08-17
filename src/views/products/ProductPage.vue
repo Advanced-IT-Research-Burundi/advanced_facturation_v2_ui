@@ -75,10 +75,7 @@ const handleSave = async (payload) => {
       successMessage.value = null;
     }, 3000);
   } else {
-    toast.error(
-      "Erreur lors de l'enregistrement: " +
-        JSON.stringify(result.errors || result.error)
-    );
+    toast.error(result.message || "Erreur lors de l'enregistrement du produit");
   }
 };
 
@@ -95,7 +92,7 @@ const handleDelete = async (product) => {
         successMessage.value = null;
       }, 3000);
     } else {
-      toast.error("Erreur lors de la suppression");
+      toast.error(result.message || "Erreur lors de la suppression");
     }
   }
 };

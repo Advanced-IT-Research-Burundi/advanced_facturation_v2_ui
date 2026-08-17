@@ -1,6 +1,25 @@
 import api from "@/services/api";
 import { getCachedModuleState } from "@/store/cache";
 
+const getProductErrorMessage = (error, fallback = "Erreur lors de l'enregistrement du produit") => {
+  const responseData = error?.response?.data || {};
+  const validationErrors = responseData.errors || responseData.error || {};
+
+  if (validationErrors?.item_code?.length) {
+    return validationErrors.item_code[0];
+  }
+
+  if (typeof responseData.message === "string" && responseData.message.trim()) {
+    return responseData.message;
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 const defaultState = () => ({
   items: [],
   pagination: {
@@ -119,7 +138,7 @@ export default {
 
     async createProduct({ dispatch, state }, productData) {
       try {
-        const response = await api.post('/products', productData);
+        await api.post('/products', productData);
         
         // Rafraîchir la liste des produits après la création
         await dispatch('fetchProducts', { 
@@ -130,14 +149,18 @@ export default {
         return { success: true };
       } catch (error) {
         console.error("Erreur creation produit:", error);
-        return { success: false, error };
+        return {
+          success: false,
+          message: getProductErrorMessage(error),
+          errors: error?.response?.data?.errors || error?.response?.data?.error || null,
+        };
       }
     },
 
     async updateProduct({ dispatch, state }, { id, data }) {
       try {
         // Handle file uploads or regular updates
-        const response = await api.put(`/products/${id}`, data); 
+        await api.put(`/products/${id}`, data); 
         // Note: if sending FormData involves files with PUT, sometimes POST with _method=PUT is needed in Laravel/PHP
         // But assuming standard REST PUT for now unless user specified otherwise.
         
@@ -150,13 +173,17 @@ export default {
         return { success: true };
       } catch (error) {
          console.error("Erreur mise a jour produit:", error);
-         return { success: false, error };
+         return {
+           success: false,
+           message: getProductErrorMessage(error, "Erreur lors de la mise à jour du produit"),
+           errors: error?.response?.data?.errors || error?.response?.data?.error || null,
+         };
       }
     },
 
     async deleteProduct({ dispatch, state }, id) {
       try {
-        const response = await api.delete(`/products/${id}`);
+        await api.delete(`/products/${id}`);
         
         // Rafraîchir la liste des produits après la suppression
         await dispatch('fetchProducts', { 
@@ -167,7 +194,11 @@ export default {
         return { success: true };
       } catch (error) {
         console.error("Erreur suppression produit:", error);
-        return { success: false, error };
+        return {
+          success: false,
+          message: getProductErrorMessage(error, "Erreur lors de la suppression du produit"),
+          errors: error?.response?.data?.errors || error?.response?.data?.error || null,
+        };
       }
     }
   },
