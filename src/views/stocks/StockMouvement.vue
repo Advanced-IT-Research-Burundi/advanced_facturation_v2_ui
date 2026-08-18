@@ -101,7 +101,7 @@
             <div class="summary-card border rounded-3 p-3 bg-light h-100">
               <div class="text-muted small">Produits affichés</div>
               <div class="fs-4 fw-bold">{{ filteredStocks.length }}</div>
-              <div class="small text-muted">sur {{ stocks.length }} produit(s)</div>
+              <div class="small text-muted">sur {{ validStocks.length }} produit(s)</div>
             </div>
           </div>
           <div class="col-md-4">
@@ -131,6 +131,7 @@
           <table class="table table-hover align-middle">
             <thead class="table-light">
               <tr>
+                <th>#</th>
                 <th>Code</th>
                 <th>Produit</th>
                 <th class="text-end">Quantité</th>
@@ -141,7 +142,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="stock in filteredStocks" :key="stock.id">
+              <tr v-for="(stock, index) in paginatedStocks" :key="stock.id">
+                <td class="fw-bold text-muted">{{ calculateIndex(index) }}</td>
                 <td>
                   <code>{{ stock.product?.item_code }}</code>
                 </td>
@@ -194,7 +196,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="7" class="text-center py-5 text-muted">
+                <td colspan="8" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery
@@ -205,6 +207,63 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div
+          v-if="filteredStocks.length > 0"
+          class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3 pt-3 border-top"
+        >
+          <div class="text-muted small">
+            Affichage de {{ pagination.from }} à {{ pagination.to }} sur {{ pagination.total }} produit(s)
+          </div>
+          <nav v-if="pagination.last_page > 1">
+            <ul class="pagination pagination-sm mb-0 flex-wrap">
+              <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+                <button
+                  class="page-link"
+                  @click="changePage(1)"
+                  :disabled="pagination.current_page === 1"
+                >
+                  <i class="bi bi-chevron-double-left"></i>
+                </button>
+              </li>
+              <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+                <button
+                  class="page-link"
+                  @click="changePage(pagination.current_page - 1)"
+                  :disabled="pagination.current_page === 1"
+                >
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+              </li>
+              <li
+                v-for="page in visiblePages"
+                :key="page"
+                class="page-item"
+                :class="{ active: page === pagination.current_page }"
+              >
+                <button class="page-link" @click="changePage(page)">{{ page }}</button>
+              </li>
+              <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+                <button
+                  class="page-link"
+                  @click="changePage(pagination.current_page + 1)"
+                  :disabled="pagination.current_page === pagination.last_page"
+                >
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </li>
+              <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+                <button
+                  class="page-link"
+                  @click="changePage(pagination.last_page)"
+                  :disabled="pagination.current_page === pagination.last_page"
+                >
+                  <i class="bi bi-chevron-double-right"></i>
+                </button>
+              </li>
+            </ul>
+          </nav>
         </div>
       </div>
     </div>
@@ -446,7 +505,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import api from "@/services/api";
 
@@ -458,10 +517,16 @@ const submitting = ref(false);
 const error = ref(null);
 const successMessage = ref(null);
 const searchQuery = ref("");
+const currentPage = ref(1);
+const perPage = 15;
 
 const warehouse = ref(null);
 const stocks = ref([]);
 const pendingCount = ref(0);
+
+const validStocks = computed(() => {
+  return stocks.value.filter((stock) => Boolean(stock.product?.item_designation?.trim()));
+});
 
 const toNumber = (value) => {
   const numberValue = Number(value);
@@ -501,21 +566,68 @@ const formatCurrencyTotals = (totals) => {
 
 // Computed property pour filtrer les stocks
 const filteredStocks = computed(() => {
-  if (!searchQuery.value) return stocks.value;
+  if (!searchQuery.value) return validStocks.value;
 
   const query = searchQuery.value.toLowerCase().trim();
-  return stocks.value.filter((stock) => {
+  return validStocks.value.filter((stock) => {
     const code = stock.product?.item_code?.toLowerCase() || "";
     const designation = stock.product?.item_designation?.toLowerCase() || "";
     return code.includes(query) || designation.includes(query);
   });
 });
 
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredStocks.value.length / perPage));
+});
+
+const paginatedStocks = computed(() => {
+  const start = (currentPage.value - 1) * perPage;
+  return filteredStocks.value.slice(start, start + perPage);
+});
+
+const pagination = computed(() => {
+  const total = filteredStocks.value.length;
+  const from = total === 0 ? 0 : (currentPage.value - 1) * perPage + 1;
+  const to = total === 0 ? 0 : Math.min(currentPage.value * perPage, total);
+
+  return {
+    current_page: currentPage.value,
+    last_page: totalPages.value,
+    per_page: perPage,
+    total,
+    from,
+    to,
+  };
+});
+
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  let start = Math.max(1, current - 2);
+  let end = Math.min(total, current + 2);
+
+  if (end - start < 4) {
+    if (start === 1) {
+      end = Math.min(total, start + 4);
+    } else {
+      start = Math.max(1, end - 4);
+    }
+  }
+
+  for (let i = start; i <= end; i += 1) {
+    pages.push(i);
+  }
+
+  return pages;
+});
+
 const filteredStockQuantity = computed(() => {
   return filteredStocks.value.reduce((total, stock) => total + toNumber(stock.quantity), 0);
 });
 
-const stockRevenueByCurrency = computed(() => groupRevenueByCurrency(stocks.value));
+const stockRevenueByCurrency = computed(() => groupRevenueByCurrency(validStocks.value));
 
 const filteredStockRevenueByCurrency = computed(() => groupRevenueByCurrency(filteredStocks.value));
 
@@ -547,6 +659,16 @@ onMounted(() => {
   fetchDashboard();
 });
 
+watch(searchQuery, () => {
+  currentPage.value = 1;
+});
+
+watch(filteredStocks, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value;
+  }
+});
+
 const fetchDashboard = async () => {
   loading.value = true;
   try {
@@ -555,6 +677,7 @@ const fetchDashboard = async () => {
       warehouse.value = resp.data.data.warehouse;
       stocks.value = resp.data.data.stocks;
       pendingCount.value = resp.data.data.pending_count;
+      currentPage.value = 1;
     }
   } catch (err) {
     error.value = "Erreur lors du chargement";
@@ -656,6 +779,16 @@ const submitQuickExit = async () => {
     setTimeout(() => (error.value = null), 5000);
   } finally {
     submitting.value = false;
+  }
+};
+
+const calculateIndex = (index) => {
+  return pagination.value.from + index;
+};
+
+const changePage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
   }
 };
 </script>

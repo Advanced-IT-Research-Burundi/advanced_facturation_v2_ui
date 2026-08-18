@@ -86,18 +86,23 @@
 
       <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
         <div class="small text-muted">
-          Affichage de <strong>{{ products.length }}</strong> sur <strong>{{ pagination.total }}</strong> produits
+          Affichage de <strong>{{ pagination.from || 0 }}</strong> à <strong>{{ pagination.to || 0 }}</strong> sur <strong>{{ pagination.total }}</strong> produits
         </div>
         <nav v-if="pagination.total > 0">
           <ul class="pagination pagination-sm mb-0">
-            <li class="page-item" :class="{ disabled: !pagination.prev_page_url }">
-              <button class="page-link shadow-none" @click="fetchStock(pagination.current_page - 1)">Précédent</button>
+            <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+              <button class="page-link shadow-none" @click="fetchStock(pagination.current_page - 1)" :disabled="pagination.current_page === 1">Précédent</button>
             </li>
-            <li class="page-item active">
-              <span class="page-link bg-red-dark border-red-dark">{{ pagination.current_page }}</span>
+            <li
+              class="page-item"
+              :class="{ active: page === pagination.current_page }"
+              v-for="page in visiblePages"
+              :key="page"
+            >
+              <button class="page-link shadow-none" @click="fetchStock(page)">{{ page }}</button>
             </li>
-            <li class="page-item" :class="{ disabled: !pagination.next_page_url }">
-              <button class="page-link shadow-none" @click="fetchStock(pagination.current_page + 1)">Suivant</button>
+            <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+              <button class="page-link shadow-none" @click="fetchStock(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page">Suivant</button>
             </li>
           </ul>
         </nav>
@@ -142,7 +147,29 @@ const handleSearch = () => {
   timeout = setTimeout(() => fetchStock(1), 500);
 };
 
-const calculateIndex = (index) => (pagination.value.current_page - 1) * 15 + (index + 1);
+const calculateIndex = (index) => (pagination.value.from || 0) + index;
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = pagination.value.last_page || 1;
+  const current = pagination.value.current_page || 1;
+
+  let start = Math.max(1, current - 2);
+  let end = Math.min(total, current + 2);
+
+  if (end - start < 4) {
+    if (start === 1) {
+      end = Math.min(total, start + 4);
+    } else {
+      start = Math.max(1, end - 4);
+    }
+  }
+
+  for (let i = start; i <= end; i += 1) {
+    pages.push(i);
+  }
+
+  return pages;
+});
 const formatNumber = (value) => new Intl.NumberFormat("fr-FR").format(Number(value) || 0);
 const formatPrice = (price) => new Intl.NumberFormat("fr-FR").format(price || 0) + " FBU";
 const formatDate = (dateStr) => {

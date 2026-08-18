@@ -44,6 +44,10 @@ export default {
       state.pagination = {
         total: data.total,
         current_page: data.current_page,
+        per_page: data.per_page,
+        last_page: data.last_page,
+        from: data.from,
+        to: data.to,
         next_page_url: data.next_page_url,
         prev_page_url: data.prev_page_url,
       };
