@@ -14,13 +14,17 @@ const emit = defineEmits(['close', 'client-created']);
 
 const isSubmitting = ref(false);
 const errorMessage = ref('');
+const tinState = ref('idle');
+const tinMessage = ref('');
+const lastVerifiedTin = ref('');
 
 const form = ref({
   customer_name: '',
   customer_TIN: '',
   customer_phone: '',
   customer_address: '',
-  vat_customer_payer: '0'
+  vat_customer_payer: '0',
+  type: 'PERSONNE PHYSIQUE',
 });
 
 // Reset form when modal opens
@@ -31,16 +35,80 @@ watch(() => props.show, (newVal) => {
       customer_TIN: '',
       customer_phone: '',
       customer_address: '',
-      vat_customer_payer: '0'
+      vat_customer_payer: '0',
+      type: 'PERSONNE PHYSIQUE',
     };
     errorMessage.value = '';
+    tinState.value = 'idle';
+    tinMessage.value = '';
+    lastVerifiedTin.value = '';
   }
 });
+
+const normalizeTin = () => (form.value.customer_TIN || '').trim();
+
+const markTinDirty = () => {
+  const currentTin = normalizeTin();
+  if (currentTin !== lastVerifiedTin.value) {
+    tinState.value = 'idle';
+    tinMessage.value = '';
+  }
+};
+
+const verifyTIN = async () => {
+  const tpTIN = normalizeTin();
+
+  if (!tpTIN) {
+    tinState.value = 'idle';
+    tinMessage.value = '';
+    lastVerifiedTin.value = '';
+    return true;
+  }
+
+  tinState.value = 'checking';
+  tinMessage.value = 'Vérification du NIF en cours...';
+
+  try {
+    const response = await api.post('/customers/checkTIN', { tp_TIN: tpTIN });
+    const taxpayer = response.data?.data;
+
+    if (response.data?.success && taxpayer) {
+      tinState.value = 'valid';
+      tinMessage.value = `NIF valide${taxpayer.tp_name ? ` - ${taxpayer.tp_name}` : ''}`;
+      lastVerifiedTin.value = tpTIN;
+
+      if (!form.value.customer_name.trim() && taxpayer.tp_name) {
+        form.value.customer_name = taxpayer.tp_name;
+      }
+
+      return true;
+    }
+
+    tinState.value = 'invalid';
+    tinMessage.value = response.data?.message || 'NIF invalide.';
+    lastVerifiedTin.value = '';
+    return false;
+  } catch (error) {
+    tinState.value = 'invalid';
+    tinMessage.value = error.response?.data?.message || 'Impossible de vérifier le NIF pour le moment.';
+    lastVerifiedTin.value = '';
+    return false;
+  }
+};
 
 const submitForm = async () => {
   if (!form.value.customer_name.trim()) {
     errorMessage.value = 'Le nom du client est obligatoire';
     return;
+  }
+
+  const tpTIN = normalizeTin();
+  if (tpTIN && tpTIN !== lastVerifiedTin.value) {
+    const isValid = await verifyTIN();
+    if (!isValid) {
+      errorMessage.value = 'Le NIF saisi est invalide.';
+      return;
+    }
   }
 
   isSubmitting.value = true;
@@ -63,22 +131,6 @@ const submitForm = async () => {
   }
 };
 
-const checkTIN = async () => {
-  if (!form.value.customer_TIN || form.value.customer_TIN.length < 5) return;
-  
-  try {
-    const response = await api.get(`/checkTIN/${form.value.customer_TIN}`);
-    if (response.data.success && response.data.data) {
-      const taxpayer = response.data.data;
-      form.value.customer_name = taxpayer.tp_name || form.value.customer_name;
-      form.value.customer_address = taxpayer.tp_address || form.value.customer_address;
-      form.value.vat_customer_payer = taxpayer.vat_taxpayer || '0';
-    }
-  } catch (e) {
-    // Silently ignore - TIN check is optional
-    console.log('TIN check failed:', e);
-  }
-};
 </script>
 
 <template>
@@ -113,17 +165,31 @@ const checkTIN = async () => {
                     type="text"
                     class="form-control"
                     placeholder="Ex: 4000000000"
-                    @blur="checkTIN"
+                    @input="markTinDirty"
+                    @blur="verifyTIN"
                   />
                   <button 
                     type="button" 
                     class="btn btn-outline-secondary"
-                    @click="checkTIN"
+                    @click="verifyTIN"
                     title="Vérifier le NIF"
+                    :disabled="tinState === 'checking'"
                   >
-                    <i class="bi bi-search"></i>
+                    <Loader2 v-if="tinState === 'checking'" :size="16" class="animate-spin" />
+                    <i v-else class="bi bi-search"></i>
                   </button>
                 </div>
+                <small
+                  v-if="tinMessage"
+                  class="d-block mt-1"
+                  :class="{
+                    'text-success': tinState === 'valid',
+                    'text-danger': tinState === 'invalid',
+                    'text-muted': tinState === 'checking' || tinState === 'idle'
+                  }"
+                >
+                  {{ tinMessage }}
+                </small>
                 <small class="text-muted">Entrez le NIF pour auto-remplir les informations</small>
               </div>
 

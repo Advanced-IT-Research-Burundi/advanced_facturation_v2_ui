@@ -34,13 +34,26 @@
                 type="text"
                 :required="form.type === 'PERSONNE MORAL'"
                 class="form-control border-success-subtle"
+                @input="resetTinStatus"
+                @blur="verifyTin"
               />
               <span
-                v-if="form.customer_TIN"
+                v-if="form.customer_TIN && tinState === 'valid'"
                 class="position-absolute top-50 end-0 translate-middle-y me-2 text-success"
                 >✔</span
               >
             </div>
+            <small
+              v-if="tinMessage"
+              class="d-block mt-1"
+              :class="{
+                'text-success': tinState === 'valid',
+                'text-danger': tinState === 'invalid',
+                'text-muted': tinState === 'checking' || tinState === 'idle'
+              }"
+            >
+              {{ tinMessage }}
+            </small>
           </div>
 
           <div class="col-md-4">
@@ -131,11 +144,15 @@
 import { reactive, ref } from "vue";
 import { useStore } from "vuex";
 import { useToast } from "@/composables/useToast";
+import api from "@/services/api";
 
 const emit = defineEmits(["close"]);
 const store = useStore();
 const toast = useToast();
 const isSaving = ref(false);
+const tinState = ref("idle");
+const tinMessage = ref("");
+const lastVerifiedTin = ref("");
 
 const form = reactive({
   customer_name: "",
@@ -146,15 +163,75 @@ const form = reactive({
   type: "",
 });
 
+const normalizeTin = () => (form.customer_TIN || "").trim();
+
+const resetTinStatus = () => {
+  const currentTin = normalizeTin();
+  if (currentTin !== lastVerifiedTin.value) {
+    tinState.value = "idle";
+    tinMessage.value = "";
+  }
+};
+
+const verifyTin = async () => {
+  const tpTIN = normalizeTin();
+
+  if (!tpTIN) {
+    tinState.value = "idle";
+    tinMessage.value = "";
+    lastVerifiedTin.value = "";
+    return true;
+  }
+
+  tinState.value = "checking";
+  tinMessage.value = "Vérification du NIF en cours...";
+
+  try {
+    const response = await api.post("/customers/checkTIN", { tp_TIN: tpTIN });
+    const taxpayer = response.data?.data;
+
+    if (response.data?.success && taxpayer) {
+      tinState.value = "valid";
+      tinMessage.value = `NIF valide${taxpayer.tp_name ? ` - ${taxpayer.tp_name}` : ""}`;
+      lastVerifiedTin.value = tpTIN;
+
+      if (!form.customer_name.trim() && taxpayer.tp_name) {
+        form.customer_name = taxpayer.tp_name;
+      }
+
+      return true;
+    }
+
+    tinState.value = "invalid";
+    tinMessage.value = response.data?.message || "NIF invalide.";
+    lastVerifiedTin.value = "";
+    return false;
+  } catch (error) {
+    tinState.value = "invalid";
+    tinMessage.value = error.response?.data?.message || "Impossible de vérifier le NIF pour le moment.";
+    lastVerifiedTin.value = "";
+    return false;
+  }
+};
+
 const saveClient = async () => {
   if (!form.customer_name || !form.type) {
     toast.error("Veuillez remplir les champs obligatoires.");
     return;
   }
 
-  if (form.type === "PERSONNE MORAL" && !form.customer_TIN?.trim()) {
+  const tpTIN = normalizeTin();
+  if (form.type === "PERSONNE MORAL" && !tpTIN) {
     toast.error("Le NIF du client est obligatoire pour un client de type personne morale.");
     return;
+  }
+
+  if (tpTIN && tpTIN !== lastVerifiedTin.value) {
+    const isValid = await verifyTin();
+    if (!isValid) {
+      toast.error("Le NIF saisi est invalide.");
+      return;
+    }
   }
 
   isSaving.value = true;

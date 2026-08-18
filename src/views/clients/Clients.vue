@@ -119,7 +119,20 @@
                 type="text"
                 :required="editForm.type === 'PERSONNE MORAL'"
                 class="form-control border-success-subtle"
+                @input="resetEditTinStatus"
+                @blur="verifyEditTin"
               />
+              <small
+                v-if="editTinMessage"
+                class="d-block mt-1"
+                :class="{
+                  'text-success': editTinState === 'valid',
+                  'text-danger': editTinState === 'invalid',
+                  'text-muted': editTinState === 'checking' || editTinState === 'idle'
+                }"
+              >
+                {{ editTinMessage }}
+              </small>
             </div>
 
             <div class="col-md-4">
@@ -165,6 +178,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import ClientsAdd from './ClientsAdd.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import api from '@/services/api';
 
 const store = useStore();
 const search = ref('');
@@ -176,6 +190,9 @@ const { confirm: confirmDialog } = useConfirm();
 const editClient = ref(null);
 const isSavingEdit = ref(false);
 const editError = ref('');
+const editTinState = ref('idle');
+const editTinMessage = ref('');
+const editLastVerifiedTin = ref('');
 const editForm = reactive({
   customer_name: '',
   customer_TIN: '',
@@ -184,6 +201,52 @@ const editForm = reactive({
   vat_customer_payer: 'Non assujetti',
   type: '',
 });
+
+const normalizeEditTin = () => (editForm.customer_TIN || '').trim();
+
+const resetEditTinStatus = () => {
+  const currentTin = normalizeEditTin();
+  if (currentTin !== editLastVerifiedTin.value) {
+    editTinState.value = 'idle';
+    editTinMessage.value = '';
+  }
+};
+
+const verifyEditTin = async () => {
+  const tpTIN = normalizeEditTin();
+
+  if (!tpTIN) {
+    editTinState.value = 'idle';
+    editTinMessage.value = '';
+    editLastVerifiedTin.value = '';
+    return true;
+  }
+
+  editTinState.value = 'checking';
+  editTinMessage.value = 'Vérification du NIF en cours...';
+
+  try {
+    const response = await api.post('/customers/checkTIN', { tp_TIN: tpTIN });
+    const taxpayer = response.data?.data;
+
+    if (response.data?.success && taxpayer) {
+      editTinState.value = 'valid';
+      editTinMessage.value = `NIF valide${taxpayer.tp_name ? ` - ${taxpayer.tp_name}` : ''}`;
+      editLastVerifiedTin.value = tpTIN;
+      return true;
+    }
+
+    editTinState.value = 'invalid';
+    editTinMessage.value = response.data?.message || 'NIF invalide.';
+    editLastVerifiedTin.value = '';
+    return false;
+  } catch (error) {
+    editTinState.value = 'invalid';
+    editTinMessage.value = error.response?.data?.message || 'Impossible de vérifier le NIF pour le moment.';
+    editLastVerifiedTin.value = '';
+    return false;
+  }
+};
 
 const clients = computed(() => store.getters['clients/allClients']);
 const totalClients = computed(() => store.getters['clients/totalClients']);
@@ -231,6 +294,9 @@ const handleDelete = async (id) => {
 const openEditModal = (client) => {
   editClient.value = client;
   editError.value = '';
+  editTinState.value = 'idle';
+  editTinMessage.value = '';
+  editLastVerifiedTin.value = '';
   editForm.customer_name = client.customer_name || '';
   editForm.customer_TIN = client.customer_TIN || '';
   editForm.customer_phone = client.customer_phone || '';
@@ -248,6 +314,15 @@ const saveEdit = async () => {
   if (editForm.type === 'PERSONNE MORAL' && !editForm.customer_TIN?.trim()) {
     editError.value = 'Le NIF du client est obligatoire pour un client de type personne morale.';
     return;
+  }
+
+  const tpTIN = normalizeEditTin();
+  if (tpTIN && tpTIN !== editLastVerifiedTin.value) {
+    const isValid = await verifyEditTin();
+    if (!isValid) {
+      editError.value = 'Le NIF saisi est invalide.';
+      return;
+    }
   }
 
   isSavingEdit.value = true;
