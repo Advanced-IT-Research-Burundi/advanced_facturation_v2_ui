@@ -295,17 +295,26 @@ const handleStockChanged = (warehouseId) => {
 
 // ... (other functions)
 
-// Handle view invoice from list
-const handleViewInvoice = (invoice) => {
-  invoiceToPrint.value = invoice;
+// La liste renvoie un résumé de facture sans ses lignes. On recharge le détail
+// complet avant l'aperçu ou l'impression afin d'afficher les désignations.
+const openInvoiceDetails = async (invoice) => {
+  try {
+    const response = await api.get(`/invoices/${invoice.id}`);
+    invoiceToPrint.value = response.data?.data ?? invoice;
+  } catch (error) {
+    console.error("Erreur lors du chargement du détail de la facture:", error);
+    // L'aperçu reste disponible avec les données déjà chargées si l'API échoue.
+    invoiceToPrint.value = invoice;
+  }
+
   showPrintModal.value = true;
 };
 
+// Handle view invoice from list
+const handleViewInvoice = (invoice) => openInvoiceDetails(invoice);
+
 // Handle print invoice from list
-const handlePrintInvoice = (invoice) => {
-  invoiceToPrint.value = invoice;
-  showPrintModal.value = true;
-};
+const handlePrintInvoice = (invoice) => openInvoiceDetails(invoice);
 
 // Close print modal
 const closePrintModal = () => {
