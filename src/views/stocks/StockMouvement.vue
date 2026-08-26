@@ -187,11 +187,18 @@
                     <i class="bi bi-plus-lg"></i>
                   </button>
                   <button
-                    class="btn btn-sm btn-outline-danger"
+                    class="btn btn-sm btn-outline-danger me-1"
                     @click="openQuickExit(stock)"
                     title="Sortie"
                   >
                     <i class="bi bi-dash-lg"></i>
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-primary"
+                    @click="openUnitPriceEdit(stock)"
+                    title="Modifier le prix unitaire"
+                  >
+                    <i class="bi bi-pencil-square"></i>
                   </button>
                 </td>
               </tr>
@@ -264,6 +271,55 @@
               </li>
             </ul>
           </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Modification du Prix Unitaire -->
+    <div
+      v-if="showUnitPriceEditModal"
+      class="modal show d-block"
+      style="background: rgba(0, 0, 0, 0.5)"
+      tabindex="-1"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-pencil-square me-2"></i>Modifier le prix unitaire
+            </h5>
+            <button class="btn-close btn-close-white" @click="closeUnitPriceEdit" :disabled="submitting"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <strong>{{ selectedStock?.product?.item_designation }}</strong><br />
+              <small>{{ selectedStock?.product?.item_code }}</small>
+            </div>
+            <label class="form-label">Prix unitaire *</label>
+            <div class="input-group">
+              <input
+                v-model="unitPriceEditForm.unit_price"
+                type="number"
+                step="0.01"
+                min="0"
+                class="form-control"
+                required
+              />
+              <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+            </div>
+            <!-- <small class="text-muted">
+              modifié le prix unitaire  .
+            </small> -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeUnitPriceEdit" :disabled="submitting">
+              Annuler
+            </button>
+            <button class="btn btn-primary" @click="submitUnitPriceEdit" :disabled="submitting">
+              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
+              Enregistrer
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -633,6 +689,7 @@ const filteredStockRevenueByCurrency = computed(() => groupRevenueByCurrency(fil
 
 const showQuickEntryModal = ref(false);
 const showQuickExitModal = ref(false);
+const showUnitPriceEditModal = ref(false);
 
 const selectedStock = ref(null);
 
@@ -653,6 +710,10 @@ const quickExitForm = ref({
   currency: "BIF",
   movement_type: "SN",
   invoice_ref: "",
+});
+
+const unitPriceEditForm = ref({
+  unit_price: "",
 });
 
 onMounted(() => {
@@ -776,6 +837,48 @@ const submitQuickExit = async () => {
     }
   } catch (err) {
     error.value = err.response?.data?.message || "Erreur";
+    setTimeout(() => (error.value = null), 5000);
+  } finally {
+    submitting.value = false;
+  }
+};
+
+// Modification du prix unitaire
+const openUnitPriceEdit = (stock) => {
+  selectedStock.value = stock;
+  unitPriceEditForm.value = {
+    unit_price: stock.unit_price ?? "",
+  };
+  showUnitPriceEditModal.value = true;
+};
+
+const closeUnitPriceEdit = () => {
+  showUnitPriceEditModal.value = false;
+  unitPriceEditForm.value = { unit_price: "" };
+};
+
+const submitUnitPriceEdit = async () => {
+  const rawUnitPrice = unitPriceEditForm.value.unit_price;
+  const unitPrice = Number(rawUnitPrice);
+  if (rawUnitPrice === "" || rawUnitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0) {
+    error.value = "Veuillez saisir un prix unitaire valide.";
+    return;
+  }
+
+  submitting.value = true;
+  try {
+    const resp = await api.patch(
+      `warehouse-products/${selectedStock.value.id}`,
+      { unit_price: unitPrice },
+    );
+    if (resp.data.success) {
+      successMessage.value = resp.data.message || "Prix unitaire modifié avec succès.";
+      closeUnitPriceEdit();
+      await fetchDashboard();
+      setTimeout(() => (successMessage.value = null), 3000);
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || "Erreur lors de la modification du prix unitaire.";
     setTimeout(() => (error.value = null), 5000);
   } finally {
     submitting.value = false;
