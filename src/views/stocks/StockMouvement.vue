@@ -136,6 +136,7 @@
                 <th>Produit</th>
                 <th class="text-end">Quantité</th>
                 <th class="text-center">Alerte</th>
+                <th class="text-center">TVA</th>
                 <th class="text-end">Prix Unitaire</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Actions</th>
@@ -172,6 +173,7 @@
                   </span>
                   <span v-else class="text-muted">-</span>
                 </td>
+                <td class="text-center">{{ formatNumber(stock.product?.vat_rate) }}%</td>
                 <td class="text-end">
                   {{ formatCurrency(stock.unit_price, stock.currency) }}
                 </td>
@@ -203,7 +205,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="8" class="text-center py-5 text-muted">
+                <td colspan="9" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery
@@ -295,17 +297,33 @@
               <strong>{{ selectedStock?.product?.item_designation }}</strong><br />
               <small>{{ selectedStock?.product?.item_code }}</small>
             </div>
-            <label class="form-label">Prix unitaire *</label>
-            <div class="input-group">
-              <input
-                v-model="unitPriceEditForm.unit_price"
-                type="number"
-                step="0.01"
-                min="0"
-                class="form-control"
-                required
-              />
-              <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+            <div class="row g-3">
+              <div class="col-md-7">
+                <label class="form-label">Prix unitaire *</label>
+                <div class="input-group">
+                  <input
+                    v-model="unitPriceEditForm.unit_price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                    required
+                  />
+                  <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+                </div>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label">TVA (%) *</label>
+                <input
+                  v-model.number="unitPriceEditForm.vat_rate"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  class="form-control"
+                  required
+                />
+              </div>
             </div>
             <!-- <small class="text-muted">
               modifié le prix unitaire  .
@@ -714,6 +732,7 @@ const quickExitForm = ref({
 
 const unitPriceEditForm = ref({
   unit_price: "",
+  vat_rate: "",
 });
 
 onMounted(() => {
@@ -848,37 +867,49 @@ const openUnitPriceEdit = (stock) => {
   selectedStock.value = stock;
   unitPriceEditForm.value = {
     unit_price: stock.unit_price ?? "",
+    vat_rate: stock.product?.vat_rate ?? 0,
   };
   showUnitPriceEditModal.value = true;
 };
 
 const closeUnitPriceEdit = () => {
   showUnitPriceEditModal.value = false;
-  unitPriceEditForm.value = { unit_price: "" };
+  unitPriceEditForm.value = { unit_price: "", vat_rate: "" };
 };
 
 const submitUnitPriceEdit = async () => {
   const rawUnitPrice = unitPriceEditForm.value.unit_price;
   const unitPrice = Number(rawUnitPrice);
-  if (rawUnitPrice === "" || rawUnitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0) {
-    error.value = "Veuillez saisir un prix unitaire valide.";
+  const vatRate = Number(unitPriceEditForm.value.vat_rate);
+  if (
+    rawUnitPrice === "" || rawUnitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0
+    || !Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100
+  ) {
+    error.value = "Veuillez saisir un prix unitaire et un taux de TVA valides.";
     return;
   }
 
   submitting.value = true;
   try {
+    const productId = selectedStock.value?.product?.id || selectedStock.value?.product_id;
+    const productResp = await api.patch(`products/${productId}`, { vat_rate: vatRate });
+    if (!productResp.data.success) {
+      throw new Error(productResp.data.message || "Impossible de modifier la TVA.");
+    }
     const resp = await api.patch(
       `warehouse-products/${selectedStock.value.id}`,
       { unit_price: unitPrice },
     );
     if (resp.data.success) {
-      successMessage.value = resp.data.message || "Prix unitaire modifié avec succès.";
+      successMessage.value = "Prix unitaire et TVA modifiés avec succès.";
       closeUnitPriceEdit();
       await fetchDashboard();
       setTimeout(() => (successMessage.value = null), 3000);
+    } else {
+      throw new Error(resp.data.message || "Impossible de modifier le prix unitaire.");
     }
   } catch (err) {
-    error.value = err.response?.data?.message || "Erreur lors de la modification du prix unitaire.";
+    error.value = err.response?.data?.message || err.message || "Erreur lors de la modification du prix unitaire.";
     setTimeout(() => (error.value = null), 5000);
   } finally {
     submitting.value = false;
