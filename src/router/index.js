@@ -235,6 +235,12 @@ const router = createRouter({
           meta: { permission: "settings" },
         },
         {
+          path: "settings/payment-methods",
+          name: "settings.payment-methods",
+          component: () => import("../views/settings/PaymentMethods.vue"),
+          meta: { permission: "settings" },
+        },
+        {
           path: "settings/obr-logs",
           name: "settings.obr-logs",
           component: () => import("../views/settings/ObrLogs.vue"),
