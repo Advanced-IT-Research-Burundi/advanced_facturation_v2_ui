@@ -50,9 +50,9 @@ const totalPages = computed(() => {
               <th>Catégorie</th>
               <th>Marque</th>
               <th>TVA</th>
-              <th>Prix HT</th>
+              <!-- <th>Prix HT</th>
               <th>Prix TTC</th>
-              <th>Quantité</th>
+              <th>Quantité</th> -->
               <th class="text-end pe-4">Actions</th>
             </tr>
           </thead>
@@ -63,9 +63,9 @@ const totalPages = computed(() => {
               <td>{{ product.item_designation }}</td>
               <td>{{ getCategoryName(product.product_category_id) }}</td>
               <td>{{ product.marque || "-" }}</td>
-              <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td>
+              <!-- <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td>
               <td class="fw-bold">{{ formatPrice(product.price) }}</td>
-              <td class="fw-bold">{{ formatPrice(product.price_ttc) }}</td>
+              <td class="fw-bold">{{ formatPrice(product.price_ttc) }}</td> -->
               <td>
                 <span
                   :class="{
