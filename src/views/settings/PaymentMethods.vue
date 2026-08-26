@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="h3 mb-1">Méthodes de paiement</h1>
-        <p class="text-muted mb-0">Gérez les moyens de paiement proposés à votre entreprise.</p>
+        
       </div>
       <div>
         <button class="btn btn-outline-primary me-2" @click="fetchMethods" :disabled="loading">

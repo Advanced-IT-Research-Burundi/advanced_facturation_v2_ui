@@ -49,7 +49,7 @@ const totalPages = computed(() => {
               <th>Désignation</th>
               <th>Catégorie</th>
               <th>Marque</th>
-              <th>TVA</th>
+              <!-- <th>TVA</th> -->
               <!-- <th>Prix HT</th>
               <th>Prix TTC</th>
               <th>Quantité</th> -->
@@ -66,7 +66,7 @@ const totalPages = computed(() => {
               <!-- <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td>
               <td class="fw-bold">{{ formatPrice(product.price) }}</td>
               <td class="fw-bold">{{ formatPrice(product.price_ttc) }}</td> -->
-              <td>
+              <!-- <td>
                 <span
                   :class="{
                     'badge bg-danger': isLowStock(product),
@@ -76,7 +76,7 @@ const totalPages = computed(() => {
                   {{ product.quantite || 0 }}
                   {{ product.item_measurement_unit }}
                 </span>
-              </td>
+              </td> -->
               <td class="text-end pe-4">
                 <router-link
                   :to="{ name: 'stock.detail', params: { id: product.id } }"
