@@ -35,6 +35,11 @@ const routeLinks = ref([
     icon: "bi bi-sliders",
   },
   {
+    name: "Méthodes de paiement",
+    path: "/settings/payment-methods",
+    icon: "bi bi-credit-card",
+  },
+  {
     name: "Journal OBR",
     path: "/settings/obr-logs",
     icon: "bi bi-file-earmark-text",
