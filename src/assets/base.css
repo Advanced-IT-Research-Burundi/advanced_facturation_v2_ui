@@ -1,9 +1,9 @@
 :root {
   /* Brand Colors */
-  --bs-primary: #C4251D;
+   --bs-primary: #C4251D;
   --bs-primary-rgb: 196, 37, 29;
-  --bs-secondary: #1E293B;
-  --bs-secondary-rgb: 30, 41, 59;
+  --bs-secondary: #1666A9;
+  --bs-secondary-rgb: 15, 23, 42;
   --bs-info: #0ea5e9;
   --bs-body-bg: #f3f4f6;
   
@@ -120,7 +120,7 @@ aside .nav-link{
 
 /* Sidebar Links */
 .sidebar-link {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.836);
   text-decoration: none;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;

@@ -405,6 +405,7 @@ const filteredNavItems = computed(() => {
   font-size: clamp(0.55rem, 1vh, 0.75rem);
   font-weight: bold;
   letter-spacing: 1px;
+  color: #fff;
 }
 
 .nav-pills {
@@ -428,7 +429,7 @@ const filteredNavItems = computed(() => {
   align-items: center;
   gap: clamp(0.15rem, 0.5vh, 0.35rem);
   padding: clamp(0.35rem, 1vh, 0.7rem) 0.25rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.938);
   border-radius: 6px;
   transition: all 0.2s;
   text-decoration: none;
@@ -443,6 +444,7 @@ const filteredNavItems = computed(() => {
   font-weight: 500;
   text-align: center;
   line-height: 1.1;
+  color: #fff;
 }
 .nav-link:hover:not(.active) {
   background: rgba(255, 255, 255, 0.1);
