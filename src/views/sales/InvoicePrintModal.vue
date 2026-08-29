@@ -69,8 +69,13 @@ const generateQRCode = async (invoice) => {
     return;
   }
   try {
-    // Le QR code encode uniquement l'identifiant OBR
-    const qrData = invoice.obr_invoice_identifier || invoice.obr_invoice_registered_number || invoice.invoice_number || "";
+    // Le QR code encode la signature électronique OBR
+    const qrData =
+      invoice.obr_electronic_signature ||
+      invoice.electronic_signature ||
+      invoice.obr_invoice_identifier ||
+      invoice.invoice_number ||
+      "";
 
     qrCodeDataUrl.value = await QRCode.toDataURL(qrData, {
       width: 150,
