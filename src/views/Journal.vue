@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { Printer } from 'lucide-vue-next';
-import { useStore } from 'vuex';
-import api from '@/services/api';
-import { useToast } from '@/composables/useToast';
+import { ref, computed, onMounted, watch } from "vue";
+import { Printer } from "lucide-vue-next";
+import { useStore } from "vuex";
+import api from "@/services/api";
+import { useToast } from "@/composables/useToast";
 
 const toast = useToast();
 const store = useStore();
@@ -14,49 +14,58 @@ const loading = ref(false);
 const error = ref(null);
 
 // Dates - par défaut vide pour afficher tout
-const startDate = ref('');
-const endDate = ref('');
+const startDate = ref("");
+const endDate = ref("");
 
 // Summary statistics
 const summary = computed(() => {
   const list = invoices.value || [];
   return {
     total_invoices: list.length,
-    total_amount_tvac: list.reduce((sum, inv) => sum + (parseFloat(inv.invoice_total_amount) || 0), 0),
-    total_tva: list.reduce((sum, inv) => sum + (parseFloat(inv.invoice_vat_amount) || 0), 0),
-    total_htva: list.reduce((sum, inv) => sum + (parseFloat(inv.invoice_amount_nvat) || 0), 0),
+    total_amount_tvac: list.reduce(
+      (sum, inv) => sum + (parseFloat(inv.invoice_total_amount) || 0),
+      0,
+    ),
+    total_tva: list.reduce(
+      (sum, inv) => sum + (parseFloat(inv.invoice_vat_amount) || 0),
+      0,
+    ),
+    total_htva: list.reduce(
+      (sum, inv) => sum + (parseFloat(inv.invoice_amount_nvat) || 0),
+      0,
+    ),
   };
 });
 
 // Payment types mapping (comme dans la démo)
 const TYPE_PAYMENT = {
-  '1': 'Espèces',
-  '2': 'Banque',
-  '3': 'Crédit',
-  '4': 'Mobile Money',
-  'cash': 'Espèces',
-  'bank': 'Banque',
-  'credit': 'Crédit',
-  'mobile': 'Mobile Money',
+  1: "Espèces",
+  2: "Banque",
+  3: "Crédit",
+  4: "Mobile Money",
+  cash: "Espèces",
+  bank: "Banque",
+  credit: "Crédit",
+  mobile: "Mobile Money",
 };
 
 // Invoice type labels
 const INVOICE_TYPES = {
-  'FN': 'Facture Normale',
-  'FA': 'Facture Avoir',
-  'FC': 'Facture à Crédit',
-  'FP': 'Proforma',
-  'RC': 'Reçu de Caisse',
+  FN: "Facture Normale",
+  FA: "Facture Avoir",
+  FC: "Facture à Crédit",
+  FP: "Proforma",
+  RC: "Reçu de Caisse",
 };
 
 // Fetch invoices - EXACTEMENT comme InvoicesList
 const fetchInvoices = async () => {
   loading.value = true;
   error.value = null;
-  console.log('Journal: Fetching invoices...');
+  console.log("Journal: Fetching invoices...");
   try {
     const params = {};
-    
+
     // Filtres de date optionnels
     if (startDate.value) {
       params.start_date = startDate.value;
@@ -65,20 +74,24 @@ const fetchInvoices = async () => {
       params.end_date = endDate.value;
     }
 
-    const response = await api.get('/invoices', { params });
-    console.log('Journal: API Response:', response.data);
-    
+    const response = await api.get("/invoices", { params });
+    console.log("Journal: API Response:", response.data);
+
     if (response.data.success) {
       // Exactement comme InvoicesList
       invoices.value = response.data.data.data || response.data.data;
       store.state.data.journalInvoices = invoices.value;
-      console.log('Journal: Invoices loaded:', invoices.value.length, 'factures');
+      console.log(
+        "Journal: Invoices loaded:",
+        invoices.value.length,
+        "factures",
+      );
     } else {
-      console.log('Journal: API returned success=false');
+      console.log("Journal: API returned success=false");
     }
   } catch (err) {
-    console.error('Journal: Error fetching invoices:', err);
-    error.value = 'Erreur lors du chargement du journal des factures';
+    console.error("Journal: Error fetching invoices:", err);
+    error.value = "Erreur lors du chargement du journal des factures";
   } finally {
     loading.value = false;
   }
@@ -86,30 +99,30 @@ const fetchInvoices = async () => {
 
 // Helpers
 const formatPrice = (amount) => {
-  if (!amount && amount !== 0) return '0';
-  return new Intl.NumberFormat('fr-FR', {
+  if (!amount && amount !== 0) return "0";
+  return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 };
 
 const formatDate = (date) => {
-  if (!date) return '';
-  return new Date(date).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
 const getPaymentTypeLabel = (type) => {
-  return TYPE_PAYMENT[type] || type || 'Espèces';
+  return TYPE_PAYMENT[type] || type || "Espèces";
 };
 
 const getInvoiceTypeLabel = (type) => {
-  return INVOICE_TYPES[type] || type || '';
+  return INVOICE_TYPES[type] || type || "";
 };
 
 // Print page
@@ -124,7 +137,7 @@ const printInvoice = async (invoice) => {
     if (response.data.success) {
       const fullInvoice = response.data.data;
       const printContent = generatePrintContent(fullInvoice);
-      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      const printWindow = window.open("", "_blank", "width=800,height=600");
       printWindow.document.write(printContent);
       printWindow.document.close();
       printWindow.focus();
@@ -133,20 +146,25 @@ const printInvoice = async (invoice) => {
       }, 500);
     }
   } catch (err) {
-    console.error('Error fetching invoice for print:', err);
-    toast.error('Erreur lors de la récupération de la facture');
+    console.error("Error fetching invoice for print:", err);
+    toast.error("Erreur lors de la récupération de la facture");
   }
 };
 
 const generatePrintContent = (invoice) => {
-  const itemsRows = invoice.invoiceItems?.map(item => `
+  const itemsRows =
+    invoice.invoiceItems
+      ?.map(
+        (item) => `
     <tr>
-      <td>${item.item_designation || item.product?.name || 'Produit'}</td>
+      <td>${item.item_designation || item.product?.name || "Produit"}</td>
       <td style="text-align: center;">${item.item_quantity}</td>
       <td style="text-align: right;">${formatPrice(item.item_price)} FBU</td>
       <td style="text-align: right;">${formatPrice(item.item_total_amount)} FBU</td>
     </tr>
-  `).join('') || '';
+  `,
+      )
+      .join("") || "";
 
   return `
     <!DOCTYPE html>
@@ -173,21 +191,21 @@ const generatePrintContent = (invoice) => {
     </head>
     <body>
       <div class="header">
-        <div class="company-name">${invoice.tp_name || 'Entreprise'}</div>
-        <div>NIF: ${invoice.tp_TIN || ''}</div>
-        <div>Tél: ${invoice.tp_phone_number || ''}</div>
+        <div class="company-name">${invoice.tp_name || "Entreprise"}</div>
+        <div>NIF: ${invoice.tp_TIN || ""}</div>
+        <div>Tél: ${invoice.tp_phone_number || ""}</div>
       </div>
       <h2 style="text-align: center; margin-bottom: 20px;">FACTURE N° ${invoice.invoice_number}</h2>
       <div class="invoice-info">
         <div class="info-block">
           <h4>Client</h4>
-          <p><strong>Nom:</strong> ${invoice.customer?.customer_name || invoice.customer_name || 'Client Anonyme'}</p>
-          <p><strong>NIF:</strong> ${invoice.customer?.customer_TIN || invoice.customer_TIN || '-'}</p>
+          <p><strong>Nom:</strong> ${invoice.customer?.customer_name || invoice.customer_name || "Client Anonyme"}</p>
+          <p><strong>NIF:</strong> ${invoice.customer?.customer_TIN || invoice.customer_TIN || "-"}</p>
         </div>
         <div class="info-block">
           <h4>Facture</h4>
-          <p><strong>Date:</strong> ${new Date(invoice.invoice_date || invoice.created_at).toLocaleDateString('fr-FR')}</p>
-          <p><strong>Vendeur:</strong> ${invoice.user?.name || 'Inconnu'}</p>
+          <p><strong>Date:</strong> ${new Date(invoice.invoice_date || invoice.created_at).toLocaleDateString("fr-FR")}</p>
+          <p><strong>Vendeur:</strong> ${invoice.user?.name || "Inconnu"}</p>
         </div>
       </div>
       <table>
@@ -203,7 +221,7 @@ const generatePrintContent = (invoice) => {
           <tr class="total-row"><td>Total TVAC:</td><td style="text-align:right;">${formatPrice(invoice.invoice_total_amount)} FBU</td></tr>
         </table>
       </div>
-      ${invoice.obr_electronic_signature ? `<div style="margin-top:20px;font-size:10px;"><strong>Signature:</strong> ${invoice.obr_electronic_signature}</div>` : ''}
+      ${invoice.obr_electronic_signature ? `<div style="margin-top:20px;font-size:10px;"><strong>Signature:</strong> ${invoice.obr_electronic_signature}</div>` : ""}
       <div class="footer"><p>Merci pour votre confiance!</p></div>
     </body>
     </html>
@@ -220,6 +238,16 @@ onMounted(() => {
   <div class="container-fluid py-3">
     <!-- Header Navigation -->
     <div class="d-flex justify-content-end align-items-center mb-2 noprint">
+      <RouterLink to="/obr-invoices" class="btn btn-secondary btn-sm me-2">
+        <ArrowLeft :size="14" class="me-1" />
+        OBR Invoices
+      </RouterLink>
+
+      <RouterLink to="/obr-mouvements" class="btn btn-secondary btn-sm me-2">
+        <ArrowLeft :size="14" class="me-1" />
+        OBR Mouvements Stock
+      </RouterLink>
+
       <button class="btn btn-info btn-sm" @click="printPage">
         <Printer :size="14" class="me-1" />
         Imprimer
@@ -236,24 +264,22 @@ onMounted(() => {
           <div class="row">
             <div class="col-6">
               <label class="small">DU</label>
-              <input 
-                type="date" 
-                class="form-control form-control-sm" 
+              <input
+                type="date"
+                class="form-control form-control-sm"
                 v-model="startDate"
-              >
+              />
             </div>
             <div class="col-6">
               <label class="small">AU</label>
-              <input 
-                type="date" 
-                class="form-control form-control-sm" 
+              <input
+                type="date"
+                class="form-control form-control-sm"
                 v-model="endDate"
-              >
+              />
             </div>
             <div class="col-6 mt-2 noprint">
-              <button type="submit" class="btn btn-info btn-sm">
-                Ok
-              </button>
+              <button type="submit" class="btn btn-info btn-sm">Ok</button>
             </div>
           </div>
         </form>
@@ -265,7 +291,7 @@ onMounted(() => {
           <tbody>
             <tr>
               <th>DATE</th>
-              <td>{{ startDate || 'Tout' }} - {{ endDate || 'Tout' }}</td>
+              <td>{{ startDate || "Tout" }} - {{ endDate || "Tout" }}</td>
             </tr>
             <tr>
               <th>NOMBRE TOTAL DE FACTURE</th>
@@ -281,7 +307,9 @@ onMounted(() => {
           <tbody>
             <tr>
               <th>MONTANT TOTAL DES FACTURE TVAC</th>
-              <td class="text-nowrap fw-bold">{{ formatPrice(summary.total_amount_tvac) }}</td>
+              <td class="text-nowrap fw-bold">
+                {{ formatPrice(summary.total_amount_tvac) }}
+              </td>
             </tr>
             <tr>
               <th>NOMBRE TOTAL POUR TVA</th>
@@ -323,42 +351,68 @@ onMounted(() => {
         </tr>
         <tr v-for="invoice in invoices" :key="invoice.id">
           <th scope="row">{{ invoice.id }}</th>
-          
+
           <!-- PRODUITS - comme dans la démo -->
           <td>
             <ul class="list-unstyled mb-0">
-              <li v-for="(item, idx) in (invoice.invoice_items || invoice.invoiceItems || [])" :key="idx">
-                {{ item.item_designation || item.product?.name }} | Qte : {{ item.item_quantity }} | PRIX : {{ formatPrice(item.item_price) }}
+              <li
+                v-for="(item, idx) in invoice.invoice_items ||
+                invoice.invoiceItems ||
+                []"
+                :key="idx"
+              >
+                {{ item.item_designation || item.product?.name }} | Qte :
+                {{ item.item_quantity }} | PRIX :
+                {{ formatPrice(item.item_price) }}
               </li>
-              <li v-if="!(invoice.invoice_items || invoice.invoiceItems || []).length" class="text-muted">
+              <li
+                v-if="
+                  !(invoice.invoice_items || invoice.invoiceItems || []).length
+                "
+                class="text-muted"
+              >
                 (Voir détails)
               </li>
               <li class="text-center border-top mt-2 pt-2">
                 {{ formatDate(invoice.invoice_date || invoice.created_at) }}
               </li>
               <li>
-                Client : <b>{{ invoice.customer?.customer_name || invoice.customer_name || 'Client Anonyme' }}</b> &nbsp;&nbsp;&nbsp; 
-                Vendu par : <b>{{ invoice.user?.name || 'Inconnu' }}</b>
+                Client :
+                <b>{{
+                  invoice.customer?.customer_name ||
+                  invoice.customer_name ||
+                  "Client Anonyme"
+                }}</b>
+                &nbsp;&nbsp;&nbsp; Vendu par :
+                <b>{{ invoice.user?.name || "Inconnu" }}</b>
               </li>
             </ul>
           </td>
 
           <!-- MONTANT -->
-          <td class="text-nowrap">{{ formatPrice(invoice.invoice_total_amount) }}</td>
+          <td class="text-nowrap">
+            {{ formatPrice(invoice.invoice_total_amount) }}
+          </td>
 
           <!-- MODE DE PAIEMENT -->
-          <td class="noprint">{{ getPaymentTypeLabel(invoice.payment_type) }}</td>
+          <td class="noprint">
+            {{ getPaymentTypeLabel(invoice.payment_type) }}
+          </td>
 
           <!-- TYPE DE FACTURE -->
-          <td class="noprint">{{ getInvoiceTypeLabel(invoice.invoice_type) }}</td>
+          <td class="noprint">
+            {{ getInvoiceTypeLabel(invoice.invoice_type) }}
+          </td>
 
           <!-- TVA -->
-          <td class="text-nowrap">{{ formatPrice(invoice.invoice_vat_amount) }}</td>
+          <td class="text-nowrap">
+            {{ formatPrice(invoice.invoice_vat_amount) }}
+          </td>
 
           <!-- Action -->
           <td class="noprint">
-            <button 
-              class="btn btn-sm btn-success" 
+            <button
+              class="btn btn-sm btn-success"
               @click="printInvoice(invoice)"
               title="Imprimer"
             >
@@ -377,8 +431,12 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Style d'impression - cacher les éléments noprint */
@@ -386,11 +444,11 @@ onMounted(() => {
   .noprint {
     display: none !important;
   }
-  
+
   .container-fluid {
     padding: 0 !important;
   }
-  
+
   .table {
     font-size: 11px;
   }

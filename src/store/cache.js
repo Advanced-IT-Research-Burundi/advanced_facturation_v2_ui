@@ -47,6 +47,12 @@ const persistedModules = {
     lastQuery: state.expenses.lastQuery,
     lastUpdatedAt: state.expenses.lastUpdatedAt,
   }),
+  obrInvoices: (state) => ({
+    obrInvoices: state.obrInvoices.obrInvoices,
+    pagination: state.obrInvoices.pagination,
+    lastQuery: state.obrInvoices.lastQuery,
+    lastUpdatedAt: state.obrInvoices.lastUpdatedAt,
+  }),
   dashboard: (state) => ({
     stats: state.dashboard.stats,
     salesChart: state.dashboard.salesChart,

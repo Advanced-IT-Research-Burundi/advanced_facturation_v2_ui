@@ -67,37 +67,37 @@ const router = createRouter({
           meta: { permission: "stock" },
         },
         {
-          path: '/warehouses/:id/bulk-entry',
-          name: 'WarehouseBulkEntry',
-          component: () => import('@/views/warehouses/BulkEntry.vue'),
+          path: "/warehouses/:id/bulk-entry",
+          name: "WarehouseBulkEntry",
+          component: () => import("@/views/warehouses/BulkEntry.vue"),
           meta: { permission: "stock" },
         },
         {
-          path: '/warehouses/:id/bulk-exit',
-          name: 'WarehouseBulkExit',
-          component: () => import('@/views/warehouses/BulkExit.vue'),
+          path: "/warehouses/:id/bulk-exit",
+          name: "WarehouseBulkExit",
+          component: () => import("@/views/warehouses/BulkExit.vue"),
           meta: { permission: "stock" },
         },
         {
-          path: '/warehouses/:id/create-transfer',
-          name: 'WarehouseCreateTransfer',
-          component: () => import('@/views/warehouses/CreateTransfer.vue'),
+          path: "/warehouses/:id/create-transfer",
+          name: "WarehouseCreateTransfer",
+          component: () => import("@/views/warehouses/CreateTransfer.vue"),
           meta: { permission: "stock" },
         },
         {
-          path: '/warehouses/:id/pending-transfers',
-          name: 'WarehousePendingTransfers',
-          component: () => import('@/views/warehouses/PendingTransfers.vue'),
+          path: "/warehouses/:id/pending-transfers",
+          name: "WarehousePendingTransfers",
+          component: () => import("@/views/warehouses/PendingTransfers.vue"),
           meta: { permission: "stock" },
         },
         {
-          path: '/warehouses/:id/history',
-          name: 'WarehouseHistory',
-          component: () => import('@/views/warehouses/History.vue'),
+          path: "/warehouses/:id/history",
+          name: "WarehouseHistory",
+          component: () => import("@/views/warehouses/History.vue"),
           meta: { permission: "stock" },
         },
         {
-          path: 'stock/:id/products',
+          path: "stock/:id/products",
           name: "stock.products",
           component: () => import("../views/stocks/StockProducts.vue"),
           meta: { permission: "stock" },
@@ -109,38 +109,38 @@ const router = createRouter({
           meta: { permission: "bakery" },
         },
         {
-          path: '/bakery/production',
-          name: 'BakeryProduction',
+          path: "/bakery/production",
+          name: "BakeryProduction",
           component: () => import("../views/BakeryProduction.vue"),
           meta: { permission: "bakery" },
         },
         {
-          path: '/bakery/production/record',
-          name: 'ProductionRecord',
+          path: "/bakery/production/record",
+          name: "ProductionRecord",
           component: () => import("../views/bakery/ProductionRecord.vue"),
           meta: { permission: "bakery" },
         },
         {
-          path: '/bakery/production/transfer',
-          name: 'ProductionTransfer',
+          path: "/bakery/production/transfer",
+          name: "ProductionTransfer",
           component: () => import("../views/bakery/ProductionTransfer.vue"),
           meta: { permission: "bakery" },
         },
         {
-          path: '/bakery/production/history',
-          name: 'ProductionHistory',
+          path: "/bakery/production/history",
+          name: "ProductionHistory",
           component: () => import("../views/bakery/ProductionHistory.vue"),
           meta: { permission: "bakery" },
         },
         {
-          path: '/bakery/rapports',
-          name: 'BolangerieRapports',
+          path: "/bakery/rapports",
+          name: "BolangerieRapports",
           component: () => import("../views/bakery/BolangerieRapports.vue"),
           meta: { permission: "bakery" },
         },
         {
-          path: '/bakery/production/report',
-          name: 'ProductionReport',
+          path: "/bakery/production/report",
+          name: "ProductionReport",
           component: () => import("../views/bakery/BolangerieRapports.vue"),
           meta: { permission: "bakery" },
         },
@@ -179,6 +179,18 @@ const router = createRouter({
           name: "journal",
           component: () => import("../views/Journal.vue"),
           meta: { permission: "journal" },
+        },
+        {
+          path: "obr-invoices",
+          name: "obr-invoices",
+          component: () => import("../views/ObrInvoices.vue"),
+          meta: { permission: "obr-invoices" },
+        },
+        {
+          path: "obr-mouvements",
+          name: "obr-mouvements",
+          component: () => import("../views/ObrStockMouvements.vue"),
+          meta: { permission: "obr-mouvements" },
         },
         {
           path: "reports",
@@ -256,13 +268,15 @@ const router = createRouter({
         {
           path: "pharmaceutical",
           name: "pharmaceutical",
-          component: () => import("../views/pharmaceutical/PharmaceuticalDashboard.vue"),
+          component: () =>
+            import("../views/pharmaceutical/PharmaceuticalDashboard.vue"),
           meta: { permission: "pharmaceutical" },
         },
         {
           path: "pharmaceutical/products",
           name: "pharmaceutical.products",
-          component: () => import("../views/pharmaceutical/PharmaceuticalProducts.vue"),
+          component: () =>
+            import("../views/pharmaceutical/PharmaceuticalProducts.vue"),
           meta: { permission: "pharmaceutical" },
         },
         {
@@ -274,7 +288,8 @@ const router = createRouter({
         {
           path: "prescriptions",
           name: "prescriptions",
-          component: () => import("../views/prescriptions/PrescriptionsPage.vue"),
+          component: () =>
+            import("../views/prescriptions/PrescriptionsPage.vue"),
           meta: { permission: "pharmaceutical" },
         },
         // Routes Gestion Financière
@@ -434,28 +449,29 @@ const router = createRouter({
 // Helper function to check permissions
 const hasPermission = (user, requiredPermission) => {
   if (!user || !requiredPermission) return true;
-  
+
   // Get all roles
   const roles = user.roles || [];
-  
+
   // Check if user is admin
   const isAdmin = roles.some((r) =>
-    ["admin", "super_admin"].includes(r.name?.toLowerCase())
+    ["admin", "super_admin"].includes(r.name?.toLowerCase()),
   );
   if (isAdmin) return true;
-  
+
   // Check role names
   const roleNames = roles.map((r) => r.name?.toLowerCase());
   if (roleNames.includes(requiredPermission.toLowerCase())) return true;
-  
+
   // Check permissions in roles
   for (const role of roles) {
     if (role.permissions && Array.isArray(role.permissions)) {
       if (role.permissions.includes(requiredPermission)) return true;
-      if (role.permissions.includes(requiredPermission.toLowerCase())) return true;
+      if (role.permissions.includes(requiredPermission.toLowerCase()))
+        return true;
     }
   }
-  
+
   return false;
 };
 
@@ -466,7 +482,7 @@ router.beforeEach((to, from, next) => {
 
   // Public routes - always accessible
   const publicRoutes = ["login", "register-company", "unauthorized"];
-  
+
   if (publicRoutes.includes(to.name)) {
     // If already authenticated and going to login, redirect to dashboard
     if (isAuthenticated && to.name === "login") {
