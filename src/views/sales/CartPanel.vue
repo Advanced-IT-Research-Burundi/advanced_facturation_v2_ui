@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import {
   ShoppingCart,
   User,
@@ -10,6 +10,8 @@ import {
   Save,
   Loader2,
   Percent,
+  Landmark,
+  Smartphone,
 } from "lucide-vue-next";
 import api from "@/services/api";
 import { useToast } from '@/composables/useToast';
@@ -54,6 +56,19 @@ const clientSearchText = ref("");
 const selectedCurrency = ref("BIF");
 const selectedPaymentType = ref("1");
 const selectedSavedCartId = ref("");
+const showPaymentInfoModal = ref(false);
+const isLoadingPaymentInfo = ref(false);
+const paymentMethods = ref([]);
+const selectedPaymentMethod = ref(null);
+
+const paymentInfo = computed(() => {
+  const isBank = selectedPaymentType.value === "2";
+  return {
+    title: isBank ? "Informations bancaires" : "Informations Mobile Money",
+    label: isBank ? "Banque" : "Mobile Money",
+    type: isBank ? "bank" : "mobile_money",
+  };
+});
 
 const filteredCustomers = computed(() => {
   if (!clientSearchText.value) return [];
@@ -198,6 +213,9 @@ const submitInvoice = async () => {
       invoice_action: "POS",
       invoice_currency: selectedCurrency.value,
       payment_type: selectedPaymentType.value,
+      ...(selectedPaymentMethod.value
+        ? { payment_method_id: selectedPaymentMethod.value.id }
+        : {}),
       customer_id: selectedClient.value.id,
       warehouse_id: props.warehouseId,
       items: props.cart.map((item) => ({
@@ -310,6 +328,38 @@ const deleteSelectedSavedCart = () => {
 const clearClient = () => {
   selectedClient.value = null;
   clientSearchText.value = "";
+};
+
+const openPaymentInformation = async () => {
+  selectedPaymentMethod.value = null;
+  if (!["2", "4"].includes(selectedPaymentType.value)) return;
+
+  showPaymentInfoModal.value = true;
+  isLoadingPaymentInfo.value = true;
+  paymentMethods.value = [];
+
+  try {
+    const { data } = await api.get("payment-methods");
+    const methods = Array.isArray(data?.data) ? data.data : [];
+    paymentMethods.value = methods.filter(
+      (method) =>
+        method.method_type === paymentInfo.value.type &&
+        method.is_active !== false &&
+        method.is_active !== 0 &&
+        method.is_active !== "0"
+    );
+  } catch (error) {
+    console.error("Impossible de charger les informations de paiement :", error);
+    toast.error("Impossible de charger les informations de paiement.");
+  } finally {
+    isLoadingPaymentInfo.value = false;
+  }
+};
+
+const submitInvoiceWithSelectedPaymentMethod = (method) => {
+  selectedPaymentMethod.value = method;
+  showPaymentInfoModal.value = false;
+  submitInvoice();
 };
 
 defineExpose({ clearClient });
@@ -474,7 +524,11 @@ defineExpose({ clearClient });
             <label class="form-label small text-muted pe-1 mb-0"
               >Paiement</label
             >
-            <select v-model="selectedPaymentType" class="form-select form-select-sm">
+            <select
+              v-model="selectedPaymentType"
+              class="form-select form-select-sm"
+              @change="openPaymentInformation"
+            >
               <option value="1">Espèces</option>
               <option value="2">Banque</option>
               <option value="3">À crédit</option>
@@ -530,6 +584,57 @@ defineExpose({ clearClient });
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="showPaymentInfoModal" class="modal-backdrop fade show payment-info-backdrop"></div>
+      <div
+        v-if="showPaymentInfoModal"
+        class="modal fade show d-block payment-info-modal"
+        tabindex="-1"
+        @click.self="showPaymentInfoModal = false"
+      >
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+          <div class="modal-content shadow">
+            <div class="modal-header py-2">
+              <h6 class="modal-title d-flex align-items-center gap-2">
+                <Landmark v-if="selectedPaymentType === '2'" :size="18" class="text-primary" />
+                <Smartphone v-else :size="18" class="text-primary" />
+                {{ paymentInfo.title }}
+              </h6>
+              <button type="button" class="btn-close btn-close-sm" @click="showPaymentInfoModal = false"></button>
+            </div>
+            <div class="modal-body py-3">
+              <div v-if="isLoadingPaymentInfo" class="text-center py-3">
+                <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+                <span class="ms-2 small text-muted">Chargement…</span>
+              </div>
+              <template v-else>
+                <p class="small text-muted mb-3">Utilisez les coordonnées ci-dessous pour ce paiement.</p>
+                <div v-if="paymentMethods.length" class="d-grid gap-2">
+                  <button
+                    v-for="method in paymentMethods"
+                    :key="method.id"
+                    type="button"
+                    class="border rounded p-2 bg-light text-start payment-method-option"
+                    :disabled="isSubmitting"
+                    @click="submitInvoiceWithSelectedPaymentMethod(method)"
+                  >
+                    <div class="fw-semibold">{{ method.name }}</div>
+                    <div v-if="method.account_number" class="small">N° : {{ method.account_number }}</div>
+                  </button>
+                </div>
+                <p v-else class="mb-0 small text-muted">
+                  Aucune information de {{ paymentInfo.label.toLowerCase() }} active n’est configurée.
+                </p>
+              </template>
+            </div>
+            <div class="modal-footer py-2">
+              <button type="button" class="btn btn-sm btn-secondary" @click="showPaymentInfoModal = false">Fermer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -537,6 +642,24 @@ defineExpose({ clearClient });
 .hover-bg-light:hover {
   background-color: #f8f9fa;
   cursor: pointer;
+}
+
+.payment-info-backdrop {
+  z-index: 1094;
+}
+
+.payment-info-modal {
+  z-index: 1095;
+}
+
+.payment-method-option {
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.payment-method-option:hover:not(:disabled),
+.payment-method-option:focus-visible {
+  border-color: var(--bs-primary) !important;
+  background-color: var(--bs-primary-bg-subtle) !important;
 }
 .animate-spin {
   animation: spin 1s linear infinite;
