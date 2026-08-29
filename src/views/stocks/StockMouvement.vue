@@ -64,6 +64,15 @@
         >
           <i class="bi bi-box-seam me-2"></i>Gérer les produits
         </RouterLink>
+        <button
+          type="button"
+          class="btn btn-outline-primary shadow-sm ms-2"
+          @click="exportStockToExcel"
+          :disabled="filteredStocks.length === 0 || loading"
+          title="Exporter les produits du stock en Excel"
+        >
+          <i class="bi bi-file-earmark-excel me-2"></i>Download
+        </button>
       </div>
     </div>
 
@@ -678,6 +687,93 @@ const formatCurrencyTotals = (totals) => {
   return entries
     .map(([currency, amount]) => formatCurrency(amount, currency))
     .join(" / ");
+};
+
+const escapeHtml = (value) => {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+};
+
+const slugifyFileName = (value) => {
+  return String(value || "stock")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_\-]/g, "");
+};
+
+const exportStockToExcel = () => {
+  const rows = filteredStocks.value.map((stock, index) => {
+    const quantity = toNumber(stock.quantity);
+    const price = getStockDisplayPrice(stock);
+    const total = getStockLineTotal(stock);
+
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(stock.product?.item_code || "")}</td>
+        <td>${escapeHtml(stock.product?.item_designation || "")}</td>
+        <td style="text-align:right;">${formatNumber(quantity)}</td>
+        <td style="text-align:center;">${stock.is_alert ? "Alerte" : "-"}</td>
+        <td style="text-align:center;">${formatNumber(stock.product?.vat_rate || 0)}%</td>
+        <td style="text-align:right;">${formatNumber(price)} ${escapeHtml(stock.currency || "BIF")}</td>
+        <td style="text-align:right;">${formatNumber(total)} ${escapeHtml(stock.currency || "BIF")}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const fileName = `stock_${slugifyFileName(warehouse.value?.name || "principal")}_${new Date().toISOString().slice(0, 10)}.xls`;
+  const title = escapeHtml(warehouse.value?.name || "Stock");
+  const generatedAt = new Date().toLocaleString("fr-FR");
+
+  const html = `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+          th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; }
+          th { background: #1f4e78; color: white; }
+          .meta { margin-bottom: 12px; font-family: Arial, sans-serif; }
+          .meta h2 { margin: 0 0 4px; }
+          .meta p { margin: 0; color: #555; }
+        </style>
+      </head>
+      <body>
+
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Code</th>
+              <th>Produit</th>
+              <th>Quantité</th>
+              <th>Alerte</th>
+              <th>TVA</th>
+              <th>Prix</th>
+              <th>Total Produit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </body>
+    </html>`;
+
+  const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 // Computed property pour filtrer les stocks
