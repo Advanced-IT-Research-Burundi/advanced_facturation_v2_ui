@@ -27,6 +27,7 @@ const defaultForm = {
   quantite: 0,
   quantite_alert: 0,
   price: 0,
+  price_promo: 0,
   price_ttc: 0,
   price_max: 0,
   price_min: 0,
@@ -360,7 +361,7 @@ watch(
                 v-show="activeTab === 'prices'"
               >
                 <div class="row g-3">
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <label
                       class="form-label small text-muted text-uppercase fw-bold"
                       >Prix (HT)</label
@@ -373,7 +374,20 @@ watch(
                       step="0.01"
                     />
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
+                    <label
+                      class="form-label small text-muted text-uppercase fw-bold"
+                      >Prix Promo</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control bg-light"
+                      v-model.number="form.price_promo"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div class="col-md-3">
                     <label
                       class="form-label small text-muted text-uppercase fw-bold"
                       >Taux TVA (%) <span class="text-danger">*</span></label
@@ -388,7 +402,7 @@ watch(
                       step="0.01"
                     />
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <label
                       class="form-label small text-muted text-uppercase fw-bold"
                       >Prix TTC</label

@@ -298,7 +298,7 @@
               <small>{{ selectedStock?.product?.item_code }}</small>
             </div>
             <div class="row g-3">
-              <div class="col-md-7">
+              <div class="col-md-4">
                 <label class="form-label">Prix unitaire *</label>
                 <div class="input-group">
                   <input
@@ -312,7 +312,20 @@
                   <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
                 </div>
               </div>
-              <div class="col-md-5">
+              <div class="col-md-4">
+                <label class="form-label">Prix promo</label>
+                <div class="input-group">
+                  <input
+                    v-model="unitPriceEditForm.price_promo"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                  />
+                  <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+                </div>
+              </div>
+              <div class="col-md-4">
                 <label class="form-label">TVA (%) *</label>
                 <input
                   v-model.number="unitPriceEditForm.vat_rate"
@@ -732,6 +745,7 @@ const quickExitForm = ref({
 
 const unitPriceEditForm = ref({
   unit_price: "",
+  price_promo: "",
   vat_rate: "",
 });
 
@@ -867,6 +881,7 @@ const openUnitPriceEdit = (stock) => {
   selectedStock.value = stock;
   unitPriceEditForm.value = {
     unit_price: stock.unit_price ?? "",
+    price_promo: stock.price_promo ?? stock.product?.price_promo ?? "",
     vat_rate: stock.product?.vat_rate ?? 0,
   };
   showUnitPriceEditModal.value = true;
@@ -874,34 +889,37 @@ const openUnitPriceEdit = (stock) => {
 
 const closeUnitPriceEdit = () => {
   showUnitPriceEditModal.value = false;
-  unitPriceEditForm.value = { unit_price: "", vat_rate: "" };
+  unitPriceEditForm.value = { unit_price: "", price_promo: "", vat_rate: "" };
 };
 
 const submitUnitPriceEdit = async () => {
   const rawUnitPrice = unitPriceEditForm.value.unit_price;
+  const rawPromoPrice = unitPriceEditForm.value.price_promo;
   const unitPrice = Number(rawUnitPrice);
+  const promoPrice = rawPromoPrice === "" || rawPromoPrice === null ? null : Number(rawPromoPrice);
   const vatRate = Number(unitPriceEditForm.value.vat_rate);
   if (
     rawUnitPrice === "" || rawUnitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0
     || !Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100
+    || (promoPrice !== null && (!Number.isFinite(promoPrice) || promoPrice < 0))
   ) {
-    error.value = "Veuillez saisir un prix unitaire et un taux de TVA valides.";
+    error.value = "Veuillez saisir un prix unitaire, un prix promo et un taux de TVA valides.";
     return;
   }
 
   submitting.value = true;
   try {
     const productId = selectedStock.value?.product?.id || selectedStock.value?.product_id;
-    const productResp = await api.patch(`products/${productId}`, { vat_rate: vatRate });
+    const productResp = await api.patch(`products/${productId}`, { vat_rate: vatRate, price_promo: promoPrice });
     if (!productResp.data.success) {
-      throw new Error(productResp.data.message || "Impossible de modifier la TVA.");
+      throw new Error(productResp.data.message || "Impossible de modifier la TVA et le prix promo.");
     }
     const resp = await api.patch(
       `warehouse-products/${selectedStock.value.id}`,
-      { unit_price: unitPrice },
+      { unit_price: unitPrice, price_promo: promoPrice },
     );
     if (resp.data.success) {
-      successMessage.value = "Prix unitaire et TVA modifiés avec succès.";
+      successMessage.value = "Prix unitaire, prix promo et TVA modifiés avec succès.";
       closeUnitPriceEdit();
       await fetchDashboard();
       setTimeout(() => (successMessage.value = null), 3000);
