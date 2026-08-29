@@ -44,7 +44,7 @@ export function useInvoicePrint() {
   /**
    * Impression format A4 — mise en page professionnelle
    */
-  const printA4 = (invoice, company = null) => {
+  const printA4 = async (invoice, company = null) => {
     const items = invoice.invoice_items || invoice.items || [];
     const currency = invoice.invoice_currency || 'BIF';
     const electronicSignature = getElectronicSignature(invoice);
@@ -79,6 +79,21 @@ export function useInvoicePrint() {
         ? `<tr><th>Montant payé</th><td class="text-right">${formatPrice(invoice.total_paid)} ${currency}</td></tr>
            <tr><th>Reste à payer</th><td class="text-right">${formatPrice((invoice.invoice_total_amount ?? 0) - (invoice.total_paid ?? 0))} ${currency}</td></tr>`
         : '';
+
+    // QR code — encodage de la signature électronique OBR
+    const qrSource = invoice.obr_electronic_signature || invoice.electronic_signature || invoice.obr_invoice_identifier || invoice.invoice_number || '';
+    let qrCodeHtml = '';
+    try {
+      const QRCode = (await import('qrcode')).default;
+      const qrDataUrl = await QRCode.toDataURL(qrSource, {
+        width: 140, margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
+      });
+      qrCodeHtml = `<div style="text-align:center; margin-top:15px;"><img src="${qrDataUrl}" style="width:120px;height:120px;" alt="QR Code" /></div>`;
+    } catch (e) {
+      console.error('Erreur QR Code A4:', e);
+    }
 
     const html = `<!DOCTYPE html>
 <html>
@@ -181,6 +196,7 @@ export function useInvoicePrint() {
       <p>Merci pour votre confiance !</p>
       <p>Document généré le ${formatDate(new Date())}</p>
       ${electronicSignature ? `<p class="electronic-signature">Signature électronique : ${electronicSignature}</p>` : ''}
+      ${qrCodeHtml}
     </div>
   </div>
 </body>
@@ -190,12 +206,17 @@ export function useInvoicePrint() {
   };
 
   /**
-   * Impression format POS — ticket thermique 80 mm
+   * Impression format POS — ticket thermique 80 mm (format OBR officiel)
    */
-  const printPOS = (invoice, company = null) => {
+  const printPOS = async (invoice, company = null) => {
     const items = invoice.invoice_items || invoice.items || [];
     const currency = invoice.invoice_currency || 'BIF';
-    const electronicSignature = getElectronicSignature(invoice);
+
+    // Format date simple: DD/MM/YYYY
+    const formatDateSimple = (date) => {
+      if (!date) return '';
+      return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
 
     const itemsHtml = items
       .map(
@@ -218,21 +239,97 @@ export function useInvoicePrint() {
     }[invoice.invoice_type] ?? 'FACTURE';
 
     const remainingAmount = (invoice.invoice_total_amount ?? 0) - (invoice.total_paid ?? 0);
-
     const paidHtml =
       invoice.total_paid > 0
-        ? `<tr><td colspan="3" class="bold">Payé :</td><td class="right">${formatPrice(invoice.total_paid)}</td></tr>
-           <tr><td colspan="3" class="bold">Reste :</td><td class="right">${formatPrice(remainingAmount)}</td></tr>`
+        ? `<tr><td colspan="2"><b>Payé :</b></td><td class="right">${formatPrice(invoice.total_paid)} ${currency}</td></tr>
+           <tr><td colspan="2"><b>Reste :</b></td><td class="right">${formatPrice(remainingAmount)} ${currency}</td></tr>`
         : '';
 
-    const obrHtml = invoice.obr_invoice_identifier
-      ? `<div class="sep"></div>
-         <div style="font-size:8px; word-break:break-all;">
-           <div>OBR : ${invoice.obr_invoice_identifier}</div>
-           ${invoice.obr_invoice_registered_number ? `<div>N° : ${invoice.obr_invoice_registered_number}</div>` : ''}
-           ${invoice.obr_electronic_signature ? `<div>Sig : ${invoice.obr_electronic_signature.substring(0, 40)}...</div>` : ''}
-         </div>`
-      : '';
+    // QR code — encodage de la signature électronique OBR
+    const qrSource = invoice.obr_electronic_signature || invoice.electronic_signature || invoice.obr_invoice_identifier || invoice.invoice_number || '';
+    let qrCodeHtml = '';
+    try {
+      const QRCode = (await import('qrcode')).default;
+      const qrDataUrl = await QRCode.toDataURL(qrSource, {
+        width: 160, margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
+      });
+      const ebmsLabel = invoice.obr_invoice_identifier
+        ? `<div style="font-size:8px; word-break:break-all; margin: 4px 0;"><b>EBMS ID</b><br>${invoice.obr_invoice_identifier}</div>`
+        : '';
+      qrCodeHtml = `
+        ${ebmsLabel}
+        <div class="center" style="margin-top:6px;">
+          <img src="${qrDataUrl}" style="width:120px;height:120px;" alt="QR Code" />
+        </div>`;
+    } catch (e) {
+      if (invoice.obr_invoice_identifier) {
+        qrCodeHtml = `<div style="font-size:8px;word-break:break-all; margin: 4px 0;"><b>EBMS ID</b><br>${invoice.obr_invoice_identifier}</div>`;
+      }
+    }
+
+    // Section A — Vendeur
+    const sectionA = `
+    <div class="section-title">A. IDENTIFICATION DU VENDEUR</div>
+    <table class="info-table">
+      <tr>
+        <td><b>Raison sociale</b></td>
+        <td>${invoice.tp_name ?? company?.name ?? 'EDEN MART'}</td>
+        <td><b>Centre fiscal</b></td>
+        <td>${invoice.tp_fiscal_center ?? 'DMC'}</td>
+      </tr>
+      <tr>
+        <td><b>NIF</b></td>
+        <td>${invoice.tp_TIN ?? company?.tp_TIN ?? 'N/A'}</td>
+        <td><b>Téléphone</b></td>
+        <td>${invoice.tp_phone_number ?? company?.phone ?? 'N/A'}</td>
+      </tr>
+      <tr>
+        <td><b>R.C.</b></td>
+        <td>${invoice.tp_trade_number ?? company?.tp_trade_number ?? 'N/A'}</td>
+        <td><b>Forme juridique</b></td>
+        <td>${invoice.tp_legal_form ?? company?.legal_form ?? 'SURL'}</td>
+      </tr>
+      <tr>
+        <td><b>Secteur d'activités</b></td>
+        <td>${invoice.tp_activity_sector ?? company?.activity_sector ?? 'Commercial'}</td>
+        <td><b>Assujetti à la TVA</b></td>
+        <td>${invoice.vat_taxpayer === '1' ? 'OUI' : 'NON'}</td>
+      </tr>
+      <tr>
+        <td><b>Assujetti à la TC</b></td>
+        <td>${invoice.ct_taxpayer === '1' ? 'OUI' : 'NON'}</td>
+        <td><b>Assujetti à la PF</b></td>
+        <td>${invoice.tp_taxpayer === '1' ? 'OUI' : 'NON'}</td>
+      </tr>
+      <tr>
+        <td colspan="2"><b>Adresse du vendeur</b></td>
+        <td colspan="2">${invoice.tp_address ?? company?.address ?? 'Bujumbura mairie, Rohero 1 Avenue de Croix Rouge N°2'}</td>
+      </tr>
+    </table>`;
+
+    // Section B — Client
+    const sectionB = `
+    <div class="section-title">B. IDENTIFICATION DU CLIENT<br><span style="font-size:8px;font-weight:normal;">PERSONNE PHYSIQUE</span></div>
+    <table class="info-table">
+      <tr>
+        <td colspan="2"><b>Nom et Prénom/Raison sociale</b></td>
+        <td colspan="2">${invoice.customer_name ?? invoice.customer?.customer_name ?? 'N/A'}</td>
+      </tr>
+      <tr>
+        <td colspan="2"><b>NIF</b></td>
+        <td colspan="2">${invoice.customer_TIN ?? invoice.customer?.customer_TIN ?? 'N/A'}</td>
+      </tr>
+      <tr>
+        <td colspan="2"><b>Assujetti à la TVA</b></td>
+        <td colspan="2">${invoice.customer_vat_taxpayer === '1' ? 'OUI' : 'NON'}</td>
+      </tr>
+      <tr>
+        <td colspan="2"><b>Adresse du Client</b></td>
+        <td colspan="2">${invoice.customer_address ?? invoice.customer?.customer_address ?? 'N/A'}</td>
+      </tr>
+    </table>`;
 
     const html = `<!DOCTYPE html>
 <html>
@@ -244,90 +341,90 @@ export function useInvoicePrint() {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 10px;
-      line-height: 1.6;
+      font-size: 9px;
+      line-height: 1.4;
       color: #000;
       width: 76mm;
     }
     .center { text-align: center; }
     .right { text-align: right; }
     .bold { font-weight: bold; }
-    .sep { border-top: 1px dashed #000; margin: 5px 0; }
-    .company-name { font-size: 14px; font-weight: bold; }
-    .invoice-type { font-size: 12px; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; }
-    td { font-size: 10px; padding: 1px 0; vertical-align: top; }
+    .spacer { height: 6px; }
+    .company-name { font-size: 20px; font-weight: bold; letter-spacing: 1px; }
+    .invoice-number-line { font-size: 11px; font-weight: bold; margin: 2px 0; }
+    .section-title { font-size: 9px; font-weight: bold; margin: 6px 0 2px 0; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+    .info-table td { font-size: 8px; padding: 1px 1px; vertical-align: top; }
+    table.items-table { width: 100%; border-collapse: collapse; margin-top: 4px; border: 1px solid #000; }
+    table.items-table td, table.items-table th { font-size: 9px; padding: 2px 3px; vertical-align: middle; border: 1px solid #000; }
     td.center { text-align: center; }
     td.right { text-align: right; }
-    .subtotal-row td { border-top: 1px dashed #000; padding-top: 3px; }
-    .grand-total td { font-size: 13px; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; }
+    .totals-block { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .totals-block td { font-size: 9px; padding: 1px 0; }
   </style>
 </head>
 <body>
+  <!-- En-tête entreprise -->
   <div class="center">
-    <div class="company-name">${invoice.tp_name ?? company?.name ?? 'Entreprise'}</div>
-    <div>NIF : ${invoice.tp_TIN ?? company?.tp_TIN ?? 'N/A'}</div>
-    <div>Tél : ${invoice.tp_phone_number ?? company?.phone ?? 'N/A'}</div>
-    <div>RC : ${invoice.tp_trade_number ?? company?.tp_trade_number ?? 'N/A'}</div>
-    ${invoice.tp_fiscal_center ? `<div>Centre Fiscal : ${invoice.tp_fiscal_center}</div>` : ''}
+    <div class="company-name">EDEN MART</div>
   </div>
 
-  <div class="sep"></div>
+  <div class="spacer"></div>
 
+  <!-- Numéro de facture -->
   <div class="center">
-    <div class="invoice-type">${invoiceTypePOS}</div>
-    <div class="bold">N° : ${invoice.invoice_number ?? ''}</div>
-    <div>${formatDate(invoice.invoice_date ?? invoice.created_at)}</div>
-    <div>Devise : ${currency}</div>
+    <div class="invoice-number-line">${invoiceTypePOS} N° ${invoice.invoice_number ?? ''}</div>
+    <div>Date ${formatDateSimple(invoice.invoice_date ?? invoice.created_at)}</div>
   </div>
 
-  <div class="sep"></div>
+  <div class="spacer"></div>
 
-  <div>
-    <div><span class="bold">Client :</span> ${invoice.customer_name ?? invoice.customer?.customer_name ?? 'Client'}</div>
-    ${invoice.customer_TIN ? `<div><span class="bold">NIF :</span> ${invoice.customer_TIN}</div>` : ''}
-  </div>
+  <!-- Section A : Vendeur -->
+  ${sectionA}
 
-  <div class="sep"></div>
+  <div class="spacer"></div>
 
-  <table>
+  <!-- Section B : Client -->
+  ${sectionB}
+
+  <div class="spacer"></div>
+
+  <!-- Tableau des articles -->
+  <table class="items-table">
     <thead>
       <tr>
         <td class="bold">Désignation</td>
         <td class="bold center">Qté</td>
-        <td class="bold right">P.U.</td>
+        <td class="bold right">Prix U.</td>
         <td class="bold right">Total</td>
       </tr>
     </thead>
-    <tbody>
-      <tr><td colspan="4"><div class="sep" style="margin:2px 0"></div></td></tr>
-      ${itemsHtml}
-    </tbody>
-    <tfoot>
-      <tr class="subtotal-row">
-        <td colspan="3" class="bold">Sous-total HT :</td>
-        <td class="right">${formatPrice(invoice.invoice_amount_nvat)}</td>
-      </tr>
-      <tr>
-        <td colspan="3" class="bold">TVA :</td>
-        <td class="right">${formatPrice(invoice.invoice_vat_amount)}</td>
-      </tr>
-      <tr class="grand-total">
-        <td colspan="3">TOTAL TTC :</td>
-        <td class="right">${formatPrice(invoice.invoice_total_amount)} ${currency}</td>
-      </tr>
-      ${paidHtml}
-    </tfoot>
+    <tbody>${itemsHtml}</tbody>
   </table>
 
-  ${obrHtml}
+  <div class="spacer"></div>
 
-  <div class="sep"></div>
+  <!-- Totaux -->
+  <table class="totals-block">
+    <tr>
+      <td colspan="2" style="text-align:right"><b>TOTAL HTVA : ${formatPrice(invoice.invoice_amount_nvat)} ${currency}</b></td>
+    </tr>
+    <tr>
+      <td colspan="2" style="text-align:right"><b>TOTAL TVA : ${formatPrice(invoice.invoice_vat_amount)} ${currency}</b></td>
+    </tr>
+    <tr>
+      <td colspan="2" style="text-align:right"><b>TOTAL TVAC : ${formatPrice(invoice.invoice_total_amount)} ${currency}</b></td>
+    </tr>
+    ${paidHtml}
+  </table>
 
-  <div class="center" style="font-size: 9px; margin-top: 4px;">
-    <div class="bold">Merci pour votre confiance !</div>
+  <!-- EBMS ID + QR Code -->
+  ${qrCodeHtml}
+
+  <div class="spacer"></div>
+  <div class="center" style="font-size:8px; margin-top:4px;">
+    <div>Merci pour votre confiance !</div>
     <div>Document généré le ${formatDate(new Date())}</div>
-    ${electronicSignature ? `<div style="word-break:break-all;">Signature électronique : ${electronicSignature}</div>` : ''}
   </div>
 </body>
 </html>`;
