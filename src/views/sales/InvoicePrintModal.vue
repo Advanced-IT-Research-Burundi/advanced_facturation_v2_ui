@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { X, Printer } from "lucide-vue-next";
 import { useInvoicePrint } from "@/composables/useInvoicePrint";
+import QRCode from "qrcode";
 
 const props = defineProps({
   show: {
@@ -21,6 +22,7 @@ const props = defineProps({
 const emit = defineEmits(["close"]);
 
 const printRef = ref(null);
+const qrCodeDataUrl = ref("");
 const { printA4, printPOS } = useInvoicePrint();
 
 const invoiceCurrency = computed(() => props.invoice?.invoice_currency || 'BIF');
@@ -60,6 +62,40 @@ const formatDate = (date) => {
     minute: "2-digit",
   });
 };
+
+const generateQRCode = async (invoice) => {
+  if (!invoice) {
+    qrCodeDataUrl.value = "";
+    return;
+  }
+  try {
+    // Le QR code encode uniquement l'identifiant OBR
+    const qrData = invoice.obr_invoice_identifier || invoice.obr_invoice_registered_number || invoice.invoice_number || "";
+
+    qrCodeDataUrl.value = await QRCode.toDataURL(qrData, {
+      width: 150,
+      margin: 1,
+      color: { dark: "#000000", light: "#ffffff" },
+      errorCorrectionLevel: "M",
+    });
+  } catch (err) {
+    console.error("Erreur génération QR code:", err);
+    qrCodeDataUrl.value = "";
+  }
+};
+
+watch(
+  () => [props.show, props.invoice],
+  async ([show, invoice]) => {
+    if (show && invoice) {
+      await nextTick();
+      generateQRCode(invoice);
+    } else {
+      qrCodeDataUrl.value = "";
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -181,6 +217,11 @@ const formatDate = (date) => {
               <p v-if="electronicSignature" class="electronic-signature">
                 Signature électronique: {{ electronicSignature }}
               </p>
+              <!-- QR Code Section -->
+              <div v-if="qrCodeDataUrl" class="qr-code-section">
+                <img :src="qrCodeDataUrl" alt="QR Code Facture" class="qr-code-image" />
+                <p class="qr-code-sublabel">{{ invoice.obr_invoice_identifier || invoice.invoice_number }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -359,6 +400,34 @@ tr:nth-child(even) {
 
 .electronic-signature {
   word-break: break-all;
+  margin-bottom: 8px;
+}
+
+.qr-code-section {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+
+
+.qr-code-image {
+  width: 120px;
+  height: 120px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 4px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.qr-code-sublabel {
+  font-size: 8px;
+  color: #aaa;
+  margin: 0;
+  font-family: monospace;
 }
 
 .obr-info {
