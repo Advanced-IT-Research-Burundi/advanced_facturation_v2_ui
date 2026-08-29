@@ -8,6 +8,7 @@ const router = useRouter();
 
 const email = ref("");
 const password = ref("");
+const showPassword = ref(false);
 const loading = ref(false);
 const errorMessage = ref("");
 
@@ -89,12 +90,21 @@ const handleLogin = async () => {
             ></span>
             <input
               v-model="password"
-              type="password"
+              :type="showPassword ? 'text' : 'password'"
               class="form-control border-start-0 ps-0"
               placeholder="••••••••"
               required
               :disabled="loading"
             />
+            <button
+              type="button"
+              class="btn btn-outline-secondary border-start-0 password-toggle"
+              :disabled="loading"
+              :title="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
+              @click="showPassword = !showPassword"
+            >
+              <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            </button>
           </div>
           <div class="d-flex justify-content-end mt-2">
             <span class="text-muted small" title="Fonctionnalité bientôt disponible">Mot de passe oublié ?</span>
@@ -160,13 +170,20 @@ const handleLogin = async () => {
   background-color: #fff;
   border-color: #ced4da;
 }
+.password-toggle {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+.password-toggle:focus {
+  box-shadow: none;
+}
 .glass {
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 .input-group:focus-within .input-group-text,
-.input-group:focus-within .form-control {
+.input-group:focus-within .form-control,
+.input-group:focus-within .password-toggle {
   border-color: var(--bs-primary);
   color: var(--bs-primary);
 }

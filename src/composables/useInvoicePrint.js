@@ -1,3 +1,5 @@
+import QRCode from 'qrcode';
+
 export function useInvoicePrint() {
   const formatPrice = (value) => {
     const num = parseFloat(value) || 0;
@@ -39,6 +41,285 @@ export function useInvoicePrint() {
 
   const getElectronicSignature = (invoice) => {
     return invoice?.obr_electronic_signature || invoice?.electronic_signature || '';
+  };
+
+  const escapeHtml = (value) => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+  const formatPriceWithDecimals = (value) => {
+    const num = parseFloat(value) || 0;
+    return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatObrDate = (date) => {
+    if (!date) return '';
+    const value = new Date(date);
+    const pad = (part) => String(part).padStart(2, '0');
+
+    return `${pad(value.getDate())}-${pad(value.getMonth() + 1)}-${value.getFullYear()} à ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+  };
+
+  const getPaymentTypeLabel = (type) => {
+    const types = {
+      1: 'En espèce',
+      2: 'Banque',
+      3: 'Crédit',
+      4: 'Autres',
+    };
+
+    return types[type] || type || '';
+  };
+
+  const getObrRequestBody = (invoice) => {
+    const requestBody = invoice?.latest_obr_log?.request_body;
+    if (!requestBody) return null;
+    if (typeof requestBody === 'string') {
+      try {
+        return JSON.parse(requestBody);
+      } catch {
+        return null;
+      }
+    }
+
+    return requestBody;
+  };
+
+  const getObrPrintItems = (invoice) => {
+    const requestBody = getObrRequestBody(invoice);
+    if (Array.isArray(requestBody?.invoice_items) && requestBody.invoice_items.length > 0) {
+      return requestBody.invoice_items;
+    }
+
+    return invoice?.invoice_items || invoice?.items || [];
+  };
+
+  const numberToFrenchWords = (number) => {
+    const units = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize'];
+    const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante'];
+
+    const underHundred = (n) => {
+      if (n < 17) return units[n];
+      if (n < 20) return `dix-${units[n - 10]}`;
+      if (n < 70) {
+        const ten = Math.floor(n / 10);
+        const unit = n % 10;
+        if (unit === 0) return tens[ten];
+        if (unit === 1) return `${tens[ten]} et un`;
+        return `${tens[ten]}-${units[unit]}`;
+      }
+      if (n < 80) return `soixante-${underHundred(n - 60)}`;
+      if (n === 80) return 'quatre-vingts';
+      return `quatre-vingt-${underHundred(n - 80)}`;
+    };
+
+    const underThousand = (n) => {
+      if (n < 100) return underHundred(n);
+      const hundred = Math.floor(n / 100);
+      const rest = n % 100;
+      const hundredText = hundred === 1 ? 'cent' : `${units[hundred]} cent`;
+      if (rest === 0) return hundred > 1 ? `${hundredText}s` : hundredText;
+      return `${hundredText} ${underHundred(rest)}`;
+    };
+
+    const chunk = (n, divisor, singular, plural) => {
+      const high = Math.floor(n / divisor);
+      const rest = n % divisor;
+      const highText = high === 1 && singular === 'mille' ? singular : `${numberToFrenchWords(high)} ${high > 1 ? plural : singular}`;
+      return rest ? `${highText} ${numberToFrenchWords(rest)}` : highText;
+    };
+
+    const n = Math.floor(Math.abs(Number(number) || 0));
+    if (n < 1000) return underThousand(n);
+    if (n < 1000000) return chunk(n, 1000, 'mille', 'mille');
+    if (n < 1000000000) return chunk(n, 1000000, 'million', 'millions');
+    return chunk(n, 1000000000, 'milliard', 'milliards');
+  };
+
+  const printObrInvoice = async (invoice, company = null) => {
+    const currency = invoice.invoice_currency || 'BIF';
+    const requestBody = getObrRequestBody(invoice) || {};
+    const hasObrRequestItems = Array.isArray(requestBody?.invoice_items) && requestBody.invoice_items.length > 0;
+    const items = hasObrRequestItems ? requestBody.invoice_items : getObrPrintItems(invoice);
+    const invoiceIdentifier = invoice.obr_invoice_identifier
+      || requestBody.invoice_identifier
+      || invoice.electronic_signature
+      || '';
+    const sellerName = invoice.tp_name || requestBody.tp_name || company?.tp_name || company?.name || 'Entreprise';
+    const sellerTin = invoice.tp_TIN || requestBody.tp_TIN || company?.tp_TIN || '';
+    const tradeNumber = invoice.tp_trade_number || requestBody.tp_trade_number || company?.tp_trade_number || '';
+    const phone = invoice.tp_phone_number || requestBody.tp_phone_number || company?.tp_phone_number || company?.phone || '';
+    const fiscalCenter = invoice.tp_fiscal_center || requestBody.tp_fiscal_center || company?.tp_fiscal_center || '';
+    const activitySector = invoice.tp_activity_sector || requestBody.tp_activity_sector || company?.tp_activity_sector || '';
+    const legalForm = invoice.tp_legal_form || requestBody.tp_legal_form || company?.tp_legal_form || '';
+    const commune = invoice.tp_address_commune || requestBody.tp_address_commune || company?.tp_address_commune || '';
+    const quartier = invoice.tp_address_quartier || requestBody.tp_address_quartier || company?.tp_address_quartier || '';
+    const avenue = invoice.tp_address_avenue || requestBody.tp_address_avenue || company?.tp_address_avenue || '';
+    const addressNumber = invoice.tp_address_number || requestBody.tp_address_number || company?.tp_address_number || '';
+    const customerName = invoice.customer_name || requestBody.customer_name || invoice.customer?.customer_name || '';
+    const customerTin = invoice.customer_TIN || requestBody.customer_TIN || invoice.customer?.customer_TIN || '';
+    const vatTaxpayer = String(invoice.vat_taxpayer ?? requestBody.vat_taxpayer ?? '0') === '1' ? 'OUI' : 'NON';
+    const vatCustomer = String(invoice.vat_customer_payer ?? requestBody.vat_customer_payer ?? '0') === '1' ? 'OUI' : 'NON';
+    const isCancelled = Boolean(invoice.is_cancelled);
+    let totalHt = 0;
+    let totalVat = 0;
+    let totalTtc = 0;
+
+    const itemsHtml = items.map((item, index) => {
+      const quantity = Number(item.item_quantity ?? 1) || 0;
+      const unitPrice = Number(item.item_price ?? 0) || 0;
+      const lineHt = hasObrRequestItems
+        ? (Number(item.item_price_nvat ?? unitPrice * quantity) || 0)
+        : unitPrice * quantity;
+      const vatRate = Number(item.product?.vat_rate ?? item.vat ?? 0) || 0;
+      const vatAmount = hasObrRequestItems
+        ? (Number(item.vat ?? 0) || 0)
+        : lineHt * (vatRate / 100);
+      const lineTotal = hasObrRequestItems
+        ? (Number(item.item_total_amount ?? lineHt + vatAmount) || 0)
+        : lineHt + vatAmount + (Number(item.item_tl ?? 0) || 0);
+      totalHt += lineHt;
+      totalVat += vatAmount;
+      totalTtc += lineTotal;
+
+      return `<tr>
+        <td class="center">${index + 1}</td>
+        <td>${escapeHtml(item.item_designation ?? '')}</td>
+        <td class="right">${formatPrice(quantity)}</td>
+        <td class="right">${formatPriceWithDecimals(unitPrice)}</td>
+        <td class="right">${formatPriceWithDecimals(lineHt)}</td>
+      </tr>`;
+    }).join('');
+
+    const printableTotal = items.length > 0 ? totalTtc : Number(invoice.invoice_total_amount || 0);
+    const printableHt = items.length > 0 ? totalHt : Number(invoice.invoice_amount_nvat || 0);
+    const printableVat = items.length > 0 ? totalVat : Number(invoice.invoice_vat_amount || 0);
+    const hasVat = printableVat > 0;
+    const totalsRowsHtml = hasVat
+      ? `<tr>
+          <td colspan="4" class="total-label">PVT HTVA</td>
+          <td class="right total-value">${formatPriceWithDecimals(printableHt)}</td>
+        </tr>
+        <tr>
+          <td colspan="4" class="total-label">TVA</td>
+          <td class="right total-value">${formatPriceWithDecimals(printableVat)}</td>
+        </tr>
+        <tr>
+          <td colspan="4" class="total-label total-final">TOTAL TVAC</td>
+          <td class="right total-value total-final">${formatPriceWithDecimals(printableTotal)} ${escapeHtml(currency)}</td>
+        </tr>`
+      : `<tr>
+          <td colspan="4" class="total-label total-final">TOTAL</td>
+          <td class="right total-value total-final">${formatPriceWithDecimals(printableHt)} ${escapeHtml(currency)}</td>
+        </tr>`;
+    const qrCodeDataUrl = invoiceIdentifier
+      ? await QRCode.toDataURL(invoiceIdentifier, {
+        width: 170,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
+      })
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Facture OBR ${escapeHtml(invoice.invoice_number ?? '')}</title>
+  <style>
+    @page { size: A4; margin: 10mm 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #000; font-family: "Times New Roman", Times, serif; font-size: 16px; line-height: 1.16; }
+    .page { width: 100%; max-width: 760px; margin: 0 auto; padding: 6px 0 18px; position: relative; }
+    .watermark { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; transform: rotate(-32deg); font-size: 86px; font-weight: 700; letter-spacing: 8px; color: rgba(120, 120, 120, 0.22); pointer-events: none; z-index: 0; }
+    .content { position: relative; z-index: 1; }
+    .company-title { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .rule { border-top: 1px solid #aaa; margin-bottom: 10px; }
+    .invoice-title { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+    .seller-grid { display: grid; grid-template-columns: 1fr 260px; gap: 18px; align-items: start; margin-top: 0; }
+    .right-info { text-align: right; }
+    .section-title { font-weight: 700; margin-top: 4px; }
+    p { margin: 0; }
+    .client { margin-top: 34px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #333; padding: 2px 4px; vertical-align: top; }
+    th { font-weight: 700; text-align: center; }
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .total-label { text-align: left; }
+    .total-value { font-weight: 700; }
+    .total-final { font-weight: 700; }
+    .amount-words { margin-top: 18px; }
+    .identifier { margin-top: 24px; text-align: center; font-weight: 700; }
+    .qr { margin-top: 22px; text-align: center; }
+    .qr img { width: 154px; height: 154px; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    ${isCancelled ? '<div class="watermark">ANNULLLEE</div>' : ''}
+    <div class="content">
+    <div class="company-title">${escapeHtml(sellerName)}</div>
+    <div class="rule"></div>
+    <div class="invoice-title">FACTURE N° ${escapeHtml(invoice.invoice_number ?? '')} du ${escapeHtml(formatObrDate(invoice.invoice_date || invoice.created_at))}</div>
+
+    <div class="seller-grid">
+      <div>
+        <p class="section-title">A. Identification du vendeur</p>
+        <p>Nom et prénom ou Raison Social : <strong>${escapeHtml(sellerName)}</strong></p>
+        <p>NIF : <strong>${escapeHtml(sellerTin)}</strong></p>
+        <p>Registre du commerce No : <strong>${escapeHtml(tradeNumber)}</strong></p>
+        <p>BP: <strong>${escapeHtml(addressNumber || '000')}</strong>, Tél <strong>${escapeHtml(phone)}</strong></p>
+        <p>Commune : <strong>${escapeHtml(commune)}</strong>${quartier ? `, Quartier : ${escapeHtml(quartier)}` : ''}</p>
+        <p>Avenue : <strong>${escapeHtml(avenue)}</strong></p>
+        <p>Assujetti à la TVA : ${escapeHtml(vatTaxpayer)}</p>
+        <p>Type de Facture : ${escapeHtml(invoice.invoice_type || requestBody.invoice_type || '')}</p>
+        <p>Mode de Paiement : <strong>${escapeHtml(getPaymentTypeLabel(invoice.payment_type || requestBody.payment_type))}</strong></p>
+      </div>
+      <div class="right-info">
+        <p>Centre Fiscal : <strong>${escapeHtml(fiscalCenter)}</strong></p>
+        <p>Secteur d'activité : <strong>${escapeHtml(activitySector)}</strong></p>
+        <p>Forme juridique : <strong>${escapeHtml(legalForm)}</strong></p>
+      </div>
+    </div>
+
+    <div class="client">
+      <p class="section-title">B. Client</p>
+      <p>Nom et Prénom ou Raison Social : <strong>${escapeHtml(customerName)}</strong></p>
+      <p>Résident à : </p>
+      <p>Assujetti à la TVA : ${escapeHtml(vatCustomer)}</p>
+      <p>NIF : <strong>${escapeHtml(customerTin)}</strong></p>
+      <p>Doit pour ce qui suit :</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 18px;">#</th>
+          <th>Nature de l'article</th>
+          <th style="width: 68px;">Quantité</th>
+          <th style="width: 152px;">PU HTVA</th>
+          <th style="width: 154px;">PV-HTVA</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+        ${totalsRowsHtml}
+      </tbody>
+    </table>
+
+    <p class="amount-words">Nous disons <strong>${escapeHtml(numberToFrenchWords(printableTotal))} ${escapeHtml(currency)}</strong> .</p>
+    ${invoiceIdentifier ? `<div class="identifier">${escapeHtml(invoiceIdentifier)}</div>` : ''}
+    ${qrCodeDataUrl ? `<div class="qr"><img src="${qrCodeDataUrl}" alt="QR Code Facture"></div>` : ''}
+    </div>
+  </div>
+</body>
+</html>`;
+
+    openPrint(html);
   };
 
   /**
@@ -626,5 +907,5 @@ export function useInvoicePrint() {
     openPrint(html);
   };
 
-  return { printA4, printPOS, buildBarOrderInvoice, printKitchenTicketA4, printKitchenTicketPOS };
+  return { printA4, printPOS, printObrInvoice, buildBarOrderInvoice, printKitchenTicketA4, printKitchenTicketPOS };
 }
