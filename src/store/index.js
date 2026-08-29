@@ -10,6 +10,7 @@ import stock from "./modules/stock";
 import expenses from "./modules/expenses";
 import pharmaceutical from "./modules/pharmaceutical";
 import dashboard from "./modules/dashboard";
+import obrInvoices from "./modules/obrInvoices";
 import { createStoreCachePlugin, getCachedModuleState } from "./cache";
 import api from "@/services/api";
 
@@ -168,6 +169,7 @@ const store = createStore({
     expenses,
     pharmaceutical,
     dashboard,
+    obrInvoices,
   },
   plugins: [createStoreCachePlugin()],
 });
