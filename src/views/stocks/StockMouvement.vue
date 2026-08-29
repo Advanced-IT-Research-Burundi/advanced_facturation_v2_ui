@@ -137,7 +137,7 @@
                 <th class="text-end">Quantité</th>
                 <th class="text-center">Alerte</th>
                 <th class="text-center">TVA</th>
-                <th class="text-end">Prix Unitaire</th>
+                <th class="text-end">{{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -175,7 +175,7 @@
                 </td>
                 <td class="text-center">{{ formatNumber(stock.product?.vat_rate) }}%</td>
                 <td class="text-end">
-                  {{ formatCurrency(stock.unit_price, stock.currency) }}
+                  {{ formatCurrency(getStockDisplayPrice(stock), stock.currency) }}
                 </td>
                 <td class="text-end fw-bold text-success">
                   {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
@@ -530,7 +530,7 @@
                 />
               </div>
               <div class="col-md-6">
-                <label class="form-label">Prix Unitaire</label>
+                <label class="form-label">{{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -594,9 +594,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
+import { useStore } from "vuex";
 import api from "@/services/api";
 
 const route = useRoute();
+const store = useStore();
 const warehouseId = route.params.id;
 
 const loading = ref(false);
@@ -610,6 +612,21 @@ const perPage = 15;
 const warehouse = ref(null);
 const stocks = ref([]);
 const pendingCount = ref(0);
+const currentUser = computed(() => store.getters["auth/currentUser"]);
+
+const hasRole = (roleNames) => {
+  const normalizedRoleNames = roleNames.map((roleName) => roleName.toLowerCase());
+  const roles = currentUser.value?.roles || [];
+  const roleNamesFromUser = currentUser.value?.role_names || [];
+
+  return roles.some((role) => {
+    const roleName = role?.name?.toLowerCase();
+    const roleLabel = role?.label?.toLowerCase();
+    return normalizedRoleNames.includes(roleName) || normalizedRoleNames.includes(roleLabel);
+  }) || roleNamesFromUser.some((roleName) => normalizedRoleNames.includes(roleName?.toLowerCase()));
+};
+
+const isSuperAdmin = computed(() => hasRole(["super_admin", "superadmin", "super administrateur"]));
 
 const validStocks = computed(() => {
   return stocks.value.filter((stock) => Boolean(stock.product?.item_designation?.trim()));
@@ -620,8 +637,20 @@ const toNumber = (value) => {
   return Number.isFinite(numberValue) ? numberValue : 0;
 };
 
+const getPromoPrice = (stock) => {
+  return toNumber(stock.price_promo ?? stock.product?.price_promo);
+};
+
+const getStockDisplayPrice = (stock) => {
+  if (isSuperAdmin.value && getPromoPrice(stock) > 0) {
+    return getPromoPrice(stock);
+  }
+
+  return toNumber(stock.unit_price);
+};
+
 const getStockLineTotal = (stock) => {
-  return toNumber(stock.quantity) * toNumber(stock.unit_price);
+  return toNumber(stock.quantity) * getStockDisplayPrice(stock);
 };
 
 const groupRevenueByCurrency = (stockList) => {
@@ -835,7 +864,7 @@ const openQuickExit = (stock) => {
   quickExitForm.value = {
     product_id: stock.product_id,
     quantity: "",
-    unit_price: stock.unit_price,
+    unit_price: getStockDisplayPrice(stock),
     currency: stock.currency || "BIF",
     movement_type: "SN",
     invoice_ref: "",

@@ -13,6 +13,35 @@ const props = defineProps({
 });
 const store = useStore();
 const emit = defineEmits(["add-to-cart", "stock-changed"]);
+const currentUser = computed(() => store.getters["auth/currentUser"]);
+
+const hasRole = (roleNames) => {
+  const normalizedRoleNames = roleNames.map((roleName) => roleName.toLowerCase());
+  const roles = currentUser.value?.roles || [];
+  const roleNamesFromUser = currentUser.value?.role_names || [];
+
+  return roles.some((role) => {
+    const roleName = role?.name?.toLowerCase();
+    const roleLabel = role?.label?.toLowerCase();
+    return normalizedRoleNames.includes(roleName) || normalizedRoleNames.includes(roleLabel);
+  }) || roleNamesFromUser.some((roleName) => normalizedRoleNames.includes(roleName?.toLowerCase()));
+};
+
+const isSuperAdmin = computed(() => hasRole(["super_admin", "superadmin", "super administrateur"]));
+
+const getPromoPrice = (product) => {
+  const promoPrice = Number(product?.price_promo);
+  return Number.isFinite(promoPrice) ? promoPrice : 0;
+};
+
+const getEffectiveProductPrice = (product) => {
+  const promoPrice = getPromoPrice(product);
+  if (isSuperAdmin.value && promoPrice > 0) {
+    return promoPrice;
+  }
+
+  return Number(product?.price || product?.unit_price) || 0;
+};
 
 const isLoadingProducts = ref(false);
 const isLoadingMoreProducts = ref(false);
@@ -187,8 +216,9 @@ const fetchProducts = async (search = "", options = {}) => {
         warehouse_product_id: p.warehouse_product_id,
         warehouse_id: selectedPOSStock.value,
         name: p.name,
-        price: Number(p.price || p.unit_price) || 0,
+        price: getEffectiveProductPrice(p),
         unit_price: Number(p.unit_price) || 0,
+        price_promo: getPromoPrice(p),
         category: p.category || "Général",
         stock: getProductStock(p),
         vat_rate: p.vat_rate,
