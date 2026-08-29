@@ -31,6 +31,7 @@ const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
 const selectedWarehouseId = ref(null);
 const invoiceListKey = ref(0);
 const posProducts = computed(() => store.state.data?.productsPOS || []);
+const currentUser = computed(() => store.getters["auth/currentUser"]);
 const posRef = ref(null);
 const SAVED_CARTS_KEY = "pos_saved_carts";
 const activeSavedCartId = ref(null);
@@ -41,6 +42,34 @@ const isResizingPOS = ref(false);
 
 const MIN_PRODUCTS_WIDTH = 38;
 const MAX_PRODUCTS_WIDTH = 76;
+
+const hasRole = (roleNames) => {
+  const normalizedRoleNames = roleNames.map((roleName) => roleName.toLowerCase());
+  const roles = currentUser.value?.roles || [];
+  const roleNamesFromUser = currentUser.value?.role_names || [];
+
+  return roles.some((role) => {
+    const roleName = role?.name?.toLowerCase();
+    const roleLabel = role?.label?.toLowerCase();
+    return normalizedRoleNames.includes(roleName) || normalizedRoleNames.includes(roleLabel);
+  }) || roleNamesFromUser.some((roleName) => normalizedRoleNames.includes(roleName?.toLowerCase()));
+};
+
+const isSuperAdmin = computed(() => hasRole(["super_admin", "superadmin", "super administrateur"]));
+
+const getPromoPrice = (product) => {
+  const promoPrice = Number(product?.price_promo);
+  return Number.isFinite(promoPrice) ? promoPrice : 0;
+};
+
+const getEffectiveProductPrice = (product) => {
+  const promoPrice = getPromoPrice(product);
+  if (isSuperAdmin.value && promoPrice > 0) {
+    return promoPrice;
+  }
+
+  return Number(product?.price || product?.unit_price) || 0;
+};
 
 const clampPaneWidth = (value) => {
   return Math.min(MAX_PRODUCTS_WIDTH, Math.max(MIN_PRODUCTS_WIDTH, value));
@@ -423,7 +452,7 @@ const addToCart = (product) => {
   const vatRate = product.vat_rate === null || product.vat_rate === undefined
     ? 0
     : Number(product.vat_rate);
-  const productPrice = Number(product.price || product.unit_price) || 0;
+  const productPrice = getEffectiveProductPrice(product);
 
   // Assurer que le produit a toutes les propriétés requises
   const normalizedProduct = {
@@ -438,6 +467,7 @@ const addToCart = (product) => {
     item_code: product.item_code,
     barcode: product.barcode,
     unit_price: Number(product.unit_price) || 0,
+    price_promo: getPromoPrice(product),
     stock: Number(product.stock) || 0,
     // Propriétés optionnelles
     item_ct: product.item_ct || 0,
@@ -447,9 +477,10 @@ const addToCart = (product) => {
   const existingIndex = cart.value.findIndex((i) => i.id === normalizedProduct.id);
   if (existingIndex !== -1) {
     const [existing] = cart.value.splice(existingIndex, 1);
-    if ((!existing.price || Number(existing.price) <= 0) && productPrice > 0) {
+    if ((isSuperAdmin.value || !existing.price || Number(existing.price) <= 0) && productPrice > 0) {
       existing.price = productPrice;
     }
+    existing.price_promo = getPromoPrice(product);
     existing.quantity++;
     cart.value.unshift(existing);
   } else {
@@ -475,13 +506,13 @@ watch(
   posProducts,
   (products) => {
     cart.value.forEach((item) => {
-      if (item.price && Number(item.price) > 0) return;
-
       const product = products.find((posProduct) => posProduct.id === item.id);
-      const productPrice = Number(product?.price || product?.unit_price) || 0;
+      const productPrice = getEffectiveProductPrice(product);
+      if (!isSuperAdmin.value && item.price && Number(item.price) > 0) return;
       if (productPrice > 0) {
         item.price = productPrice;
         item.unit_price = Number(product?.unit_price) || productPrice;
+        item.price_promo = getPromoPrice(product);
         item.warehouse_product_id = product?.warehouse_product_id || item.warehouse_product_id;
         item.warehouse_id = product?.warehouse_id || item.warehouse_id;
       }

@@ -196,6 +196,7 @@
                 <th>Qté</th>
                 <th>Prix Achat</th>
                 <th>Prix Vente</th>
+                <th>Prix Promo</th>
                 <th>TVA</th>
               </tr>
             </thead>
@@ -214,6 +215,7 @@
                 <td>{{ item.quantity }}</td>
                 <td>{{ formatNumber(item.purchase_price) }}</td>
                 <td>{{ formatNumber(item.selling_price) }}</td>
+                <td>{{ formatNumber(item.promo_price) }}</td>
                 <td>{{ item.vat_rate }}%</td>
               </tr>
             </tbody>

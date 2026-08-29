@@ -137,7 +137,7 @@
                 <th class="text-end">Quantité</th>
                 <th class="text-center">Alerte</th>
                 <th class="text-center">TVA</th>
-                <th class="text-end">Prix Unitaire</th>
+                <th class="text-end">{{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -175,7 +175,7 @@
                 </td>
                 <td class="text-center">{{ formatNumber(stock.product?.vat_rate) }}%</td>
                 <td class="text-end">
-                  {{ formatCurrency(stock.unit_price, stock.currency) }}
+                  {{ formatCurrency(getStockDisplayPrice(stock), stock.currency) }}
                 </td>
                 <td class="text-end fw-bold text-success">
                   {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
@@ -298,7 +298,7 @@
               <small>{{ selectedStock?.product?.item_code }}</small>
             </div>
             <div class="row g-3">
-              <div class="col-md-7">
+              <div class="col-md-4">
                 <label class="form-label">Prix unitaire *</label>
                 <div class="input-group">
                   <input
@@ -312,7 +312,20 @@
                   <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
                 </div>
               </div>
-              <div class="col-md-5">
+              <div class="col-md-4">
+                <label class="form-label">Prix promo</label>
+                <div class="input-group">
+                  <input
+                    v-model="unitPriceEditForm.price_promo"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                  />
+                  <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+                </div>
+              </div>
+              <div class="col-md-4">
                 <label class="form-label">TVA (%) *</label>
                 <input
                   v-model.number="unitPriceEditForm.vat_rate"
@@ -517,7 +530,7 @@
                 />
               </div>
               <div class="col-md-6">
-                <label class="form-label">Prix Unitaire</label>
+                <label class="form-label">{{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -581,9 +594,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
+import { useStore } from "vuex";
 import api from "@/services/api";
 
 const route = useRoute();
+const store = useStore();
 const warehouseId = route.params.id;
 
 const loading = ref(false);
@@ -597,6 +612,21 @@ const perPage = 15;
 const warehouse = ref(null);
 const stocks = ref([]);
 const pendingCount = ref(0);
+const currentUser = computed(() => store.getters["auth/currentUser"]);
+
+const hasRole = (roleNames) => {
+  const normalizedRoleNames = roleNames.map((roleName) => roleName.toLowerCase());
+  const roles = currentUser.value?.roles || [];
+  const roleNamesFromUser = currentUser.value?.role_names || [];
+
+  return roles.some((role) => {
+    const roleName = role?.name?.toLowerCase();
+    const roleLabel = role?.label?.toLowerCase();
+    return normalizedRoleNames.includes(roleName) || normalizedRoleNames.includes(roleLabel);
+  }) || roleNamesFromUser.some((roleName) => normalizedRoleNames.includes(roleName?.toLowerCase()));
+};
+
+const isSuperAdmin = computed(() => hasRole(["super_admin", "superadmin", "super administrateur"]));
 
 const validStocks = computed(() => {
   return stocks.value.filter((stock) => Boolean(stock.product?.item_designation?.trim()));
@@ -607,8 +637,20 @@ const toNumber = (value) => {
   return Number.isFinite(numberValue) ? numberValue : 0;
 };
 
+const getPromoPrice = (stock) => {
+  return toNumber(stock.price_promo ?? stock.product?.price_promo);
+};
+
+const getStockDisplayPrice = (stock) => {
+  if (isSuperAdmin.value && getPromoPrice(stock) > 0) {
+    return getPromoPrice(stock);
+  }
+
+  return toNumber(stock.unit_price);
+};
+
 const getStockLineTotal = (stock) => {
-  return toNumber(stock.quantity) * toNumber(stock.unit_price);
+  return toNumber(stock.quantity) * getStockDisplayPrice(stock);
 };
 
 const groupRevenueByCurrency = (stockList) => {
@@ -732,6 +774,7 @@ const quickExitForm = ref({
 
 const unitPriceEditForm = ref({
   unit_price: "",
+  price_promo: "",
   vat_rate: "",
 });
 
@@ -821,7 +864,7 @@ const openQuickExit = (stock) => {
   quickExitForm.value = {
     product_id: stock.product_id,
     quantity: "",
-    unit_price: stock.unit_price,
+    unit_price: getStockDisplayPrice(stock),
     currency: stock.currency || "BIF",
     movement_type: "SN",
     invoice_ref: "",
@@ -867,6 +910,7 @@ const openUnitPriceEdit = (stock) => {
   selectedStock.value = stock;
   unitPriceEditForm.value = {
     unit_price: stock.unit_price ?? "",
+    price_promo: stock.price_promo ?? stock.product?.price_promo ?? "",
     vat_rate: stock.product?.vat_rate ?? 0,
   };
   showUnitPriceEditModal.value = true;
@@ -874,34 +918,37 @@ const openUnitPriceEdit = (stock) => {
 
 const closeUnitPriceEdit = () => {
   showUnitPriceEditModal.value = false;
-  unitPriceEditForm.value = { unit_price: "", vat_rate: "" };
+  unitPriceEditForm.value = { unit_price: "", price_promo: "", vat_rate: "" };
 };
 
 const submitUnitPriceEdit = async () => {
   const rawUnitPrice = unitPriceEditForm.value.unit_price;
+  const rawPromoPrice = unitPriceEditForm.value.price_promo;
   const unitPrice = Number(rawUnitPrice);
+  const promoPrice = rawPromoPrice === "" || rawPromoPrice === null ? null : Number(rawPromoPrice);
   const vatRate = Number(unitPriceEditForm.value.vat_rate);
   if (
     rawUnitPrice === "" || rawUnitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0
     || !Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100
+    || (promoPrice !== null && (!Number.isFinite(promoPrice) || promoPrice < 0))
   ) {
-    error.value = "Veuillez saisir un prix unitaire et un taux de TVA valides.";
+    error.value = "Veuillez saisir un prix unitaire, un prix promo et un taux de TVA valides.";
     return;
   }
 
   submitting.value = true;
   try {
     const productId = selectedStock.value?.product?.id || selectedStock.value?.product_id;
-    const productResp = await api.patch(`products/${productId}`, { vat_rate: vatRate });
+    const productResp = await api.patch(`products/${productId}`, { vat_rate: vatRate, price_promo: promoPrice });
     if (!productResp.data.success) {
-      throw new Error(productResp.data.message || "Impossible de modifier la TVA.");
+      throw new Error(productResp.data.message || "Impossible de modifier la TVA et le prix promo.");
     }
     const resp = await api.patch(
       `warehouse-products/${selectedStock.value.id}`,
-      { unit_price: unitPrice },
+      { unit_price: unitPrice, price_promo: promoPrice },
     );
     if (resp.data.success) {
-      successMessage.value = "Prix unitaire et TVA modifiés avec succès.";
+      successMessage.value = "Prix unitaire, prix promo et TVA modifiés avec succès.";
       closeUnitPriceEdit();
       await fetchDashboard();
       setTimeout(() => (successMessage.value = null), 3000);
