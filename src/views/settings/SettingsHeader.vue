@@ -40,6 +40,11 @@ const routeLinks = ref([
     icon: "bi bi-credit-card",
   },
   {
+    name: "Factures OBR",
+    path: "/settings/obr-invoices",
+    icon: "bi bi-receipt",
+  },
+  {
     name: "Journal OBR",
     path: "/settings/obr-logs",
     icon: "bi bi-file-earmark-text",
