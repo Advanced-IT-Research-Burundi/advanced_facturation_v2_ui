@@ -180,6 +180,15 @@
                   </td>
                   <td class="text-end">
                     <button
+                      class="btn btn-sm btn-outline-dark me-1"
+                      :disabled="printingInvoiceId === invoice.id"
+                      @click="printObrInvoiceFromList(invoice)"
+                      title="Imprimer la facture"
+                    >
+                      <span v-if="printingInvoiceId === invoice.id" class="spinner-border spinner-border-sm"></span>
+                      <i v-else class="bi bi-printer"></i>
+                    </button>
+                    <button
                       v-if="canSendObrInvoice(invoice)"
                       class="btn btn-sm btn-outline-success me-1"
                       :disabled="sendingInvoiceId === invoice.id"
@@ -326,12 +335,14 @@ import api from '@/services/api';
 import SettingsHeader from './SettingsHeader.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import { useInvoicePrint } from '@/composables/useInvoicePrint';
 
 const store = useStore();
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
+const { printObrInvoice } = useInvoicePrint();
 
 const resolveRouteTab = () => route.name === 'settings.obr-invoices' || route.query.tab === 'obrInvoices'
   ? 'obrInvoices'
@@ -357,6 +368,7 @@ const obrStatusGroup = ref('all');
 const obrSearch = ref('');
 const obrLoaded = ref(false);
 const sendingInvoiceId = ref(null);
+const printingInvoiceId = ref(null);
 const showCancelInvoiceModal = ref(false);
 const invoiceToCancel = ref(null);
 const cancelMotif = ref('');
@@ -522,6 +534,19 @@ const sendObrInvoice = async (invoice) => {
     toast.error(getApiError(err, 'Impossible d\'envoyer la facture à l\'OBR.'));
   } finally {
     sendingInvoiceId.value = null;
+  }
+};
+
+const printObrInvoiceFromList = async (invoice) => {
+  printingInvoiceId.value = invoice.id;
+  try {
+    const response = await api.get(`/invoices/${invoice.id}`);
+    const fullInvoice = response.data?.data || invoice;
+    await printObrInvoice(fullInvoice, fullInvoice.company);
+  } catch (err) {
+    toast.error(getApiError(err, 'Impossible d\'imprimer la facture.'));
+  } finally {
+    printingInvoiceId.value = null;
   }
 };
 
