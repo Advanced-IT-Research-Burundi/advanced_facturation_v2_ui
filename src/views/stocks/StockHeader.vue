@@ -17,12 +17,25 @@
 
 <script setup>
 const routeListes = [
-  { label: 'Liste des stocks', to: '/stock', icon: 'pi pi-home' },
-  { label: 'Produits', to: '/products', icon: 'pi pi-box' },
-  { label: 'Categories des produits', to: '/products/categories', icon: 'pi pi-tags' },
-  { label: 'Fournisseurs', to: '/fournisseurs', icon: 'pi pi-user' },
-  { label: 'Bon de commandes', to: '/products/bon-de-commandes', icon: 'pi pi-file' },
-  { label: 'Bar Code Generator', to: '/products/bar-code-generator', icon: 'pi pi-qrcode' },
+  { label: "Importation", to: "/importation", icon: "pi pi-upload" },
+  { label: "Liste des stocks", to: "/stock", icon: "pi pi-home" },
+  { label: "Produits", to: "/products", icon: "pi pi-box" },
+  {
+    label: "Categories des produits",
+    to: "/products/categories",
+    icon: "pi pi-tags",
+  },
+  { label: "Fournisseurs", to: "/fournisseurs", icon: "pi pi-user" },
+  {
+    label: "Bon de commandes",
+    to: "/products/bon-de-commandes",
+    icon: "pi pi-file",
+  },
+  {
+    label: "Bar Code Generator",
+    to: "/products/bar-code-generator",
+    icon: "pi pi-qrcode",
+  },
 ];
 </script>
 
@@ -33,13 +46,13 @@ const routeListes = [
 }
 
 .nav-scroll {
-    overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none;  /* IE 10+ */
-    padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+  padding-bottom: 2px;
 }
-.nav-scroll::-webkit-scrollbar { 
-    display: none;  /* Chrome/Safari */
+.nav-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 .custom-link {

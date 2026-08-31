@@ -19,6 +19,11 @@ const router = createRouter({
           // Dashboard accessible à tous les utilisateurs authentifiés
         },
         {
+          path: "/importation",
+          name: "importation",
+          component: () => import("../views/importation/ImportationPage.vue"),
+        },
+        {
           path: "sales",
           name: "sales",
           component: () => import("../views/sales/Sales.vue"),
@@ -433,6 +438,7 @@ const router = createRouter({
       name: "register-company",
       component: () => import("../views/RegisterCompany.vue"),
     },
+
     {
       path: "/unauthorized",
       name: "unauthorized",
