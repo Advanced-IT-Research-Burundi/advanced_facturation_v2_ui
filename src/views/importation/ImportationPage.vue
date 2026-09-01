@@ -20,7 +20,10 @@
                 <th>Description</th>
                 <th>Quantité</th>
                 <th>Produit Associer</th>
-                <th>Quantité Associer</th>
+                <td>Unite</td>
+                <th>Prix d'achat</th>
+                <th>Nombre par paquet</th>
+                <th>Devise</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -36,10 +39,44 @@
                 <td>{{ item.description_packet }}</td>
                 <td>{{ item.quantite }}</td>
                 <td>
-                  <input type="text" v-model="item.quantite" />
+                  <input
+                    type="text"
+                    v-model="lineMouvememt.item_designation"
+                    placeholder="Designation"
+                  />
                 </td>
                 <td>
-                  <input type="text" v-model="item.quantite" />
+                  <input
+                    type="text"
+                    v-model="lineMouvememt.item_measurement_unit"
+                    placeholder="Unité"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    v-model="lineMouvememt.item_cost_price"
+                    placeholder="Prix"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    v-model="lineMouvememt.nombre_par_paquet"
+                    placeholder="Nombre par paquet"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    v-model="lineMouvememt.item_cost_price_currency"
+                    placeholder="Devise"
+                  />
+                </td>
+                <td>
+                  <button class="btn btn-success" @click="saveItem(item)">
+                    Valider
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -55,8 +92,24 @@ import api from "@/services/api.js";
 import StockHeader from "../stocks/StockHeader.vue";
 import { ref, computed } from "vue";
 import { useStore } from "vuex";
-
 const store = useStore();
+
+const lineMouvememt = ref({
+  item_code: "",
+  item_designation: "",
+  item_quantity: "",
+  item_measurement_unit: "",
+  item_cost_price: "",
+  item_cost_price_currency: "",
+  item_movement_type: "EN",
+  item_movement_invoice_ref: "",
+  item_movement_description: "",
+  item_movement_date: "",
+  reference_dmc: "",
+  rubrique_tarifaire: "",
+  nombre_par_paquet: "",
+  description_paquet: "",
+});
 
 const dmcNumber = ref("2026BIPORC228");
 const importer = () => {
