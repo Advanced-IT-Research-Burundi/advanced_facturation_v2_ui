@@ -123,18 +123,19 @@ const fetchMovements = async () => {
       params: buildParams(),
     });
 
-    if (response.data?.success) {
-      const data = response.data.data;
-      movements.value = data.data || [];
-      pagination.value = {
-        current_page: data.current_page || 1,
-        per_page: data.per_page || 15,
-        total: data.total || 0,
-        last_page: data.last_page || 1,
-        from: data.from || 0,
-        to: data.to || 0,
-      };
+    if (response.status !== 200) {
+      throw new Error("Erreur lors de la récupération des mouvements d'importation.");
     }
+
+      movements.value = response.data?.mouvementStockImportations?.data || [];
+      pagination.value = {
+        current_page: response.data?.mouvementStockImportations?.current_page || 1,
+        per_page: response.data?.mouvementStockImportations?.per_page || 15,
+        total: response.data?.mouvementStockImportations?.total || 0,
+        last_page: response.data?.mouvementStockImportations?.last_page || 1,
+        from: response.data?.mouvementStockImportations?.from || 0,
+        to: response.data?.mouvementStockImportations?.to || 0,
+      };
   } finally {
     loading.value = false;
   }
