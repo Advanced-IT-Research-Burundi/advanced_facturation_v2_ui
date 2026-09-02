@@ -119,7 +119,7 @@ const buildParams = () => ({
 const fetchMovements = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/mouvement-stock-importations", {
+    const response = await api.get("/mouvement_stock_importations", {
       params: buildParams(),
     });
 

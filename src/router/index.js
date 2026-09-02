@@ -25,7 +25,7 @@ const router = createRouter({
         },
         {
           path: "/mouvement_stock_importations",
-          name: "mouvement-stock-importations",
+          name: "mouvement_stock_importations",
           component: () =>
             import("../views/importation/HistoriqueImportation.vue"),
           meta: { permission: "stock" },
