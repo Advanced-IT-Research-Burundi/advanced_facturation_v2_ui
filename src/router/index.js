@@ -24,6 +24,13 @@ const router = createRouter({
           component: () => import("../views/importation/ImportationPage.vue"),
         },
         {
+          path: "/mouvement_stock_importations",
+          name: "mouvement-stock-importations",
+          component: () =>
+            import("../views/importation/HistoriqueImportation.vue"),
+          meta: { permission: "stock" },
+        },
+        {
           path: "sales",
           name: "sales",
           component: () => import("../views/sales/Sales.vue"),

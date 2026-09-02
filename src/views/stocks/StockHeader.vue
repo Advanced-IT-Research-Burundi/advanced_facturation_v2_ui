@@ -36,6 +36,11 @@ const routeListes = [
     to: "/products/bar-code-generator",
     icon: "pi pi-qrcode",
   },
+  {
+    label: "historiques importations",
+    to: "/mouvement_stock_importations",
+    icon: "pi pi-exchange",
+  }
 ];
 </script>
 
