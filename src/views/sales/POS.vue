@@ -221,6 +221,7 @@ const fetchProducts = async (search = "", options = {}) => {
         price_promo: getPromoPrice(p),
         category: p.category || "Général",
         libelle: p.libelle,
+        libelle_price: Number(p.libelle_price) || 0,
         stock: getProductStock(p),
         vat_rate: p.vat_rate,
         item_code: p.item_code,

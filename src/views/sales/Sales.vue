@@ -461,6 +461,9 @@ const addToCart = (product) => {
     warehouse_id: product.warehouse_id || selectedWarehouseId.value,
     name: product.name,
     price: productPrice,
+    product_price: productPrice,
+    libelle: product.libelle,
+    libelle_price: Number(product.libelle_price) || 0,
     quantity: 1,
     category: product.category,
     vat_rate: Number.isNaN(vatRate) ? 0 : vatRate,
@@ -481,6 +484,9 @@ const addToCart = (product) => {
       existing.price = productPrice;
     }
     existing.price_promo = getPromoPrice(product);
+    existing.product_price = existing.product_price || productPrice;
+    existing.libelle = product.libelle;
+    existing.libelle_price = Number(product.libelle_price) || 0;
     existing.quantity++;
     cart.value.unshift(existing);
   } else {
@@ -513,6 +519,9 @@ watch(
         item.price = productPrice;
         item.unit_price = Number(product?.unit_price) || productPrice;
         item.price_promo = getPromoPrice(product);
+        item.product_price = item.product_price || productPrice;
+        item.libelle = product?.libelle;
+        item.libelle_price = Number(product?.libelle_price) || 0;
         item.warehouse_product_id = product?.warehouse_product_id || item.warehouse_product_id;
         item.warehouse_id = product?.warehouse_id || item.warehouse_id;
       }

@@ -60,6 +60,7 @@ const showPaymentInfoModal = ref(false);
 const isLoadingPaymentInfo = ref(false);
 const paymentMethods = ref([]);
 const selectedPaymentMethod = ref(null);
+const useLibellePrices = ref(false);
 
 const paymentInfo = computed(() => {
   const isBank = selectedPaymentType.value === "2";
@@ -90,10 +91,31 @@ const getItemPrice = (item) => {
   return Number(item.price || item.unit_price) || 0;
 };
 
+const applyPriceMode = () => {
+  props.cart.forEach((item) => {
+    const productPrice = Number(item.product_price || item.unit_price) || 0;
+    const libellePrice = Number(item.libelle_price) || 0;
+    item.price = useLibellePrices.value && libellePrice > 0
+      ? libellePrice
+      : productPrice;
+  });
+};
+
+const toggleLibellePrices = () => {
+  useLibellePrices.value = !useLibellePrices.value;
+  applyPriceMode();
+};
+
 watch(
   () => props.cart,
   (cartItems) => {
     cartItems.forEach((item) => {
+      const libellePrice = Number(item.libelle_price) || 0;
+      if (useLibellePrices.value && libellePrice > 0) {
+        item.price = libellePrice;
+        return;
+      }
+
       const unitPrice = Number(item.unit_price) || 0;
       if ((!item.price || Number(item.price) <= 0) && unitPrice > 0) {
         item.price = unitPrice;
@@ -286,6 +308,7 @@ const clearCart = async () => {
   if (!confirmed) return;
 
   emit("clear-cart");
+  useLibellePrices.value = false;
   clearClient();
 };
 
@@ -378,6 +401,16 @@ defineExpose({ clearClient });
         <span class="badge bg-white text-primary fw-bold"
           >{{ cart.length }} Articles</span
         >
+        <label class="btn btn-sm btn-light text-primary cart-price-toggle" title="Utiliser les prix des libelles">
+          <input
+            type="checkbox"
+            class="form-check-input me-1"
+            :checked="useLibellePrices"
+            :disabled="cart.length === 0 || isSubmitting"
+            @change="toggleLibellePrices"
+          />
+          Prix libelle
+        </label>
         <button
           type="button"
           class="btn btn-sm btn-light text-danger cart-clear-all-btn"
@@ -475,6 +508,8 @@ defineExpose({ clearClient });
                 type="number"
                 class="form-control form-control-sm text-end compact-input"
                 :class="{ 'is-invalid': !item.price || item.price <= 0 }"
+                :readonly="useLibellePrices"
+                :title="useLibellePrices ? 'Prix provenant du libelle' : 'Prix produit'"
                 min="0.01"
                 step="0.01"
                 required
@@ -681,6 +716,14 @@ defineExpose({ clearClient });
   justify-content: center;
   padding: 0;
   border-radius: 6px;
+}
+.cart-price-toggle {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.cart-price-toggle .form-check-input {
+  margin-top: 0;
 }
 .cart-clear-all-btn:disabled {
   opacity: 0.55;
