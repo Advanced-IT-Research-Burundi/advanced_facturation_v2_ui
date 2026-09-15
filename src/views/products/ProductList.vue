@@ -6,6 +6,7 @@ const props = defineProps({
   loading: Boolean,
   pagination: Object,
   categories: Array,
+  libelles: Array,
 });
 
 const emit = defineEmits(["edit", "delete", "change-page"]);
@@ -14,6 +15,14 @@ const getCategoryName = (id) => {
   if (!id) return "-";
   const cat = props.categories?.find((c) => c.id === id);
   return cat ? cat.name : id;
+};
+
+const getLibelleName = (product) => {
+  if (product.libelle?.name) return product.libelle.name;
+  const id = product.id_libelle;
+  if (!id) return "-";
+  const libelle = props.libelles?.find((item) => item.id === id);
+  return libelle ? libelle.name : id;
 };
 
 const formatPrice = (price) => {
@@ -48,6 +57,7 @@ const totalPages = computed(() => {
               <th class="ps-4">Code</th>
               <th>Désignation</th>
               <th>Catégorie</th>
+              <th>Libellé</th>
               <th>Marque</th>
               <th>TVA</th>
               <!-- <th>Prix HT</th>
@@ -62,6 +72,7 @@ const totalPages = computed(() => {
               <td class="ps-4 font-monospace small">{{ product.item_code }}</td>
               <td>{{ product.item_designation }}</td>
               <td>{{ getCategoryName(product.product_category_id) }}</td>
+              <td>{{ getLibelleName(product) }}</td>
               <td>{{ product.marque || "-" }}</td>
               <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td>
               <!-- <td class="fw-bold">{{ formatPrice(product.price) }}</td>
@@ -99,7 +110,7 @@ const totalPages = computed(() => {
               </td>
             </tr>
             <tr v-if="!loading && products && products.length === 0">
-              <td colspan="7" class="text-center py-5 text-muted">
+              <td colspan="8" class="text-center py-5 text-muted">
                 Aucun produit trouvé
               </td>
             </tr>

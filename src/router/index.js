@@ -169,6 +169,12 @@ const router = createRouter({
           meta: { permission: "stock" },
         },
         {
+          path: "products/libelles",
+          name: "products.libelles",
+          component: () => import("../views/products/ProductLabel.vue"),
+          meta: { permission: "stock" },
+        },
+        {
           path: "products/import-export",
           name: "products.import-export",
           component: () => import("../views/products/ImportExportProducts.vue"),

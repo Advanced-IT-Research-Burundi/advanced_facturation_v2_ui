@@ -5,6 +5,7 @@ const props = defineProps({
   show: Boolean,
   isEditing: Boolean,
   categories: Array,
+  libelles: Array,
   productUnits: Array,
   initialData: Object,
 });
@@ -22,6 +23,7 @@ const defaultForm = {
   vat_rate: 0,
   product_unit_id: null,
   product_category_id: null,
+  id_libelle: null,
   code_product: "",
   marque: "",
   quantite: 0,
@@ -333,6 +335,25 @@ watch(
                       v-model="form.marque"
                       maxlength="255"
                     />
+                  </div>
+                  <div class="col-md-6">
+                    <label
+                      class="form-label small text-muted text-uppercase fw-bold"
+                      >Libellé</label
+                    >
+                    <select
+                      class="form-select bg-light"
+                      v-model="form.id_libelle"
+                    >
+                      <option :value="null">Sélectionner un libellé</option>
+                      <option
+                        v-for="libelle in libelles"
+                        :key="libelle.id"
+                        :value="libelle.id"
+                      >
+                        {{ libelle.name }}
+                      </option>
+                    </select>
                   </div>
                   <div class="col-12">
                     <div class="form-check form-switch mt-2">

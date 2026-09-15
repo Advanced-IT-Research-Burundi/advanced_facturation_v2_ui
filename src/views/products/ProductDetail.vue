@@ -88,6 +88,9 @@
 
                                 <dt class="col-sm-4">Catégorie</dt>
                                 <dd class="col-sm-8">{{ getCategoryName(product.product_category_id) }}</dd>
+
+                                <dt class="col-sm-4">Libellé</dt>
+                                <dd class="col-sm-8">{{ getLibelleName(product) }}</dd>
                                 
                                 <dt class="col-sm-4">Description</dt>
                                 <dd class="col-sm-8">{{ product.description || '-' }}</dd>
@@ -175,6 +178,7 @@ const loading = ref(true);
 // Assuming categories are in store or we need to fetch them
 // If they are in store.state.data.categoriesProducts but not guaranteed loaded, we might see IDs only.
 const categories = computed(() => store.state.data?.categoriesProducts || []);
+const libelles = ref([]);
 
 onMounted(async () => {
     // If categories aren't loaded in store, try to load them lightly or just ignore name resolution for now
@@ -184,6 +188,10 @@ onMounted(async () => {
              if(store.state.data) store.state.data.categoriesProducts = catResp.data?.data?.data;
          } catch(e) {}
     }
+    try {
+        const libelleResp = await api.get('/libelles');
+        libelles.value = libelleResp.data?.data?.data || libelleResp.data?.data || [];
+    } catch(e) {}
 
     const id = route.params.id;
     if (id) {
@@ -214,6 +222,13 @@ const getCategoryName = (id) => {
   if (!id) return '-';
   const cat = categories.value.find(c => c.id === id);
   return cat ? cat.name : id;
+};
+
+const getLibelleName = (item) => {
+  if (item?.libelle?.name) return item.libelle.name;
+  if (!item?.id_libelle) return '-';
+  const libelle = libelles.value.find(entry => entry.id === item.id_libelle);
+  return libelle ? libelle.name : item.id_libelle;
 };
 
 const formatPrice = (price) => {

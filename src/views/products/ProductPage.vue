@@ -26,6 +26,7 @@ const products = computed(() => store.getters["products/allProducts"]);
 const loading = computed(() => store.getters["products/isLoading"]);
 const pagination = computed(() => store.state.products.pagination);
 const categories = computed(() => store.getters["products/categories"]);
+const libelles = computed(() => store.getters["products/libelles"]);
 const productUnits = computed(() => store.getters["products/productUnits"]);
 
 const handleSearch = (val) => {
@@ -139,6 +140,7 @@ onMounted(() => {
       :loading="loading"
       :pagination="pagination"
       :categories="categories"
+      :libelles="libelles"
       @edit="openEditModal"
       @delete="handleDelete"
       @change-page="handlePageChange"
@@ -149,6 +151,7 @@ onMounted(() => {
       :show="showModal"
       :is-editing="isEditing"
       :categories="categories"
+      :libelles="libelles"
       :product-units="productUnits"
       :initial-data="selectedProduct"
       @close="closeModal"

@@ -10,6 +10,7 @@ const persistedModules = {
     items: state.products.items,
     pagination: state.products.pagination,
     categories: state.products.categories,
+    libelles: state.products.libelles,
     productUnits: state.products.productUnits,
     lastQuery: state.products.lastQuery,
     lastUpdatedAt: state.products.lastUpdatedAt,

@@ -29,6 +29,7 @@ const defaultState = () => ({
     prev_page_url: null,
   },
   categories: [],
+  libelles: [],
   productUnits: [],
   lastQuery: {
     page: 1,
@@ -48,6 +49,7 @@ export default {
     allProducts: (state) => state.items,
     isLoading: (state) => state.loading,
     categories: (state) => state.categories,
+    libelles: (state) => state.libelles,
     productUnits: (state) => state.productUnits,
     hasProducts: (state) => state.items.length > 0,
     lastQuery: (state) => state.lastQuery,
@@ -59,6 +61,9 @@ export default {
     },
     SET_CATEGORIES(state, categories) {
       state.categories = categories;
+    },
+    SET_LIBELLES(state, libelles) {
+      state.libelles = libelles;
     },
     SET_PRODUCT_UNITS(state, units) {
       state.productUnits = units;
@@ -117,17 +122,29 @@ export default {
       }
     },
 
+    async fetchLibelles({ commit }) {
+      try {
+        const response = await api.get('/libelles');
+        commit("SET_LIBELLES", response.data?.data?.data || response.data?.data || []);
+        commit("SET_UPDATED_AT");
+      } catch (error) {
+        console.error("Erreur chargement libelles:", error);
+      }
+    },
+
     async fetchProductLookups({ commit, state }, { force = false } = {}) {
-      if (!force && state.categories.length && state.productUnits.length) {
+      if (!force && state.categories.length && state.libelles.length && state.productUnits.length) {
         return;
       }
 
       try {
-        const [catResp, unitResp] = await Promise.all([
+        const [catResp, libelleResp, unitResp] = await Promise.all([
           api.get("/category-products"),
+          api.get("/libelles"),
           api.get("/product-units"),
         ]);
         commit("SET_CATEGORIES", catResp.data?.data?.data || catResp.data?.data || []);
+        commit("SET_LIBELLES", libelleResp.data?.data?.data || libelleResp.data?.data || []);
         commit("SET_PRODUCT_UNITS", unitResp.data?.data?.data || unitResp.data?.data || []);
         commit("SET_UPDATED_AT");
       } catch (error) {

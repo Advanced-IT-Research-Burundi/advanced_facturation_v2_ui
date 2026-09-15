@@ -25,6 +25,11 @@ const routeListes = [
     to: "/products/categories",
     icon: "pi pi-tags",
   },
+  {
+    label: "Libellés des produits",
+    to: "/products/libelles",
+    icon: "pi pi-bookmark",
+  },
   { label: "Fournisseurs", to: "/fournisseurs", icon: "pi pi-user" },
   {
     label: "Bon de commandes",
