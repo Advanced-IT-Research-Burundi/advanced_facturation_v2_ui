@@ -19,6 +19,8 @@
                 <tr>
                   <th class="border-bottom-0 py-3 ps-4">Nom</th>
                   <th class="border-bottom-0 py-3">Description</th>
+                  <th class="border-bottom-0 py-3">Prix</th>
+                  <th class="border-bottom-0 py-3">TVA (%)</th>
                   <th class="border-bottom-0 py-3 text-end pe-4">Actions</th>
                 </tr>
               </thead>
@@ -26,6 +28,8 @@
                 <tr v-for="libelle in libelles" :key="libelle.id">
                   <td class="ps-4 fw-medium">{{ libelle.name }}</td>
                   <td>{{ libelle.description || '-' }}</td>
+                  <td>{{ libelle.price ?? '-' }}</td>
+                  <td>{{ libelle.tva ?? '-' }}</td>
                   <td class="text-end pe-4">
                     <button class="btn btn-sm btn-outline-primary me-2" @click="openEditModal(libelle)">
                       <i class="bi bi-pencil"></i>
@@ -36,12 +40,12 @@
                   </td>
                 </tr>
                 <tr v-if="!loading && libelles.length === 0">
-                  <td colspan="3" class="text-center py-5 text-muted">
+                  <td colspan="5" class="text-center py-5 text-muted">
                     Aucun libellé trouvé
                   </td>
                 </tr>
                 <tr v-if="loading">
-                  <td colspan="3" class="text-center py-5 text-muted">
+                  <td colspan="5" class="text-center py-5 text-muted">
                     Chargement...
                   </td>
                 </tr>
@@ -93,6 +97,14 @@
               <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
                 <textarea class="form-control" id="description" v-model="form.description" rows="3" placeholder="Description courte (optionnel)"></textarea>
+              </div>
+              <div class="mb-3">
+                <label for="price" class="form-label">Prix</label>
+                <input type="number" class="form-control" id="price" v-model="form.price" min="0" step="0.01" placeholder="Prix (optionnel)">
+              </div>
+              <div class="mb-3">
+                <label for="tva" class="form-label">TVA (%)</label>
+                <input type="number" class="form-control" id="tva" v-model="form.tva" min="0" max="100" step="0.01" placeholder="TVA (optionnel)">
               </div>
               <div class="d-flex justify-content-end gap-2">
                 <button type="button" class="btn btn-light" @click="closeModal">Annuler</button>
@@ -153,7 +165,9 @@ const isEditing = ref(false)
 const form = reactive({
   id: null,
   name: '',
-  description: ''
+  description: '',
+  price: null,
+  tva: null
 })
 
 const showDeleteModal = ref(false)
@@ -198,6 +212,8 @@ const openCreateModal = () => {
   form.id = null
   form.name = ''
   form.description = ''
+  form.price = null
+  form.tva = null
   showModal.value = true
 }
 
@@ -206,6 +222,8 @@ const openEditModal = (libelle) => {
   form.id = libelle.id
   form.name = libelle.name
   form.description = libelle.description
+  form.price = libelle.price ?? null
+  form.tva = libelle.tva ?? null
   showModal.value = true
 }
 
@@ -218,7 +236,9 @@ const submitForm = async () => {
   try {
     const payload = {
       name: form.name,
-      description: form.description
+      description: form.description,
+      price: form.price === '' ? null : form.price,
+      tva: form.tva === '' ? null : form.tva
     }
 
     if (isEditing.value) {
