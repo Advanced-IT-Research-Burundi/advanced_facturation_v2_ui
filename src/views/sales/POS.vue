@@ -220,6 +220,7 @@ const fetchProducts = async (search = "", options = {}) => {
         unit_price: Number(p.unit_price) || 0,
         price_promo: getPromoPrice(p),
         category: p.category || "Général",
+        libelle: p.libelle,
         stock: getProductStock(p),
         vat_rate: p.vat_rate,
         item_code: p.item_code,
@@ -505,7 +506,7 @@ defineExpose({ fetchProducts, focusSearchInput });
               >
                 {{ product.name }}
               </div>
-              <div class="small text-muted mb-2">{{ product.category }}</div>
+              <div class="small text-muted mb-2">{{ product.libelle ?? '---' }}</div>
               <div
                 class="mt-auto d-flex justify-content-between align-items-center"
               >
