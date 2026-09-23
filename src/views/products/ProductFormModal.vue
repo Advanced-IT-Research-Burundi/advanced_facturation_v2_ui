@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, computed } from "vue";
 
 const props = defineProps({
   show: Boolean,
@@ -171,6 +171,20 @@ watch(
     isCalculating.value = false;
   }
 );
+
+const libelleSearch = ref("");
+const showLibelleSearch = ref(false);
+
+const filteredLibelles = computed(() => {
+  const search = libelleSearch.value.trim().toLowerCase();
+  const allLibelles = props.libelles ?? [];
+
+  if (!search) return allLibelles;
+
+  return allLibelles.filter((libelle) =>
+    String(libelle.name ?? "").toLowerCase().includes(search)
+  );
+});
 </script>
 
 <template>
@@ -336,25 +350,52 @@ watch(
                       maxlength="255"
                     />
                   </div>
-                  <div class="col-md-6">
-                    <label
-                      class="form-label small text-muted text-uppercase fw-bold"
-                      >Libellé</label
-                    >
-                    <select
-                      class="form-select bg-light"
-                      v-model="form.id_libelle"
-                    >
-                      <option :value="null">Sélectionner un libellé</option>
-                      <option
-                        v-for="libelle in libelles"
-                        :key="libelle.id"
-                        :value="libelle.id"
-                      >
-                        {{ libelle.name }}
-                      </option>
-                    </select>
-                  </div>
+      <div class="col-md-6">
+  <label class="form-label small text-muted text-uppercase fw-bold">
+    Libellé
+  </label>
+
+  <div class="input-group">
+    <button
+      type="button"
+      class="btn btn-outline-secondary"
+      title="Rechercher un libellé"
+      @click="showLibelleSearch = !showLibelleSearch"
+    >
+      <span class="pi pi-search"></span>
+    </button>
+
+    <select
+      class="form-select bg-light"
+      v-model="form.id_libelle"
+    >
+      <option :value="null">Sélectionner un libellé</option>
+      <option
+        v-for="libelle in filteredLibelles"
+        :key="libelle.id"
+        :value="libelle.id"
+      >
+        {{ libelle.name }}
+      </option>
+    </select>
+  </div>
+
+  <input
+    v-if="showLibelleSearch"
+    type="search"
+    class="form-control bg-light mt-2"
+    v-model="libelleSearch"
+    placeholder="Rechercher un libellé..."
+    autofocus
+  />
+
+  <small
+    v-if="showLibelleSearch && libelleSearch && filteredLibelles.length === 0"
+    class="text-muted"
+  >
+    Aucun libellé trouvé.
+  </small>
+</div>
                   <div class="col-12">
                     <div class="form-check form-switch mt-2">
                       <input
