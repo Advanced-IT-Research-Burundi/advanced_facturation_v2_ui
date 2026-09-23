@@ -20,6 +20,19 @@ const getProductErrorMessage = (error, fallback = "Erreur lors de l'enregistreme
   return fallback;
 };
 
+// Le sélecteur doit disposer de toutes les pages, pas seulement des 15 premiers libellés.
+const fetchAllLibelles = async () => {
+  const libelles = [];
+  let page = 1;
+  while (true) {
+    const response = await api.get("/libelles", { params: { page, per_page: 100 } });
+    const result = response.data?.data;
+    libelles.push(...(Array.isArray(result) ? result : result?.data ?? []));
+    if (!result?.next_page_url) return libelles;
+    page += 1;
+  }
+};
+
 const defaultState = () => ({
   items: [],
   pagination: {
@@ -30,6 +43,7 @@ const defaultState = () => ({
   },
   categories: [],
   libelles: [],
+  libellesLoaded: false,
   productUnits: [],
   lastQuery: {
     page: 1,
@@ -64,6 +78,7 @@ export default {
     },
     SET_LIBELLES(state, libelles) {
       state.libelles = libelles;
+      state.libellesLoaded = true;
     },
     SET_PRODUCT_UNITS(state, units) {
       state.productUnits = units;
@@ -124,8 +139,7 @@ export default {
 
     async fetchLibelles({ commit }) {
       try {
-        const response = await api.get('/libelles');
-        commit("SET_LIBELLES", response.data?.data?.data || response.data?.data || []);
+        commit("SET_LIBELLES", await fetchAllLibelles());
         commit("SET_UPDATED_AT");
       } catch (error) {
         console.error("Erreur chargement libelles:", error);
@@ -133,18 +147,18 @@ export default {
     },
 
     async fetchProductLookups({ commit, state }, { force = false } = {}) {
-      if (!force && state.categories.length && state.libelles.length && state.productUnits.length) {
+      if (!force && state.categories.length && state.libellesLoaded && state.productUnits.length) {
         return;
       }
 
       try {
-        const [catResp, libelleResp, unitResp] = await Promise.all([
+        const [catResp, allLibelles, unitResp] = await Promise.all([
           api.get("/category-products"),
-          api.get("/libelles"),
+          fetchAllLibelles(),
           api.get("/product-units"),
         ]);
         commit("SET_CATEGORIES", catResp.data?.data?.data || catResp.data?.data || []);
-        commit("SET_LIBELLES", libelleResp.data?.data?.data || libelleResp.data?.data || []);
+        commit("SET_LIBELLES", allLibelles);
         commit("SET_PRODUCT_UNITS", unitResp.data?.data?.data || unitResp.data?.data || []);
         commit("SET_UPDATED_AT");
       } catch (error) {

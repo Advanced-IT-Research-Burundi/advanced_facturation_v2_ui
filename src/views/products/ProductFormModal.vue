@@ -1,5 +1,6 @@
 <script setup>
-import { ref, reactive, watch, computed } from "vue";
+import { ref, watch } from "vue";
+import AutoComplete from "primevue/autocomplete";
 
 const props = defineProps({
   show: Boolean,
@@ -172,19 +173,33 @@ watch(
   }
 );
 
-const libelleSearch = ref("");
-const showLibelleSearch = ref(false);
+const libelleInput = ref(null);
+const libelleSuggestions = ref([]);
 
-const filteredLibelles = computed(() => {
-  const search = libelleSearch.value.trim().toLowerCase();
-  const allLibelles = props.libelles ?? [];
+watch(
+  [() => props.show, () => props.initialData, () => props.libelles],
+  () => {
+    libelleInput.value = (props.libelles ?? []).find(
+      (libelle) => String(libelle.id) === String(form.value.id_libelle)
+    ) ?? null;
+    libelleSuggestions.value = [...(props.libelles ?? [])];
+  },
+  { immediate: true }
+);
 
-  if (!search) return allLibelles;
-
-  return allLibelles.filter((libelle) =>
-    String(libelle.name ?? "").toLowerCase().includes(search)
+const searchLibelles = ({ query }) => {
+  const normalize = (value) => String(value ?? "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const search = normalize(query).trim();
+  libelleSuggestions.value = (props.libelles ?? []).filter((libelle) =>
+    normalize(libelle.name).includes(search)
   );
-});
+};
+
+const updateLibelle = (value) => {
+  libelleInput.value = value;
+  form.value.id_libelle = value && typeof value === "object" ? value.id : null;
+};
 </script>
 
 <template>
@@ -350,52 +365,37 @@ const filteredLibelles = computed(() => {
                       maxlength="255"
                     />
                   </div>
-      <div class="col-md-6">
-  <label class="form-label small text-muted text-uppercase fw-bold">
-    Libellé
-  </label>
-
-  <div class="input-group">
-    <button
-      type="button"
-      class="btn btn-outline-secondary"
-      title="Rechercher un libellé"
-      @click="showLibelleSearch = !showLibelleSearch"
-    >
-      <span class="pi pi-search"></span>
-    </button>
-
-    <select
-      class="form-select bg-light"
-      v-model="form.id_libelle"
-    >
-      <option :value="null">Sélectionner un libellé</option>
-      <option
-        v-for="libelle in filteredLibelles"
-        :key="libelle.id"
-        :value="libelle.id"
-      >
-        {{ libelle.name }}
-      </option>
-    </select>
-  </div>
-
-  <input
-    v-if="showLibelleSearch"
-    type="search"
-    class="form-control bg-light mt-2"
-    v-model="libelleSearch"
-    placeholder="Rechercher un libellé..."
-    autofocus
-  />
-
-  <small
-    v-if="showLibelleSearch && libelleSearch && filteredLibelles.length === 0"
-    class="text-muted"
-  >
-    Aucun libellé trouvé.
-  </small>
-</div>
+                  <div class="col-md-6">
+                    <label
+                      for="product-libelle"
+                      class="form-label small text-muted text-uppercase fw-bold"
+                    >
+                      Libellé
+                    </label>
+                    <AutoComplete
+                      inputId="product-libelle"
+                      :modelValue="libelleInput"
+                      :suggestions="libelleSuggestions"
+                      optionLabel="name"
+                      dataKey="id"
+                      dropdown
+                      dropdownMode="blank"
+                      dropdownIcon="pi pi-search"
+                      :pt="{ dropdown: { 'aria-label': 'Rechercher un libellé', title: 'Rechercher un libellé' } }"
+                      forceSelection
+                      completeOnFocus
+                      showClear
+                      :minLength="0"
+                      scrollHeight="240px"
+                      fluid
+                      inputClass="form-control bg-light"
+                      overlayClass="product-libelle-overlay"
+                      placeholder="Sélectionner ou rechercher un libellé"
+                      emptySearchMessage="Aucun libellé trouvé."
+                      @complete="searchLibelles"
+                      @update:modelValue="updateLibelle"
+                    />
+                  </div>
                   <div class="col-12">
                     <div class="form-check form-switch mt-2">
                       <input
@@ -733,3 +733,10 @@ const filteredLibelles = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Le panneau est téléporté dans body, au-dessus de la modale Bootstrap. */
+:global(.product-libelle-overlay) {
+  z-index: 1060 !important;
+}
+</style>
