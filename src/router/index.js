@@ -282,6 +282,12 @@ const router = createRouter({
           component: () => import("../views/settings/ObrLogs.vue"),
           meta: { permission: "settings" },
         },
+        {
+          path: "settings/sync-data",
+          name: "settings.sync-data",
+          component: () => import("../views/settings/SyncData.vue"),
+          meta: { permission: "settings" },
+        },
         // Routes Pharmaceutiques
         {
           path: "pharmaceutical",

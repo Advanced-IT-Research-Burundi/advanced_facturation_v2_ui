@@ -49,6 +49,11 @@ const routeLinks = ref([
     path: "/settings/obr-logs",
     icon: "bi bi-file-earmark-text",
   },
+  {
+    name: "Synchronisation",
+    path: "/settings/sync-data",
+    icon: "bi bi-arrow-repeat",
+  },
 ]);
 </script>
 
