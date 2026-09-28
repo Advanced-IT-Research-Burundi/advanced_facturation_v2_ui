@@ -4,6 +4,14 @@ import api from "@/services/api";
 import InvoicesList from "./InvoicesList.vue";
 import PaymentModal from "./PaymentModal.vue";
 import InvoiceCancelModal from "./InvoiceCancelModal.vue";
+import InvoiceEditValidateModal from "./InvoiceEditValidateModal.vue";
+
+const props = defineProps({
+  customers: {
+    type: Array,
+    default: () => [],
+  },
+});
 
 const emit = defineEmits(["print"]);
 
@@ -16,6 +24,10 @@ const invoiceToPay = ref(null);
 // --- CANCEL MODAL STATE ---
 const showCancelModal = ref(false);
 const invoiceToCancel = ref(null);
+
+// --- EDIT / VALIDATE MODAL STATE ---
+const showValidateModal = ref(false);
+const invoiceToValidate = ref(null);
 
 const refreshInvoices = () => {
   invoiceListKey.value++;
@@ -64,6 +76,24 @@ const closeCancelModal = () => {
 const handleInvoiceCancelled = () => {
   refreshInvoices();
 };
+
+// Handle Validate / Edit Modal
+const handleValidateInvoice = (invoice) => {
+  invoiceToValidate.value = invoice;
+  showValidateModal.value = true;
+};
+
+const handleValidationSuccess = (validatedInvoice) => {
+  refreshInvoices();
+  // Open print preview for freshly validated invoice
+  if (validatedInvoice) {
+    emit("print", validatedInvoice);
+  }
+};
+
+const handleUpdateSuccess = () => {
+  refreshInvoices();
+};
 </script>
 
 <template>
@@ -74,6 +104,7 @@ const handleInvoiceCancelled = () => {
       @print="handlePrintInvoice"
       @pay="handlePayInvoice"
       @cancel="handleCancelInvoice"
+      @validate="handleValidateInvoice"
     />
 
     <!-- MODAL PAIEMENT -->
@@ -90,6 +121,16 @@ const handleInvoiceCancelled = () => {
       :invoice="invoiceToCancel"
       @close="closeCancelModal"
       @cancelled="handleInvoiceCancelled"
+    />
+
+    <!-- MODAL MODIFICATION & VALIDATION FACTURE -->
+    <InvoiceEditValidateModal
+      :show="showValidateModal"
+      :invoice="invoiceToValidate"
+      :customers="customers"
+      @close="showValidateModal = false"
+      @validated="handleValidationSuccess"
+      @updated="handleUpdateSuccess"
     />
   </div>
 </template>

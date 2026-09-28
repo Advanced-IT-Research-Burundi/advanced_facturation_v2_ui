@@ -176,7 +176,7 @@ const handleGenericInvoiceSubmit = async (payload) => {
 
     <!-- Factures List Tab -->
     <div v-else-if="activeTab === 'Factures'" class="tab-content-wrapper flex-grow-1 bg-light">
-      <InvoicesTab @print="handlePrintInvoice" />
+      <InvoicesTab :customers="customers" @print="handlePrintInvoice" />
     </div>
 
     <!-- Reports Tab -->

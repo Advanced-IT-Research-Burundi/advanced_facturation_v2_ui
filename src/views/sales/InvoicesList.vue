@@ -15,13 +15,12 @@ import {
 } from "lucide-vue-next";
 import api from "@/services/api";
 
-
-
 const isLoading = ref(false);
 const invoices = ref([]);
 const searchQuery = ref("");
 const filterType = ref("all");
 const filterStatus = ref("all");
+const filterValidation = ref("all");
 const searchTimeout = ref(null);
 const pagination = ref({
   currentPage: 1,
@@ -35,7 +34,7 @@ const fetchInvoices = async (page = 1) => {
   isLoading.value = true;
   try {
     const params = { page };
-    
+
     // Ajouter les filtres
     if (filterType.value !== "all") {
       params.invoice_type = filterType.value;
@@ -43,10 +42,13 @@ const fetchInvoices = async (page = 1) => {
     if (filterStatus.value !== "all") {
       params.obr_status = filterStatus.value;
     }
+    if (filterValidation.value !== "all") {
+      params.validation_status = filterValidation.value;
+    }
     if (searchQuery.value) {
       params.search = searchQuery.value;
     }
-    
+
     const response = await api.get("/invoices", { params });
     if (response.data.success) {
       invoices.value = response.data.data.data || response.data.data;
@@ -78,7 +80,7 @@ onMounted(() => {
 });
 
 // Recharger quand les filtres changent
-watch([filterType, filterStatus], () => {
+watch([filterType, filterStatus, filterValidation], () => {
   fetchInvoices(1);
 });
 
@@ -131,7 +133,7 @@ const getStatusIcon = (status) => {
   }
 };
 
-const emit = defineEmits(["view", "print", "pay", "cancel"]);
+const emit = defineEmits(["view", "print", "pay", "cancel", "validate"]);
 
 const getPaymentStatusBadge = (status) => {
   const classes = {
@@ -167,14 +169,18 @@ const changePage = (page) => {
           <FileText :size="20" class="text-primary" />
           Liste des Factures
         </h5>
-        <button @click="fetchInvoices(1)" class="btn btn-outline-primary btn-sm" :disabled="isLoading">
+        <button
+          @click="fetchInvoices(1)"
+          class="btn btn-outline-primary btn-sm"
+          :disabled="isLoading"
+        >
           <RefreshCw :size="16" :class="{ 'animate-spin': isLoading }" />
         </button>
       </div>
 
       <!-- Filters -->
       <div class="row g-2">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <div class="input-group input-group-sm">
             <span class="input-group-text bg-white">
               <Search :size="14" />
@@ -188,7 +194,7 @@ const changePage = (page) => {
             />
           </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <select v-model="filterType" class="form-select form-select-sm">
             <option value="all">Tous les types</option>
             <option value="FN">Facture Normale</option>
@@ -198,7 +204,14 @@ const changePage = (page) => {
             <option value="FP">Proforma</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+          <select v-model="filterValidation" class="form-select form-select-sm">
+            <option value="all">Toutes (Validées & Brouillons)</option>
+            <option value="validated">Factures Validées</option>
+            <option value="draft">Non validées (Brouillons)</option>
+          </select>
+        </div>
+        <div class="col-md-3">
           <select v-model="filterStatus" class="form-select form-select-sm">
             <option value="all">Tous les statuts OBR</option>
             <option value="PENDING">En attente</option>
@@ -211,12 +224,15 @@ const changePage = (page) => {
 
     <!-- Table -->
     <div class="flex-grow-1 overflow-auto">
-      <div v-if="!isLoading && invoices.length === 0" class="text-center py-5 text-muted">
+      <div
+        v-if="!isLoading && invoices.length === 0"
+        class="text-center py-5 text-muted"
+      >
         <FileText :size="48" class="opacity-25 mb-2" />
         <p>Aucune facture trouvée</p>
       </div>
 
-     <table v-else class="table table-hover mb-0">
+      <table v-else class="table table-hover mb-0">
         <thead class="bg-light sticky-top">
           <tr>
             <th>N° Facture</th>
@@ -226,21 +242,29 @@ const changePage = (page) => {
             <th class="text-end">Montant TTC</th>
             <th class="text-center">Paiement</th>
             <th class="text-center">OBR</th>
+            <th class="text-center">Validation</th>
             <th class="text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="invoice in invoices" :key="invoice.id">
             <td class="fw-bold">{{ invoice.invoice_number }}</td>
-            <td class="small">{{ formatDate(invoice.invoice_date || invoice.created_at) }}</td>
-            <td>
-              <div class="text-truncate" style="max-width: 150px;">
-                {{ invoice.customer_name || invoice.customer?.customer_name }}
-              </div>
-              <small class="text-muted">{{ invoice.customer_TIN || invoice.customer?.customer_TIN || 'N/A' }}</small>
+            <td class="small">
+              {{ formatDate(invoice.invoice_date || invoice.created_at) }}
             </td>
             <td>
-              <span class="badge" :class="getTypeBadgeClass(invoice.invoice_type)">
+              <div class="text-truncate" style="max-width: 150px">
+                {{ invoice.customer_name || invoice.customer?.customer_name }}
+              </div>
+              <small class="text-muted">{{
+                invoice.customer_TIN || invoice.customer?.customer_TIN || "N/A"
+              }}</small>
+            </td>
+            <td>
+              <span
+                class="badge"
+                :class="getTypeBadgeClass(invoice.invoice_type)"
+              >
                 {{ getTypeLabel(invoice.invoice_type) }}
               </span>
             </td>
@@ -249,13 +273,28 @@ const changePage = (page) => {
               <small class="text-muted">{{ invoice.invoice_currency }}</small>
             </td>
             <td class="text-center">
-                <span class="badge" :class="getPaymentStatusBadge(invoice.payment_status)">
-                    {{ getPaymentStatusLabel(invoice.payment_status) }}
-                </span>
-                <div v-if="invoice.payment_status === 'partial'" class="progress mt-1" style="height: 4px;">
-                    <div class="progress-bar bg-success" role="progressbar" 
-                        :style="{ width: ((invoice.total_paid / invoice.invoice_total_amount) * 100) + '%' }"></div>
-                </div>
+              <span
+                class="badge"
+                :class="getPaymentStatusBadge(invoice.payment_status)"
+              >
+                {{ getPaymentStatusLabel(invoice.payment_status) }}
+              </span>
+              <div
+                v-if="invoice.payment_status === 'partial'"
+                class="progress mt-1"
+                style="height: 4px"
+              >
+                <div
+                  class="progress-bar bg-success"
+                  role="progressbar"
+                  :style="{
+                    width:
+                      (invoice.total_paid / invoice.invoice_total_amount) *
+                        100 +
+                      '%',
+                  }"
+                ></div>
+              </div>
             </td>
             <td class="text-center">
               <component
@@ -266,37 +305,81 @@ const changePage = (page) => {
               />
             </td>
             <td class="text-center">
-              <div class="btn-group btn-group-sm">
-                <button
-                  @click="$emit('view', invoice)"
-                  class="btn btn-outline-primary"
-                  title="Voir"
-                >
-                  <Eye :size="14" />
-                </button>
-                <button
-                  @click="$emit('print', invoice)"
-                  class="btn btn-outline-secondary"
-                  title="Imprimer"
-                >
-                  <Printer :size="14" />
-                </button>
-                <button
-                  v-if="invoice.payment_status !== 'paid'"
-                  @click="$emit('pay', invoice)"
-                  class="btn btn-outline-success"
-                  title="Payer"
-                >
-                  <DollarSign :size="14" />
-                </button>
-                <button
-                  v-if="!invoice.is_cancelled && invoice.invoice_type !== 'FP'"
-                  @click="$emit('cancel', invoice)"
-                  class="btn btn-outline-danger"
-                  title="Annuler"
-                >
-                  <Ban :size="14" />
-                </button>
+              <span
+                v-if="invoice.is_validated !== false"
+                class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"
+              >
+                Validée
+              </span>
+              <span
+                v-else
+                class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"
+              >
+                Non validée
+              </span>
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm d-flex gap-1 justify-content-center">
+                <!-- If invoice is not yet validated, show prominent validate / edit button -->
+                <template v-if="invoice.is_validated === false">
+                  <button
+                    @click="$emit('validate', invoice)"
+                    class="btn btn-sm btn-success d-flex align-items-center gap-1 shadow-sm"
+                    title="Modifier & Valider la facture"
+                  >
+                    <CheckCircle :size="14" />
+                    <span>Valider</span>
+                  </button>
+                  <button
+                    @click="$emit('view', invoice)"
+                    class="btn btn-outline-primary"
+                    title="Voir"
+                  >
+                    <Eye :size="14" />
+                  </button>
+                  <button
+                    v-if="!invoice.is_cancelled"
+                    @click="$emit('cancel', invoice)"
+                    class="btn btn-outline-danger"
+                    title="Annuler"
+                  >
+                    <Ban :size="14" />
+                  </button>
+                </template>
+
+                <!-- If invoice is already validated -->
+                <template v-else>
+                  <button
+                    @click="$emit('view', invoice)"
+                    class="btn btn-outline-primary"
+                    title="Voir"
+                  >
+                    <Eye :size="14" />
+                  </button>
+                  <button
+                    @click="$emit('print', invoice)"
+                    class="btn btn-outline-secondary"
+                    title="Imprimer"
+                  >
+                    <Printer :size="14" />
+                  </button>
+                  <button
+                    v-if="invoice.payment_status !== 'paid'"
+                    @click="$emit('pay', invoice)"
+                    class="btn btn-outline-success"
+                    title="Payer"
+                  >
+                    <DollarSign :size="14" />
+                  </button>
+                  <button
+                    v-if="!invoice.is_cancelled && invoice.invoice_type !== 'FP'"
+                    @click="$emit('cancel', invoice)"
+                    class="btn btn-outline-danger"
+                    title="Annuler"
+                  >
+                    <Ban :size="14" />
+                  </button>
+                </template>
               </div>
             </td>
           </tr>
@@ -308,30 +391,65 @@ const changePage = (page) => {
     <div v-if="pagination.total > 0" class="p-3 border-top bg-light">
       <div class="d-flex justify-content-between align-items-center">
         <small class="text-muted">
-          Affichage {{ pagination.from }} à {{ pagination.to }} sur {{ pagination.total }} factures
+          Affichage {{ pagination.from }} à {{ pagination.to }} sur
+          {{ pagination.total }} factures
         </small>
         <nav v-if="pagination.lastPage > 1">
           <ul class="pagination pagination-sm mb-0">
-            <li class="page-item" :class="{ disabled: pagination.currentPage === 1 }">
-              <button class="page-link" @click="changePage(1)" :disabled="pagination.currentPage === 1">
+            <li
+              class="page-item"
+              :class="{ disabled: pagination.currentPage === 1 }"
+            >
+              <button
+                class="page-link"
+                @click="changePage(1)"
+                :disabled="pagination.currentPage === 1"
+              >
                 «
               </button>
             </li>
-            <li class="page-item" :class="{ disabled: pagination.currentPage === 1 }">
-              <button class="page-link" @click="changePage(pagination.currentPage - 1)" :disabled="pagination.currentPage === 1">
+            <li
+              class="page-item"
+              :class="{ disabled: pagination.currentPage === 1 }"
+            >
+              <button
+                class="page-link"
+                @click="changePage(pagination.currentPage - 1)"
+                :disabled="pagination.currentPage === 1"
+              >
                 ‹
               </button>
             </li>
             <li class="page-item active">
-              <span class="page-link">{{ pagination.currentPage }} / {{ pagination.lastPage }}</span>
+              <span class="page-link"
+                >{{ pagination.currentPage }} / {{ pagination.lastPage }}</span
+              >
             </li>
-            <li class="page-item" :class="{ disabled: pagination.currentPage === pagination.lastPage }">
-              <button class="page-link" @click="changePage(pagination.currentPage + 1)" :disabled="pagination.currentPage === pagination.lastPage">
+            <li
+              class="page-item"
+              :class="{
+                disabled: pagination.currentPage === pagination.lastPage,
+              }"
+            >
+              <button
+                class="page-link"
+                @click="changePage(pagination.currentPage + 1)"
+                :disabled="pagination.currentPage === pagination.lastPage"
+              >
                 ›
               </button>
             </li>
-            <li class="page-item" :class="{ disabled: pagination.currentPage === pagination.lastPage }">
-              <button class="page-link" @click="changePage(pagination.lastPage)" :disabled="pagination.currentPage === pagination.lastPage">
+            <li
+              class="page-item"
+              :class="{
+                disabled: pagination.currentPage === pagination.lastPage,
+              }"
+            >
+              <button
+                class="page-link"
+                @click="changePage(pagination.lastPage)"
+                :disabled="pagination.currentPage === pagination.lastPage"
+              >
                 »
               </button>
             </li>
@@ -347,8 +465,12 @@ const changePage = (page) => {
   animation: spin 1s linear infinite;
 }
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .sticky-top {
   position: sticky;
