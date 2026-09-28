@@ -1,415 +1,65 @@
 <script setup>
-import { ref, onBeforeUnmount, onMounted, watch, computed } from "vue";
-import { useStore } from "vuex";
+import { ref, watch, onMounted } from "vue";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
 
-// Child Components
+// Layout & Navigation
 import SalesHeader from "./SalesHeader.vue";
-import POS from "./POS.vue";
-import CartPanel from "./CartPanel.vue";
+
+// Tab Components
+import PosTab from "./PosTab.vue";
 import InvoiceService from "./InvoiceService.vue";
-import ProformaService from "./ProformaService.vue";
-import ProformaFormModal from "./ProformaFormModal.vue";
-import FactureAvoir from "./FactureAvoir.vue";
+import ProformaTab from "./ProformaTab.vue";
 import Refund from "./Refund.vue";
-import ProformaDetailsModal from "./ProformaDetailsModal.vue";
-import InvoicePrintModal from "./InvoicePrintModal.vue";
-import InvoicesList from "./InvoicesList.vue";
+import FactureAvoir from "./FactureAvoir.vue";
+import InvoicesTab from "./InvoicesTab.vue";
 import Reports from "./Reports.vue";
-import PaymentModal from "./PaymentModal.vue";
+
+// Global Shared Modals
+import InvoicePrintModal from "./InvoicePrintModal.vue";
 import ClientFormModal from "./ClientFormModal.vue";
 
-const store = useStore();
 const toast = useToast();
 
 // --- GLOBAL STATE ---
 const activeTab = ref("POS");
+const posTabRef = ref(null);
 const isSubmitting = ref(false);
 const customers = ref([]);
-const cart = ref(JSON.parse(localStorage.getItem("pos_cart") || "[]"));
-const selectedWarehouseId = ref(null);
-const invoiceListKey = ref(0);
-const posProducts = computed(() => store.state.data?.productsPOS || []);
-const currentUser = computed(() => store.getters["auth/currentUser"]);
-const posRef = ref(null);
-const SAVED_CARTS_KEY = "pos_saved_carts";
-const activeSavedCartId = ref(null);
-const savedCarts = ref(JSON.parse(localStorage.getItem(SAVED_CARTS_KEY) || "[]"));
-const splitContainerRef = ref(null);
-const productsPaneWidth = ref(Number(localStorage.getItem("pos_products_width")) || 60);
-const isResizingPOS = ref(false);
-
-const MIN_PRODUCTS_WIDTH = 38;
-const MAX_PRODUCTS_WIDTH = 76;
-
-const hasRole = (roleNames) => {
-  const normalizedRoleNames = roleNames.map((roleName) => roleName.toLowerCase());
-  const roles = currentUser.value?.roles || [];
-  const roleNamesFromUser = currentUser.value?.role_names || [];
-
-  return roles.some((role) => {
-    const roleName = role?.name?.toLowerCase();
-    const roleLabel = role?.label?.toLowerCase();
-    return normalizedRoleNames.includes(roleName) || normalizedRoleNames.includes(roleLabel);
-  }) || roleNamesFromUser.some((roleName) => normalizedRoleNames.includes(roleName?.toLowerCase()));
-};
-
-const isSuperAdmin = computed(() => hasRole(["super_admin", "superadmin", "super administrateur"]));
-
-const getPromoPrice = (product) => {
-  const promoPrice = Number(product?.price_promo);
-  return Number.isFinite(promoPrice) ? promoPrice : 0;
-};
-
-const getEffectiveProductPrice = (product) => {
-  const promoPrice = getPromoPrice(product);
-  if (isSuperAdmin.value && promoPrice > 0) {
-    return promoPrice;
-  }
-
-  return Number(product?.price || product?.unit_price) || 0;
-};
-
-const clampPaneWidth = (value) => {
-  return Math.min(MAX_PRODUCTS_WIDTH, Math.max(MIN_PRODUCTS_WIDTH, value));
-};
-
-const posResizeStyles = computed(() => ({
-  "--pos-products-width": `${productsPaneWidth.value}%`,
-  "--pos-resizer-width": "10px",
-}));
-
-const handlePOSResizeMove = (event) => {
-  if (!isResizingPOS.value || !splitContainerRef.value) return;
-
-  const bounds = splitContainerRef.value.getBoundingClientRect();
-  const nextWidth = ((event.clientX - bounds.left) / bounds.width) * 100;
-  productsPaneWidth.value = clampPaneWidth(nextWidth);
-};
-
-const stopPOSResize = () => {
-  if (!isResizingPOS.value) return;
-
-  isResizingPOS.value = false;
-  localStorage.setItem("pos_products_width", String(productsPaneWidth.value));
-  document.body.classList.remove("pos-resizing");
-  window.removeEventListener("pointermove", handlePOSResizeMove);
-  window.removeEventListener("pointerup", stopPOSResize);
-  window.removeEventListener("pointercancel", stopPOSResize);
-};
-
-const startPOSResize = (event) => {
-  if (activeTab.value !== "POS") return;
-
-  event.preventDefault();
-  isResizingPOS.value = true;
-  document.body.classList.add("pos-resizing");
-  window.addEventListener("pointermove", handlePOSResizeMove);
-  window.addEventListener("pointerup", stopPOSResize);
-  window.addEventListener("pointercancel", stopPOSResize);
-};
+const currentCompany = ref(null);
 
 // --- PRINT MODAL STATE ---
 const showPrintModal = ref(false);
 const invoiceToPrint = ref(null);
-const currentCompany = ref(null);
-
-// --- PAYMENT MODAL STATE ---
-const showPaymentModal = ref(false);
-const invoiceToPay = ref(null);
 
 // --- CLIENT FORM MODAL STATE ---
 const showClientForm = ref(false);
 
-// --- CANCEL MODAL STATE ---
-const showCancelModal = ref(false);
-const cancelTarget = ref(null);
-const cancelMotif = ref('');
-const cancelRestoreStock = ref(true);
-const cancelError = ref('');
-
-const showNotification = (message, type = 'success') => {
-  const normalizedType = type === 'danger' ? 'error' : type;
-  if (typeof toast[normalizedType] === 'function') {
+const showNotification = (message, type = "success") => {
+  const normalizedType = type === "danger" ? "error" : type;
+  if (typeof toast[normalizedType] === "function") {
     toast[normalizedType](message);
   } else {
     toast.info(message);
   }
 };
 
-const fetchInvoices = () => {
-  invoiceListKey.value++;
-};
-
-const persistSavedCarts = () => {
-  localStorage.setItem(SAVED_CARTS_KEY, JSON.stringify(savedCarts.value));
-};
-
-const normalizeBackendSavedCart = (savedCart) => ({
-  id: savedCart.local_id,
-  server_id: savedCart.id,
-  identifier: savedCart.identifier,
-  created_at: savedCart.created_at,
-  updated_at: savedCart.updated_at,
-  customer: savedCart.customer || savedCart.customer_snapshot,
-  currency: savedCart.currency,
-  payment_type: savedCart.payment_type,
-  warehouse_id: savedCart.warehouse_id,
-  total_ht: Number(savedCart.total_ht) || 0,
-  total_tva: Number(savedCart.total_tva) || 0,
-  total_ttc: Number(savedCart.total_ttc) || 0,
-  items: savedCart.items || [],
-  sync_status: "synced",
-});
-
-const savedCartPayload = (savedCart) => ({
-  local_id: savedCart.id,
-  identifier: savedCart.identifier,
-  customer_id: savedCart.customer?.id || null,
-  warehouse_id: savedCart.warehouse_id || null,
-  currency: savedCart.currency || "BIF",
-  payment_type: savedCart.payment_type || "1",
-  total_ht: Number(savedCart.total_ht) || 0,
-  total_tva: Number(savedCart.total_tva) || 0,
-  total_ttc: Number(savedCart.total_ttc) || 0,
-  customer_snapshot: savedCart.customer || null,
-  items: savedCart.items.map((item) => ({ ...item })),
-});
-
-const updateSavedCartSyncState = (savedCartId, updates) => {
-  const index = savedCarts.value.findIndex((item) => item.id === savedCartId);
-  if (index === -1) return;
-
-  savedCarts.value.splice(index, 1, {
-    ...savedCarts.value[index],
-    ...updates,
-  });
-  persistSavedCarts();
-};
-
-const syncSavedCartToBackend = (savedCart) => {
-  updateSavedCartSyncState(savedCart.id, { sync_status: "syncing" });
-
-  api.post("/saved-pos-carts", savedCartPayload(savedCart))
-    .then((response) => {
-      const backendCart = response.data?.data;
-      updateSavedCartSyncState(savedCart.id, {
-        server_id: backendCart?.id,
-        sync_status: "synced",
-        updated_at: backendCart?.updated_at || savedCart.updated_at,
-      });
-    })
-    .catch((error) => {
-      console.error("Erreur synchro facture enregistrée:", error);
-      updateSavedCartSyncState(savedCart.id, { sync_status: "pending" });
-    });
-};
-
-const deleteSavedCartFromBackend = (savedCart) => {
-  if (!savedCart) return;
-
-  const key = encodeURIComponent(savedCart.id || savedCart.identifier);
-  api.delete(`/saved-pos-carts/${key}`).catch((error) => {
-    console.error("Erreur suppression facture enregistrée:", error);
-  });
-};
-
-const fetchSavedCartsFromBackend = () => {
-  api.get("/saved-pos-carts", { params: { per_page: 100 } })
-    .then((response) => {
-      const records = response.data?.data?.data || response.data?.data || [];
-      const backendCarts = records.map(normalizeBackendSavedCart);
-      const localById = new Map(savedCarts.value.map((item) => [item.id, item]));
-
-      backendCarts.forEach((backendCart) => {
-        const localCart = localById.get(backendCart.id);
-        if (!localCart || localCart.sync_status === "synced") {
-          localById.set(backendCart.id, backendCart);
-        }
-      });
-
-      savedCarts.value = Array.from(localById.values()).sort((a, b) => {
-        return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0);
-      });
-      persistSavedCarts();
-    })
-    .catch((error) => {
-      console.error("Erreur chargement factures enregistrées:", error);
-    });
-};
-
-const padNumber = (value) => String(value).padStart(2, "0");
-
-const buildSavedCartIdentifier = () => {
-  const now = new Date();
-  const datePart = [
-    now.getFullYear(),
-    padNumber(now.getMonth() + 1),
-    padNumber(now.getDate()),
-  ].join("");
-  const timePart = [
-    padNumber(now.getHours()),
-    padNumber(now.getMinutes()),
-    padNumber(now.getSeconds()),
-  ].join("");
-
-  return `FACT-ATT-${datePart}-${timePart}`;
-};
-
-const handleSaveCart = (draft) => {
-  const existingIndex = activeSavedCartId.value
-    ? savedCarts.value.findIndex((item) => item.id === activeSavedCartId.value)
-    : -1;
-  const existingDraft = existingIndex >= 0 ? savedCarts.value[existingIndex] : null;
-  const savedDraft = {
-    id: existingDraft?.id || `saved-cart-${Date.now()}`,
-    identifier: existingDraft?.identifier || buildSavedCartIdentifier(),
-    created_at: existingDraft?.created_at || new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    ...draft,
-    items: draft.items.map((item) => ({ ...item })),
-  };
-
-  if (existingIndex >= 0) {
-    savedCarts.value.splice(existingIndex, 1, savedDraft);
-  } else {
-    savedCarts.value.unshift(savedDraft);
-  }
-
-  activeSavedCartId.value = null;
-  cart.value = [];
-  persistSavedCarts();
-  showNotification(`Facture enregistrée: ${savedDraft.identifier}`);
-  syncSavedCartToBackend(savedDraft);
-};
-
-const handleRestoreSavedCart = (savedCart) => {
-  cart.value = savedCart.items.map((item) => ({ ...item }));
-  selectedWarehouseId.value = savedCart.warehouse_id || selectedWarehouseId.value;
-  activeSavedCartId.value = savedCart.id;
-  showNotification(`Facture reprise: ${savedCart.identifier}`);
-};
-
-const handleDeleteSavedCart = (savedCartId) => {
-  const savedCart = savedCarts.value.find((item) => item.id === savedCartId);
-  savedCarts.value = savedCarts.value.filter((item) => item.id !== savedCartId);
-  if (activeSavedCartId.value === savedCartId) {
-    activeSavedCartId.value = null;
-  }
-  persistSavedCarts();
-  deleteSavedCartFromBackend(savedCart);
-  showNotification(
-    savedCart
-      ? `Facture enregistrée supprimée: ${savedCart.identifier}`
-      : "Facture enregistrée supprimée"
-  );
-};
-
-// Handle warehouse change from POS
-const handleStockChanged = (warehouseId) => {
-  const hasCartFromAnotherStock = cart.value.some(
-    (item) => !item.warehouse_id || item.warehouse_id !== warehouseId
-  );
-
-  if (
-    (selectedWarehouseId.value && selectedWarehouseId.value !== warehouseId) ||
-    (!selectedWarehouseId.value && hasCartFromAnotherStock)
-  ) {
-    cart.value = [];
-  }
-
-  selectedWarehouseId.value = warehouseId;
-};
-
-// ... (other functions)
-
-// La liste renvoie un résumé de facture sans ses lignes. On recharge le détail
-// complet avant l'aperçu ou l'impression afin d'afficher les désignations.
-const openInvoiceDetails = async (invoice) => {
+// --- DATA FETCHING ---
+const fetchCustomers = async () => {
   try {
-    const response = await api.get(`/invoices/${invoice.id}`);
-    invoiceToPrint.value = response.data?.data ?? invoice;
-  } catch (error) {
-    console.error("Erreur lors du chargement du détail de la facture:", error);
-    // L'aperçu reste disponible avec les données déjà chargées si l'API échoue.
-    invoiceToPrint.value = invoice;
+    const response = await api.get("/customers");
+    if (response.data?.success) {
+      customers.value = response.data.data?.data || response.data.data || [];
+    }
+  } catch (e) {
+    console.error("Error fetching customers", e);
   }
-
-  showPrintModal.value = true;
-};
-
-// Handle view invoice from list
-const handleViewInvoice = (invoice) => openInvoiceDetails(invoice);
-
-// Handle print invoice from list
-const handlePrintInvoice = (invoice) => openInvoiceDetails(invoice);
-
-// Close print modal
-const closePrintModal = () => {
-    showPrintModal.value = false;
-    invoiceToPrint.value = null;
-};
-
-// Handle pay invoice
-const handlePayInvoice = (invoice) => {
-    invoiceToPay.value = invoice;
-    showPaymentModal.value = true;
-};
-
-const closePaymentModal = () => {
-    showPaymentModal.value = false;
-    invoiceToPay.value = null;
-};
-
-const handlePaymentAdded = () => {
-  fetchInvoices();
-};
-
-// Handle cancel invoice
-const openCancelModal = (invoice) => {
-  cancelTarget.value = invoice;
-  cancelMotif.value = '';
-  cancelRestoreStock.value = true;
-  cancelError.value = '';
-  showCancelModal.value = true;
-};
-
-const confirmCancelInvoice = async () => {
-  if (!cancelMotif.value?.trim()) {
-    cancelError.value = "Le motif d'annulation est requis.";
-    return;
-  }
-  cancelError.value = '';
-  try {
-    await api.post(`/invoices/${cancelTarget.value.id}/cancel`, {
-      motif: cancelMotif.value,
-      restore_stock: cancelRestoreStock.value,
-    });
-    showCancelModal.value = false;
-    cancelTarget.value = null;
-    showNotification('Facture annulée avec succès.');
-    fetchInvoices();
-  } catch (err) {
-    cancelError.value = err.response?.data?.message || "Erreur lors de l'annulation.";
-  }
-};
-
-// Handle client created from modal
-const handleClientCreated = (newClient) => {
-  customers.value.push(newClient);
-  showClientForm.value = false;
-};
-
-// Open client form modal
-const openClientForm = () => {
-  showClientForm.value = true;
 };
 
 const fetchCompany = async () => {
   try {
     const response = await api.get("/companies");
-    if (response.data.success && response.data.data.data?.length > 0) {
+    if (response.data?.success && response.data.data?.data?.length > 0) {
       currentCompany.value = response.data.data.data[0];
     }
   } catch (e) {
@@ -417,418 +67,124 @@ const fetchCompany = async () => {
   }
 };
 
-// --- PROFORMA STATE ---
-// Map state from Vuex
-const proformas = computed(() => store.getters["proformats/allProformats"]);
-const isLoadingProformas = computed(() => store.getters["proformats/isLoading"]);
-const searchProforma = ref("");
-const showProformaForm = ref(false);
-const isEditingProforma = ref(false);
-const editingProformaData = ref(null);
-
-// --- INITIALIZATION ---
-const fetchCustomers = async () => {
-  try {
-    const response = await api.get("/customers");
-    if (response.data.success) customers.value = response.data.data.data;
-  } catch (e) {
-    console.error("Error fetching customers", e);
-  }
-};
-
-const fetchProformas = () => {
-  store.dispatch("proformats/fetchProformas");
-};
-
 onMounted(() => {
   fetchCustomers();
-  fetchProformas();
   fetchCompany();
-  fetchSavedCartsFromBackend();
 });
 
-// --- CART LOGIC ---
-const addToCart = (product) => {
-  const vatRate = product.vat_rate === null || product.vat_rate === undefined
-    ? 0
-    : Number(product.vat_rate);
-  const productPrice = getEffectiveProductPrice(product);
-
-  // Assurer que le produit a toutes les propriétés requises
-  const normalizedProduct = {
-    id: product.id,
-    warehouse_product_id: product.warehouse_product_id,
-    warehouse_id: product.warehouse_id || selectedWarehouseId.value,
-    name: product.name,
-    price: productPrice,
-    product_price: productPrice,
-    libelle: product.libelle,
-    libelle_price: Number(product.libelle_price) || 0,
-    quantity: 1,
-    category: product.category,
-    vat_rate: Number.isNaN(vatRate) ? 0 : vatRate,
-    item_code: product.item_code,
-    barcode: product.barcode,
-    unit_price: Number(product.unit_price) || 0,
-    price_promo: getPromoPrice(product),
-    stock: Number(product.stock) || 0,
-    // Propriétés optionnelles
-    item_ct: product.item_ct || 0,
-    item_tl: product.item_tl || 0,
-  };
-  
-  const existingIndex = cart.value.findIndex((i) => i.id === normalizedProduct.id);
-  if (existingIndex !== -1) {
-    const [existing] = cart.value.splice(existingIndex, 1);
-    if ((isSuperAdmin.value || !existing.price || Number(existing.price) <= 0) && productPrice > 0) {
-      existing.price = productPrice;
-    }
-    existing.price_promo = getPromoPrice(product);
-    existing.product_price = existing.product_price || productPrice;
-    existing.libelle = product.libelle;
-    existing.libelle_price = Number(product.libelle_price) || 0;
-    existing.quantity++;
-    cart.value.unshift(existing);
-  } else {
-    cart.value.unshift(normalizedProduct);
-  }
-};
-
-const updateQuantity = (id, delta) => {
-  const item = cart.value.find((i) => i.id === id);
-  if (item && item.quantity + delta > 0) item.quantity += delta;
-};
-
-const removeFromCart = (id) => {
-  cart.value = cart.value.filter((i) => i.id !== id);
-};
-
-const clearCart = () => {
-  cart.value = [];
-  activeSavedCartId.value = null;
-};
-
-watch(
-  posProducts,
-  (products) => {
-    cart.value.forEach((item) => {
-      const product = products.find((posProduct) => posProduct.id === item.id);
-      const productPrice = getEffectiveProductPrice(product);
-      if (!isSuperAdmin.value && item.price && Number(item.price) > 0) return;
-      if (productPrice > 0) {
-        item.price = productPrice;
-        item.unit_price = Number(product?.unit_price) || productPrice;
-        item.price_promo = getPromoPrice(product);
-        item.product_price = item.product_price || productPrice;
-        item.libelle = product?.libelle;
-        item.libelle_price = Number(product?.libelle_price) || 0;
-        item.warehouse_product_id = product?.warehouse_product_id || item.warehouse_product_id;
-        item.warehouse_id = product?.warehouse_id || item.warehouse_id;
-      }
-    });
-  },
-  { deep: true }
-);
-
-watch(
-  cart,
-  (newCart) => {
-    localStorage.setItem("pos_cart", JSON.stringify(newCart));
-  },
-  { deep: true }
-);
-
+// Focus search input when switching back to POS
 watch(activeTab, (tab) => {
   if (tab === "POS") {
-    setTimeout(() => posRef.value?.focusSearchInput?.(), 0);
+    setTimeout(() => posTabRef.value?.focusSearchInput?.(), 0);
   }
 });
 
-onBeforeUnmount(() => {
-  stopPOSResize();
-});
-
-const getStockErrorMessage = (stockDetails = [], payloadItems = []) => {
-  const unavailableItem = stockDetails.find((item) => item && item.is_available === false);
-  if (!unavailableItem) return null;
-
-  const payloadItem = payloadItems.find((item) => item.product_id === unavailableItem.product_id);
-  const designation = payloadItem?.item_designation || `Produit #${unavailableItem.product_id}`;
-
-  return `${designation}: stock insuffisant (disponible ${unavailableItem.available}, demandé ${unavailableItem.requested})`;
+// --- CLIENT CREATION HANDLERS ---
+const openClientForm = () => {
+  showClientForm.value = true;
 };
 
-const getValidationErrorMessage = (errors) => {
-  if (!errors) return null;
-  if (typeof errors === 'string') return errors;
-
-  const firstErrorField = Object.keys(errors)[0];
-  const firstError = errors[firstErrorField];
-
-  if (Array.isArray(firstError)) return firstError[0];
-  if (typeof firstError === 'string') return firstError;
-
-  return null;
+const handleClientCreated = (newClient) => {
+  customers.value.push(newClient);
+  showClientForm.value = false;
+  showNotification("Client créé avec succès");
 };
 
-const getInvoiceSubmitErrorMessage = (error, payload) => {
-  const responseData = error.response?.data;
-  const stockMessage = getStockErrorMessage(responseData?.stock_details, payload?.items || []);
-
-  if (stockMessage) return stockMessage;
-  if (responseData?.message) return responseData.message;
-
-  const validationMessage = getValidationErrorMessage(responseData?.errors);
-  if (validationMessage) return validationMessage;
-
-  return error.message || "Erreur lors de la soumission.";
+// --- PRINT MODAL HANDLERS ---
+const handlePrintInvoice = (invoice) => {
+  invoiceToPrint.value = invoice;
+  showPrintModal.value = true;
 };
 
-const decrementPOSStockAfterSale = (items = []) => {
-  const soldQuantities = new Map();
-
-  items.forEach((item) => {
-    const key = item.warehouse_product_id || item.product_id;
-    if (!key) return;
-
-    const quantity = Number(item.item_quantity) || 0;
-    soldQuantities.set(key, (soldQuantities.get(key) || 0) + quantity);
-  });
-
-  const updatedProducts = posProducts.value
-    .map((product) => {
-      const key = product.warehouse_product_id || product.id;
-      const soldQuantity = soldQuantities.get(key) || 0;
-
-      return {
-        ...product,
-        stock: Math.max((Number(product.stock) || 0) - soldQuantity, 0),
-      };
-    })
-    .filter((product) => Number(product.stock) > 0);
-
-  store.commit("SET_POS_PRODUCTS", {
-    stockId: selectedWarehouseId.value,
-    products: updatedProducts,
-  });
+const closePrintModal = () => {
+  showPrintModal.value = false;
+  invoiceToPrint.value = null;
 };
 
-const handleInvoiceSubmit = async (payload) => {
+// --- GENERIC SUBMIT HANDLER (Service, Caution, Avoir) ---
+const handleGenericInvoiceSubmit = async (payload) => {
   isSubmitting.value = true;
   try {
     const response = await api.post("/invoices", payload);
-    if (response.data.success) {
+    if (response.data?.success) {
       const createdInvoice = response.data.data?.invoice || response.data.data;
-
-      invoiceToPrint.value = createdInvoice;
-      showPrintModal.value = true;
-
-      if (payload.invoice_action === "POS") {
-        decrementPOSStockAfterSale(payload.items);
-        if (activeSavedCartId.value) {
-          const savedCartToDelete = savedCarts.value.find((item) => item.id === activeSavedCartId.value);
-          savedCarts.value = savedCarts.value.filter((item) => item.id !== activeSavedCartId.value);
-          activeSavedCartId.value = null;
-          persistSavedCarts();
-          deleteSavedCartFromBackend(savedCartToDelete);
-        }
-        cart.value = [];
-        await posRef.value?.fetchProducts?.();
-      }
+      handlePrintInvoice(createdInvoice);
     } else {
-      showNotification("Erreur: " + response.data.message, 'error');
+      showNotification("Erreur: " + response.data?.message, "error");
     }
   } catch (e) {
-    console.error("Erreur lors de la soumission:", e);
-    console.error("Détails d'erreur:", e.response?.data);
-    showNotification(getInvoiceSubmitErrorMessage(e, payload), 'error');
+    console.error("Erreur lors de la soumission de la facture:", e);
+    const msg =
+      e.response?.data?.message ||
+      e.message ||
+      "Erreur lors de la soumission de la facture.";
+    showNotification(msg, "error");
   } finally {
     isSubmitting.value = false;
   }
 };
-
-
-
-const handleProformaSave = async (payload) => {
-  isSubmitting.value = true;
-  try {
-    let result;
-
-    if (payload.id && payload.data) {
-      result = await store.dispatch("proformats/updateProforma", {
-        id: payload.id,
-        data: payload.data,
-      });
-    } else {
-      result = await store.dispatch("proformats/createProforma", payload);
-    }
-
-    if (result.success) {
-      showProformaForm.value = false;
-      isEditingProforma.value = false;
-      editingProformaData.value = null;
-    } else {
-      showNotification(result.message || "Erreur lors de l'enregistrement de la proforma", 'error');
-    }
-  } catch (e) {
-    console.error("Proforma save error:", e);
-    showNotification("Erreur lors de l'enregistrement: " + (e.message || "Erreur inconnue"), 'error');
-  } finally {
-    isSubmitting.value = false;
-  }
-};
-
-const handleProformaDelete = async (proforma) => {
-    const result = await store.dispatch("proformats/deleteProforma", proforma.id || proforma.invoice_number); // Check what ID we use
-    if (!result.success) {
-        showNotification("Erreur lors de la suppression", 'error');
-    }
-};
-
-const openNewProforma = () => {
-  isEditingProforma.value = false;
-  editingProformaData.value = null;
-  showProformaForm.value = true;
-};
-
-const handleEditProforma = (data) => {
-  isEditingProforma.value = true;
-  editingProformaData.value = data;
-  showProformaForm.value = true;
-};
-
-// --- VIEW PROFORMA LOGIC ---
-const showProformaDetails = ref(false);
-const selectedProforma = ref(null);
-
-const handleViewProforma = (proforma) => {
-  selectedProforma.value = proforma;
-  showProformaDetails.value = true;
-};
-
-const closeProformaDetails = () => {
-    showProformaDetails.value = false;
-    selectedProforma.value = null;
-};
-
-
 </script>
 
 <template>
-  <!-- overflow-hidden only for POS (fixed split layout); other tabs scroll via page-content -->
-  <div class="sales-page d-flex flex-column h-100" :class="{ 'overflow-hidden': activeTab === 'POS' }">
+  <div
+    class="sales-page d-flex flex-column h-100"
+    :class="{ 'overflow-hidden': activeTab === 'POS' }"
+  >
+    <!-- Header Navigation Tabs -->
     <SalesHeader v-model="activeTab" />
 
-    <div
-      ref="splitContainerRef"
-      class="row g-0"
-      :class="activeTab === 'POS' ? 'pos-sales-row flex-grow-1 overflow-hidden' : ''"
-      :style="activeTab === 'POS' ? posResizeStyles : null"
-    >
-      <!-- Main Content Area -->
-      <div
-        class="d-flex flex-column bg-light border-end products-section"
-        :class="[
-          activeTab === 'POS' ? 'pos-main-column col-12 col-lg-7 overflow-hidden' : 'col-12',
-        ]"
-      >
-        <POS
-          v-if="activeTab === 'POS'"
-          ref="posRef"
-          :cart="cart"
-          @add-to-cart="addToCart"
-          @stock-changed="handleStockChanged"
-        />
-        <InvoiceService
-          v-else-if="activeTab === 'Service'"
-          :is-submitting="isSubmitting"
-          :customers="customers"
-          @submit="handleInvoiceSubmit"
-        />
-        <ProformaService
-          v-else-if="activeTab === 'Proforma'"
-          :proformas="proformas"
-          :is-loading="isLoadingProformas"
-          v-model:search-text="searchProforma"
-          @create="openNewProforma"
-          @edit="handleEditProforma"
-          @delete="handleProformaDelete"
-          @view="handleViewProforma"
-        />
-        <Refund
-          v-else-if="activeTab === 'Caution'"
-          :is-submitting="isSubmitting"
-          :customers="customers"
-          @submit="handleInvoiceSubmit"
-        />
-        <FactureAvoir
-          v-else-if="activeTab === 'Avoir'"
-          :is-submitting="isSubmitting"
-          :customers="customers"
-          @submit="handleInvoiceSubmit"
-        />
-        <InvoicesList
-          v-else-if="activeTab === 'Factures'"
-          :key="invoiceListKey"
-          @view="handleViewInvoice"
-          @print="handlePrintInvoice"
-          @pay="handlePayInvoice"
-          @cancel="openCancelModal"
-        />
-        <Reports v-else-if="activeTab === 'Rapports'" />
-      </div>
+    <!-- POS Tab (Includes Products Split & Cart Panel) -->
+    <PosTab
+      v-if="activeTab === 'POS'"
+      ref="posTabRef"
+      :customers="customers"
+      @sale-completed="handlePrintInvoice"
+      @add-client="openClientForm"
+    />
 
-      <div
-        v-if="activeTab === 'POS'"
-        class="pos-resizer"
-        role="separator"
-        aria-label="Ajuster la largeur produits panier"
-        title="Ajuster la largeur"
-        @pointerdown="startPOSResize"
-      >
-        <span class="pos-resizer-line"></span>
-      </div>
-
-      <!-- Right Panel (Cart - only for POS) -->
-      <CartPanel
-        v-if="activeTab === 'POS'"
-        class="cart-section"
-        :cart="cart"
-        :customers="customers"
+    <!-- Service Invoices Tab -->
+    <div v-else-if="activeTab === 'Service'" class="tab-content-wrapper flex-grow-1 bg-light">
+      <InvoiceService
         :is-submitting="isSubmitting"
-        :saved-carts="savedCarts"
-        :warehouse-id="selectedWarehouseId"
-        @clear-cart="clearCart"
-        @remove-from-cart="removeFromCart"
-        @update-quantity="updateQuantity"
-        @invoice-submitted="handleInvoiceSubmit"
-        @save-cart="handleSaveCart"
-        @restore-saved-cart="handleRestoreSavedCart"
-        @delete-saved-cart="handleDeleteSavedCart"
-        @add-client="openClientForm"
+        :customers="customers"
+        @submit="handleGenericInvoiceSubmit"
       />
     </div>
 
-    <!-- Modals -->
-    <ProformaFormModal
-      v-if="showProformaForm"
-      :show="showProformaForm"
-      :is-editing="isEditingProforma"
-      :is-submitting="isSubmitting"
-      :initial-data="editingProformaData"
-      :customers="customers"
-      @close="showProformaForm = false"
-      @save="handleProformaSave"
-    />
+    <!-- Proforma Tab -->
+    <div v-else-if="activeTab === 'Proforma'" class="tab-content-wrapper flex-grow-1 bg-light">
+      <ProformaTab :customers="customers" />
+    </div>
 
-    <!-- MODAL DÉTAILS/APERÇU PROFORMA -->
-    <ProformaDetailsModal
-      :show="showProformaDetails"
-      :proforma="selectedProforma"
-      @close="closeProformaDetails"
-    />
+    <!-- Caution (Refund) Tab -->
+    <div v-else-if="activeTab === 'Caution'" class="tab-content-wrapper flex-grow-1 bg-light">
+      <Refund
+        :is-submitting="isSubmitting"
+        :customers="customers"
+        @submit="handleGenericInvoiceSubmit"
+      />
+    </div>
 
-    <!-- MODAL IMPRESSION FACTURE -->
+    <!-- Facture Avoir Tab -->
+    <div v-else-if="activeTab === 'Avoir'" class="tab-content-wrapper flex-grow-1 bg-light">
+      <FactureAvoir
+        :is-submitting="isSubmitting"
+        :customers="customers"
+        @submit="handleGenericInvoiceSubmit"
+      />
+    </div>
+
+    <!-- Factures List Tab -->
+    <div v-else-if="activeTab === 'Factures'" class="tab-content-wrapper flex-grow-1 bg-light">
+      <InvoicesTab @print="handlePrintInvoice" />
+    </div>
+
+    <!-- Reports Tab -->
+    <div v-else-if="activeTab === 'Rapports'" class="tab-content-wrapper flex-grow-1 bg-light">
+      <Reports />
+    </div>
+
+    <!-- MODAL IMPRESSION FACTURE (SHARED) -->
     <InvoicePrintModal
       :show="showPrintModal"
       :invoice="invoiceToPrint"
@@ -836,130 +192,21 @@ const closeProformaDetails = () => {
       @close="closePrintModal"
     />
 
-    <!-- MODAL PAIEMENT -->
-    <PaymentModal
-      :show="showPaymentModal"
-      :invoice="invoiceToPay"
-      @close="closePaymentModal"
-      @payment-added="handlePaymentAdded"
-    />
-
-    <!-- MODAL AJOUT CLIENT -->
+    <!-- MODAL AJOUT CLIENT (SHARED) -->
     <ClientFormModal
       :show="showClientForm"
       @close="showClientForm = false"
       @client-created="handleClientCreated"
     />
-
-    <!-- Cancel Invoice Modal -->
-    <div v-if="showCancelModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Annuler la facture {{ cancelTarget?.invoice_number }}</h5>
-            <button type="button" class="btn-close" @click="showCancelModal = false"></button>
-          </div>
-          <div class="modal-body">
-            <div v-if="cancelError" class="alert alert-danger">{{ cancelError }}</div>
-            <div class="mb-3">
-              <label class="form-label">Motif d'annulation</label>
-              <textarea v-model="cancelMotif" class="form-control" rows="3" placeholder="Saisissez le motif d'annulation..."></textarea>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" v-model="cancelRestoreStock" id="restoreStock">
-              <label class="form-check-label" for="restoreStock">Restaurer le stock après annulation</label>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="showCancelModal = false">Fermer</button>
-            <button type="button" class="btn btn-danger" @click="confirmCancelInvoice">Confirmer l'annulation</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </template>
 
-<style>
-.cursor-pointer {
-  cursor: pointer;
-}
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-.pos-sales-row,
-.pos-main-column {
-  min-height: 0;
-}
-.pos-sales-row {
-  align-items: stretch;
-  flex: 1 1 0;
-  height: 0;
-}
+<style scoped>
 .sales-page {
   height: 100%;
   min-height: 0;
 }
-.products-section,
-.cart-section {
-  height: 100%;
-  min-height: 0;
-}
-.products-section {
-  overflow: hidden;
-}
-.pos-resizer {
-  display: none;
-}
-.pos-resizing,
-.pos-resizing * {
-  cursor: w-resize !important;
-  user-select: none !important;
-}
-@media (min-width: 992px) {
-  .pos-sales-row {
-    flex-wrap: nowrap;
-  }
-  .pos-main-column {
-    flex: 0 0 var(--pos-products-width) !important;
-    width: var(--pos-products-width) !important;
-    max-width: var(--pos-products-width) !important;
-  }
-  .pos-sales-row > .cart-section {
-    flex: 0 0 calc(100% - var(--pos-products-width) - var(--pos-resizer-width)) !important;
-    width: calc(100% - var(--pos-products-width) - var(--pos-resizer-width)) !important;
-    max-width: calc(100% - var(--pos-products-width) - var(--pos-resizer-width)) !important;
-  }
-  .pos-resizer {
-    cursor: w-resize;
-    display: flex;
-    flex: 0 0 var(--pos-resizer-width);
-    width: var(--pos-resizer-width);
-    align-items: stretch;
-    justify-content: center;
-    background: #eef1f5;
-    border-left: 1px solid #d9dee7;
-    border-right: 1px solid #d9dee7;
-    touch-action: none;
-    z-index: 5;
-  }
-  .pos-resizer:hover,
-  .pos-resizer:active {
-    background: #dde3ec;
-  }
-  .pos-resizer-line {
-    width: 2px;
-    margin: 0 1px;
-    background: #9aa6b8;
-  }
-}
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.tab-content-wrapper {
+  overflow-y: auto;
 }
 </style>

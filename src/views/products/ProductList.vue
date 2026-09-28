@@ -42,7 +42,10 @@ const totalPages = computed(() => {
 <template>
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-      <div v-if="loading && products?.length" class="px-3 py-2 border-bottom bg-light">
+      <div
+        v-if="loading && products?.length"
+        class="px-3 py-2 border-bottom bg-light"
+      >
         <span class="refresh-badge">
           <i class="bi bi-arrow-clockwise refresh-spin"></i>
           Actualisation
@@ -59,7 +62,7 @@ const totalPages = computed(() => {
               <th>Catégorie</th>
               <th>Libellé</th>
               <th>Marque</th>
-              <th>TVA</th>
+              <!-- <th>TVA</th> -->
               <!-- <th>Prix HT</th>
               <th>Prix TTC</th>
               <th>Quantité</th> -->
@@ -74,7 +77,7 @@ const totalPages = computed(() => {
               <td>{{ getCategoryName(product.product_category_id) }}</td>
               <td>{{ getLibelleName(product) }}</td>
               <td>{{ product.marque || "-" }}</td>
-              <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td>
+              <!-- <td class="fw-bold">{{ formatPrice(product.vat_rate) }}</td> -->
               <!-- <td class="fw-bold">{{ formatPrice(product.price) }}</td>
               <td class="fw-bold">{{ formatPrice(product.price_ttc) }}</td> -->
               <!-- <td>
@@ -174,7 +177,11 @@ const totalPages = computed(() => {
   animation: refresh-spin 0.9s linear infinite;
 }
 @keyframes refresh-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

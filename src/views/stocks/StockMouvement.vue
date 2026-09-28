@@ -110,19 +110,27 @@
             <div class="summary-card border rounded-3 p-3 bg-light h-100">
               <div class="text-muted small">Produits affichés</div>
               <div class="fs-4 fw-bold">{{ filteredStocks.length }}</div>
-              <div class="small text-muted">sur {{ validStocks.length }} produit(s)</div>
+              <div class="small text-muted">
+                sur {{ validStocks.length }} produit(s)
+              </div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="summary-card border rounded-3 p-3 bg-light h-100">
               <div class="text-muted small">Quantité totale affichée</div>
-              <div class="fs-4 fw-bold">{{ formatNumber(filteredStockQuantity) }}</div>
+              <div class="fs-4 fw-bold">
+                {{ formatNumber(filteredStockQuantity) }}
+              </div>
               <div class="small text-muted">toutes unités confondues</div>
             </div>
           </div>
           <div class="col-md-4">
-            <div class="summary-card border rounded-3 p-3 bg-primary-subtle h-100">
-              <div class="text-muted small">Chiffre d'affaires potentiel affiché</div>
+            <div
+              class="summary-card border rounded-3 p-3 bg-primary-subtle h-100"
+            >
+              <div class="text-muted small">
+                Chiffre d'affaires potentiel affiché
+              </div>
               <div class="fs-5 fw-bold text-primary">
                 {{ formatCurrencyTotals(filteredStockRevenueByCurrency) }}
               </div>
@@ -146,7 +154,10 @@
                 <th class="text-end">Quantité</th>
                 <th class="text-center">Alerte</th>
                 <th class="text-center">TVA</th>
-                <th class="text-end">{{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}</th>
+                <th class="text-end">PHTVA</th>
+                <th class="text-end">
+                  {{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}
+                </th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -182,9 +193,14 @@
                   </span>
                   <span v-else class="text-muted">-</span>
                 </td>
-                <td class="text-center">{{ formatNumber(stock.product?.vat_rate) }}%</td>
+                <td class="text-center">
+                  {{ formatNumber(stock.product?.vat_rate) }}%
+                </td>
+                <td class="text-end">---</td>
                 <td class="text-end">
-                  {{ formatCurrency(getStockDisplayPrice(stock), stock.currency) }}
+                  {{
+                    formatCurrency(getStockDisplayPrice(stock), stock.currency)
+                  }}
                 </td>
                 <td class="text-end fw-bold text-success">
                   {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
@@ -232,11 +248,15 @@
           class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mt-3 pt-3 border-top"
         >
           <div class="text-muted small">
-            Affichage de {{ pagination.from }} à {{ pagination.to }} sur {{ pagination.total }} produit(s)
+            Affichage de {{ pagination.from }} à {{ pagination.to }} sur
+            {{ pagination.total }} produit(s)
           </div>
           <nav v-if="pagination.last_page > 1">
             <ul class="pagination pagination-sm mb-0 flex-wrap">
-              <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+              <li
+                class="page-item"
+                :class="{ disabled: pagination.current_page === 1 }"
+              >
                 <button
                   class="page-link"
                   @click="changePage(1)"
@@ -245,7 +265,10 @@
                   <i class="bi bi-chevron-double-left"></i>
                 </button>
               </li>
-              <li class="page-item" :class="{ disabled: pagination.current_page === 1 }">
+              <li
+                class="page-item"
+                :class="{ disabled: pagination.current_page === 1 }"
+              >
                 <button
                   class="page-link"
                   @click="changePage(pagination.current_page - 1)"
@@ -260,9 +283,16 @@
                 class="page-item"
                 :class="{ active: page === pagination.current_page }"
               >
-                <button class="page-link" @click="changePage(page)">{{ page }}</button>
+                <button class="page-link" @click="changePage(page)">
+                  {{ page }}
+                </button>
               </li>
-              <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+              <li
+                class="page-item"
+                :class="{
+                  disabled: pagination.current_page === pagination.last_page,
+                }"
+              >
                 <button
                   class="page-link"
                   @click="changePage(pagination.current_page + 1)"
@@ -271,7 +301,12 @@
                   <i class="bi bi-chevron-right"></i>
                 </button>
               </li>
-              <li class="page-item" :class="{ disabled: pagination.current_page === pagination.last_page }">
+              <li
+                class="page-item"
+                :class="{
+                  disabled: pagination.current_page === pagination.last_page,
+                }"
+              >
                 <button
                   class="page-link"
                   @click="changePage(pagination.last_page)"
@@ -299,11 +334,16 @@
             <h5 class="modal-title">
               <i class="bi bi-pencil-square me-2"></i>Modifier le prix unitaire
             </h5>
-            <button class="btn-close btn-close-white" @click="closeUnitPriceEdit" :disabled="submitting"></button>
+            <button
+              class="btn-close btn-close-white"
+              @click="closeUnitPriceEdit"
+              :disabled="submitting"
+            ></button>
           </div>
           <div class="modal-body">
             <div class="alert alert-info">
-              <strong>{{ selectedStock?.product?.item_designation }}</strong><br />
+              <strong>{{ selectedStock?.product?.item_designation }}</strong
+              ><br />
               <small>{{ selectedStock?.product?.item_code }}</small>
             </div>
             <div class="row g-3">
@@ -318,7 +358,9 @@
                     class="form-control"
                     required
                   />
-                  <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+                  <span class="input-group-text">{{
+                    selectedStock?.currency || "BIF"
+                  }}</span>
                 </div>
               </div>
               <div class="col-md-4">
@@ -331,7 +373,9 @@
                     min="0"
                     class="form-control"
                   />
-                  <span class="input-group-text">{{ selectedStock?.currency || "BIF" }}</span>
+                  <span class="input-group-text">{{
+                    selectedStock?.currency || "BIF"
+                  }}</span>
                 </div>
               </div>
               <div class="col-md-4">
@@ -352,11 +396,23 @@
             </small> -->
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeUnitPriceEdit" :disabled="submitting">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="closeUnitPriceEdit"
+              :disabled="submitting"
+            >
               Annuler
             </button>
-            <button class="btn btn-primary" @click="submitUnitPriceEdit" :disabled="submitting">
-              <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
+            <button
+              class="btn btn-primary"
+              @click="submitUnitPriceEdit"
+              :disabled="submitting"
+            >
+              <span
+                v-if="submitting"
+                class="spinner-border spinner-border-sm me-1"
+              ></span>
               Enregistrer
             </button>
           </div>
@@ -448,11 +504,18 @@
                 />
               </div>
             </div>
-            <div v-if="quickEntryForm.quantity && quickEntryForm.unit_price" class="alert alert-success mt-3 mb-0">
+            <div
+              v-if="quickEntryForm.quantity && quickEntryForm.unit_price"
+              class="alert alert-success mt-3 mb-0"
+            >
               <div class="d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">Montant Total :</span>
                 <span class="fw-bold fs-5">
-                  {{ new Intl.NumberFormat('fr-FR').format(quickEntryForm.quantity * quickEntryForm.unit_price) }}
+                  {{
+                    new Intl.NumberFormat("fr-FR").format(
+                      quickEntryForm.quantity * quickEntryForm.unit_price,
+                    )
+                  }}
                   {{ quickEntryForm.currency }}
                 </span>
               </div>
@@ -539,7 +602,9 @@
                 />
               </div>
               <div class="col-md-6">
-                <label class="form-label">{{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}</label>
+                <label class="form-label">{{
+                  isSuperAdmin ? "Prix Promo" : "Prix Unitaire"
+                }}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -559,16 +624,39 @@
                 </select>
               </div>
             </div>
-            <div v-if="['SP', 'SD'].includes(quickExitForm.movement_type)" class="alert alert-warning mt-3 mb-0">
+            <div
+              v-if="['SP', 'SD'].includes(quickExitForm.movement_type)"
+              class="alert alert-warning mt-3 mb-0"
+            >
               <i class="bi bi-exclamation-triangle me-1"></i>
-              <strong>Perte de stock</strong> — Le montant sera automatiquement enregistré comme perte en caisse.
+              <strong>Perte de stock</strong> — Le montant sera automatiquement
+              enregistré comme perte en caisse.
             </div>
-            <div v-if="quickExitForm.quantity && quickExitForm.unit_price" class="alert mt-3 mb-0"
-                 :class="['SP', 'SD'].includes(quickExitForm.movement_type) ? 'alert-warning' : 'alert-danger'">
+            <div
+              v-if="quickExitForm.quantity && quickExitForm.unit_price"
+              class="alert mt-3 mb-0"
+              :class="
+                ['SP', 'SD'].includes(quickExitForm.movement_type)
+                  ? 'alert-warning'
+                  : 'alert-danger'
+              "
+            >
               <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">Montant Total {{ ['SP', 'SD'].includes(quickExitForm.movement_type) ? '(Perte)' : '' }} :</span>
+                <span class="fw-semibold"
+                  >Montant Total
+                  {{
+                    ["SP", "SD"].includes(quickExitForm.movement_type)
+                      ? "(Perte)"
+                      : ""
+                  }}
+                  :</span
+                >
                 <span class="fw-bold fs-5">
-                  {{ new Intl.NumberFormat('fr-FR').format(quickExitForm.quantity * quickExitForm.unit_price) }}
+                  {{
+                    new Intl.NumberFormat("fr-FR").format(
+                      quickExitForm.quantity * quickExitForm.unit_price,
+                    )
+                  }}
                   {{ quickExitForm.currency }}
                 </span>
               </div>
@@ -624,21 +712,35 @@ const pendingCount = ref(0);
 const currentUser = computed(() => store.getters["auth/currentUser"]);
 
 const hasRole = (roleNames) => {
-  const normalizedRoleNames = roleNames.map((roleName) => roleName.toLowerCase());
+  const normalizedRoleNames = roleNames.map((roleName) =>
+    roleName.toLowerCase(),
+  );
   const roles = currentUser.value?.roles || [];
   const roleNamesFromUser = currentUser.value?.role_names || [];
 
-  return roles.some((role) => {
-    const roleName = role?.name?.toLowerCase();
-    const roleLabel = role?.label?.toLowerCase();
-    return normalizedRoleNames.includes(roleName) || normalizedRoleNames.includes(roleLabel);
-  }) || roleNamesFromUser.some((roleName) => normalizedRoleNames.includes(roleName?.toLowerCase()));
+  return (
+    roles.some((role) => {
+      const roleName = role?.name?.toLowerCase();
+      const roleLabel = role?.label?.toLowerCase();
+      return (
+        normalizedRoleNames.includes(roleName) ||
+        normalizedRoleNames.includes(roleLabel)
+      );
+    }) ||
+    roleNamesFromUser.some((roleName) =>
+      normalizedRoleNames.includes(roleName?.toLowerCase()),
+    )
+  );
 };
 
-const isSuperAdmin = computed(() => hasRole(["super_admin", "superadmin", "super administrateur"]));
+const isSuperAdmin = computed(() =>
+  hasRole(["super_admin", "superadmin", "super administrateur"]),
+);
 
 const validStocks = computed(() => {
-  return stocks.value.filter((stock) => Boolean(stock.product?.item_designation?.trim()));
+  return stocks.value.filter((stock) =>
+    Boolean(stock.product?.item_designation?.trim()),
+  );
 });
 
 const toNumber = (value) => {
@@ -707,12 +809,13 @@ const slugifyFileName = (value) => {
 };
 
 const exportStockToExcel = () => {
-  const rows = filteredStocks.value.map((stock, index) => {
-    const quantity = toNumber(stock.quantity);
-    const price = getStockDisplayPrice(stock);
-    const total = getStockLineTotal(stock);
+  const rows = filteredStocks.value
+    .map((stock, index) => {
+      const quantity = toNumber(stock.quantity);
+      const price = getStockDisplayPrice(stock);
+      const total = getStockLineTotal(stock);
 
-    return `
+      return `
       <tr>
         <td>${index + 1}</td>
         <td>${escapeHtml(stock.product?.item_code || "")}</td>
@@ -724,7 +827,8 @@ const exportStockToExcel = () => {
         <td style="text-align:right;">${formatNumber(total)} ${escapeHtml(stock.currency || "BIF")}</td>
       </tr>
     `;
-  }).join("");
+    })
+    .join("");
 
   const fileName = `stock_${slugifyFileName(warehouse.value?.name || "principal")}_${new Date().toISOString().slice(0, 10)}.xls`;
   const title = escapeHtml(warehouse.value?.name || "Stock");
@@ -836,12 +940,19 @@ const visiblePages = computed(() => {
 });
 
 const filteredStockQuantity = computed(() => {
-  return filteredStocks.value.reduce((total, stock) => total + toNumber(stock.quantity), 0);
+  return filteredStocks.value.reduce(
+    (total, stock) => total + toNumber(stock.quantity),
+    0,
+  );
 });
 
-const stockRevenueByCurrency = computed(() => groupRevenueByCurrency(validStocks.value));
+const stockRevenueByCurrency = computed(() =>
+  groupRevenueByCurrency(validStocks.value),
+);
 
-const filteredStockRevenueByCurrency = computed(() => groupRevenueByCurrency(filteredStocks.value));
+const filteredStockRevenueByCurrency = computed(() =>
+  groupRevenueByCurrency(filteredStocks.value),
+);
 
 const showQuickEntryModal = ref(false);
 const showQuickExitModal = ref(false);
@@ -1021,38 +1132,60 @@ const submitUnitPriceEdit = async () => {
   const rawUnitPrice = unitPriceEditForm.value.unit_price;
   const rawPromoPrice = unitPriceEditForm.value.price_promo;
   const unitPrice = Number(rawUnitPrice);
-  const promoPrice = rawPromoPrice === "" || rawPromoPrice === null ? null : Number(rawPromoPrice);
+  const promoPrice =
+    rawPromoPrice === "" || rawPromoPrice === null
+      ? null
+      : Number(rawPromoPrice);
   const vatRate = Number(unitPriceEditForm.value.vat_rate);
   if (
-    rawUnitPrice === "" || rawUnitPrice === null || !Number.isFinite(unitPrice) || unitPrice < 0
-    || !Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100
-    || (promoPrice !== null && (!Number.isFinite(promoPrice) || promoPrice < 0))
+    rawUnitPrice === "" ||
+    rawUnitPrice === null ||
+    !Number.isFinite(unitPrice) ||
+    unitPrice < 0 ||
+    !Number.isFinite(vatRate) ||
+    vatRate < 0 ||
+    vatRate > 100 ||
+    (promoPrice !== null && (!Number.isFinite(promoPrice) || promoPrice < 0))
   ) {
-    error.value = "Veuillez saisir un prix unitaire, un prix promo et un taux de TVA valides.";
+    error.value =
+      "Veuillez saisir un prix unitaire, un prix promo et un taux de TVA valides.";
     return;
   }
 
   submitting.value = true;
   try {
-    const productId = selectedStock.value?.product?.id || selectedStock.value?.product_id;
-    const productResp = await api.patch(`products/${productId}`, { vat_rate: vatRate, price_promo: promoPrice });
+    const productId =
+      selectedStock.value?.product?.id || selectedStock.value?.product_id;
+    const productResp = await api.patch(`products/${productId}`, {
+      vat_rate: vatRate,
+      price_promo: promoPrice,
+    });
     if (!productResp.data.success) {
-      throw new Error(productResp.data.message || "Impossible de modifier la TVA et le prix promo.");
+      throw new Error(
+        productResp.data.message ||
+          "Impossible de modifier la TVA et le prix promo.",
+      );
     }
     const resp = await api.patch(
       `warehouse-products/${selectedStock.value.id}`,
       { unit_price: unitPrice, price_promo: promoPrice },
     );
     if (resp.data.success) {
-      successMessage.value = "Prix unitaire, prix promo et TVA modifiés avec succès.";
+      successMessage.value =
+        "Prix unitaire, prix promo et TVA modifiés avec succès.";
       closeUnitPriceEdit();
       await fetchDashboard();
       setTimeout(() => (successMessage.value = null), 3000);
     } else {
-      throw new Error(resp.data.message || "Impossible de modifier le prix unitaire.");
+      throw new Error(
+        resp.data.message || "Impossible de modifier le prix unitaire.",
+      );
     }
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || "Erreur lors de la modification du prix unitaire.";
+    error.value =
+      err.response?.data?.message ||
+      err.message ||
+      "Erreur lors de la modification du prix unitaire.";
     setTimeout(() => (error.value = null), 5000);
   } finally {
     submitting.value = false;
