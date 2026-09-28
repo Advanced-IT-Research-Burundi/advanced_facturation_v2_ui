@@ -3,12 +3,27 @@
     <StockHeader />
 
     <div class="container-fluid mt-4">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Libellés des produits</h2>
-        <button class="btn btn-primary d-flex align-items-center gap-2" @click="openCreateModal">
-          <i class="bi bi-plus-lg"></i>
-          Nouveau libellé
-        </button>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <h2 class="mb-0">Libellés des produits</h2>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <div class="input-group" style="width: 280px;">
+            <span class="input-group-text bg-white">
+              <i class="bi bi-search"></i>
+            </span>
+            <input
+              v-model="search"
+              @input="handleSearch"
+              type="text"
+              class="form-control"
+              placeholder="Rechercher un libellé"
+              aria-label="Rechercher un libellé"
+            >
+          </div>
+          <button class="btn btn-primary d-flex align-items-center gap-2" @click="openCreateModal">
+            <i class="bi bi-plus-lg"></i>
+            Nouveau libellé
+          </button>
+        </div>
       </div>
 
       <div class="card shadow-sm border-0">
@@ -141,7 +156,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
 import api from '@/services/api';
 import StockHeader from '../stocks/StockHeader.vue';
 import { useToast } from '@/composables/useToast';
@@ -150,6 +165,8 @@ const toast = useToast()
 const loading = ref(false)
 const formLoading = ref(false)
 const libelles = ref([])
+const search = ref('')
+const searchTimeout = ref(null)
 
 const pagination = ref({
   current_page: 1,
@@ -177,14 +194,61 @@ onMounted(() => {
   fetchLibelles()
 })
 
+onBeforeUnmount(() => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+})
+
+const buildLibelleEndpoint = (url = '/libelles') => {
+  const trimmedSearch = search.value.trim()
+  let endpoint = url
+
+  if (endpoint.startsWith('http')) {
+    const urlObj = new URL(endpoint)
+    if (trimmedSearch) {
+      urlObj.searchParams.set('search', trimmedSearch)
+    } else {
+      urlObj.searchParams.delete('search')
+    }
+    endpoint = '/libelles' + urlObj.search
+    return endpoint
+  }
+
+  if (endpoint.includes('?')) {
+    const [baseUrl, queryString] = endpoint.split('?')
+    const params = new URLSearchParams(queryString)
+    if (trimmedSearch) {
+      params.set('search', trimmedSearch)
+    } else {
+      params.delete('search')
+    }
+    const cleanedQuery = params.toString()
+    endpoint = cleanedQuery ? `${baseUrl}?${cleanedQuery}` : baseUrl
+    return endpoint
+  }
+
+  if (trimmedSearch) {
+    endpoint = `${endpoint}?search=${encodeURIComponent(trimmedSearch)}`
+  }
+
+  return endpoint
+}
+
+const handleSearch = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+
+  searchTimeout.value = setTimeout(() => {
+    fetchLibelles('/libelles')
+  }, 300)
+}
+
 const fetchLibelles = async (url = '/libelles') => {
   loading.value = true
   try {
-    let endpoint = url
-    if (url.startsWith('http')) {
-      const urlObj = new URL(url)
-      endpoint = '/libelles' + urlObj.search
-    }
+    const endpoint = buildLibelleEndpoint(url)
 
     const resp = await api.get(endpoint)
     if (resp.data.success) {
