@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 
-defineEmits(["create"]);
+defineEmits(["create", "apply-vat"]);
 
 const router = useRouter();
 
@@ -20,6 +20,13 @@ const goToImportExport = () => {
       >
         <i class="bi bi-file-earmark-excel"></i>
         <span class="d-none d-sm-inline">Import/Export</span>
+      </button>
+      <button
+        class="btn btn-outline-warning d-inline-flex align-items-center gap-2"
+        @click="$emit('apply-vat')"
+      >
+        <i class="bi bi-percent"></i>
+        <span class="d-none d-sm-inline">Appliquer TVA 18%</span>
       </button>
       <button
         class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"

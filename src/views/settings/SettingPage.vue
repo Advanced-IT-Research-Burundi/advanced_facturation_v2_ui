@@ -3,10 +3,20 @@
     <settings-header></settings-header>
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-      <h1 class="h3 mb-0">{{ activeTab === 'configs' ? 'Configurations' : 'Factures OBR' }}</h1>
+      <h1 class="h3 mb-0">{{ tabTitles[activeTab] }}</h1>
       <div>
-        <button class="btn btn-outline-primary me-2" @click="refreshActiveTab">
+        <button v-if="activeTab !== 'tvaCorrection'" class="btn btn-outline-primary me-2" @click="refreshActiveTab">
           <i class="bi bi-arrow-clockwise"></i> Actualiser
+        </button>
+        <button
+          v-if="activeTab !== 'configs'"
+          class="btn btn-success me-2"
+          :disabled="syncingObr"
+          @click="syncAllObr"
+          title="Envoyer à l'OBR les factures, mouvements de stock et importations en attente"
+        >
+          <span v-if="syncingObr" class="spinner-border spinner-border-sm me-1"></span>
+          <i v-else class="bi bi-cloud-upload"></i> Synchroniser OBR
         </button>
         <button v-if="activeTab === 'configs'" class="btn btn-primary" @click="openCreateModal">
           <i class="bi bi-plus-lg"></i> Ajouter
@@ -23,6 +33,11 @@
       <li class="nav-item">
         <button class="nav-link" :class="{ active: activeTab === 'obrInvoices' }" @click="switchTab('obrInvoices')">
           <i class="bi bi-receipt me-1"></i> Factures OBR
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: activeTab === 'tvaCorrection' }" @click="switchTab('tvaCorrection')">
+          <i class="bi bi-percent me-1"></i> Correction TVA
         </button>
       </li>
     </ul>
@@ -87,6 +102,10 @@
           </nav>
         </div>
       </div>
+    </section>
+
+    <section v-else-if="activeTab === 'tvaCorrection'">
+      <tva-correction></tva-correction>
     </section>
 
     <section v-else>
@@ -324,15 +343,23 @@
         </div>
       </div>
     </div>
+    <obr-sync-modal
+      v-if="showSyncModal"
+      ref="syncModalRef"
+      @done="onSyncDone"
+      @close="showSyncModal = false"
+    ></obr-sync-modal>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import api from '@/services/api';
 import SettingsHeader from './SettingsHeader.vue';
+import TvaCorrection from './TvaCorrection.vue';
+import ObrSyncModal from './ObrSyncModal.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
@@ -344,9 +371,17 @@ const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
 const { printObrInvoice } = useInvoicePrint();
 
-const resolveRouteTab = () => route.name === 'settings.obr-invoices' || route.query.tab === 'obrInvoices'
-  ? 'obrInvoices'
-  : 'configs';
+const tabTitles = {
+  configs: 'Configurations',
+  obrInvoices: 'Factures OBR',
+  tvaCorrection: 'Correction TVA',
+};
+
+const resolveRouteTab = () => {
+  if (route.name === 'settings.obr-invoices' || route.query.tab === 'obrInvoices') return 'obrInvoices';
+  if (route.query.tab === 'tvaCorrection') return 'tvaCorrection';
+  return 'configs';
+};
 
 const activeTab = ref(resolveRouteTab());
 const showModal = ref(false);
@@ -426,8 +461,12 @@ watch(
 );
 
 const goToTabRoute = (tab) => {
+  if (tab === 'tvaCorrection') {
+    router.push({ name: 'settings', query: { tab } });
+    return;
+  }
   const routeName = tab === 'obrInvoices' ? 'settings.obr-invoices' : 'settings';
-  if (route.name !== routeName) {
+  if (route.name !== routeName || route.query.tab) {
     router.push({ name: routeName });
   }
 };
@@ -522,6 +561,30 @@ const getObrPageRange = () => {
     range.push(i);
   }
   return range;
+};
+
+const syncingObr = ref(false);
+
+const showSyncModal = ref(false);
+const syncModalRef = ref(null);
+
+const syncAllObr = async () => {
+  const confirmed = await confirmDialog(
+    "Envoyer à l'OBR toutes les factures, mouvements de stock et importations en attente ?"
+  );
+  if (!confirmed) return;
+
+  showSyncModal.value = true;
+  syncingObr.value = true;
+  await nextTick();
+  syncModalRef.value?.start();
+};
+
+const onSyncDone = () => {
+  syncingObr.value = false;
+  if (activeTab.value === 'obrInvoices') {
+    fetchObrInvoices(obrPagination.current_page || 1);
+  }
 };
 
 const sendObrInvoice = async (invoice) => {

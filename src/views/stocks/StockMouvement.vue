@@ -105,6 +105,36 @@
           </div>
         </div>
 
+        <div
+          class="d-flex flex-wrap align-items-center gap-3 mb-3"
+          :class="mismatchCount ? 'text-warning-emphasis' : 'text-success'"
+        >
+          <span class="small">
+            <i
+              class="bi me-1"
+              :class="mismatchCount ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'"
+            ></i>
+            <template v-if="mismatchCount">
+              {{ mismatchCount }} produit(s) avec un prix catalogue différent de
+              warehouse_products
+            </template>
+            <template v-else>
+              Tous les prix correspondent à warehouse_products
+            </template>
+          </span>
+          <div v-if="mismatchCount" class="form-check form-switch mb-0">
+            <input
+              id="showOnlyMismatches"
+              v-model="showOnlyMismatches"
+              class="form-check-input"
+              type="checkbox"
+            />
+            <label class="form-check-label small text-body" for="showOnlyMismatches">
+              Afficher uniquement les écarts
+            </label>
+          </div>
+        </div>
+
         <div class="row g-3 mb-3">
           <div class="col-md-4">
             <div class="summary-card border rounded-3 p-3 bg-light h-100">
@@ -154,11 +184,11 @@
                 <th class="text-end">Quantité</th>
                 <th class="text-center">Alerte</th>
                 <th class="text-center">TVA</th>
-                <th class="text-end">PHTVA</th>
-                <th class="text-end">
-                  {{ isSuperAdmin ? "Prix Promo" : "Prix Unitaire" }}
-                </th>
+                <th class="text-end">P.U. HTVA</th>
+                <th class="text-end">P.U. TVAC</th>
+                <th class="text-end">Prix Promo</th>
                 <th class="text-end">Total Produit</th>
+                <th class="text-center">Contrôle prix</th>
                 <th class="text-center">Actions</th>
               </tr>
             </thead>
@@ -196,14 +226,37 @@
                 <td class="text-center">
                   {{ formatNumber(stock.product?.vat_rate) }}%
                 </td>
-                <td class="text-end">---</td>
                 <td class="text-end">
-                  {{
-                    formatCurrency(getStockDisplayPrice(stock), stock.currency)
-                  }}
+                  {{ formatCurrency(getPriceHTVA(stock), stock.currency) }}
+                </td>
+                <td class="text-end">
+                  {{ formatCurrency(getPriceTVAC(stock), stock.currency) }}
+                </td>
+                <td class="text-end">
+                  <span v-if="getPromoPrice(stock) > 0" class="text-warning-emphasis fw-semibold">
+                    {{ formatCurrency(getPromoPrice(stock), stock.currency) }}
+                  </span>
+                  <span v-else class="text-muted">-</span>
                 </td>
                 <td class="text-end fw-bold text-success">
                   {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
+                </td>
+                <td class="text-center">
+                  <span
+                    v-if="getPriceMismatches(stock).length"
+                    class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+                    :title="getPriceMismatches(stock).join('\n')"
+                  >
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    Écart
+                  </span>
+                  <span
+                    v-else
+                    class="badge bg-success-subtle text-success border border-success-subtle"
+                    title="Prix identiques à warehouse_products"
+                  >
+                    <i class="bi bi-check-circle-fill me-1"></i>OK
+                  </span>
                 </td>
                 <td class="text-center">
                   <button
@@ -230,7 +283,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="9" class="text-center py-5 text-muted">
+                <td colspan="12" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery
@@ -748,9 +801,52 @@ const toNumber = (value) => {
   return Number.isFinite(numberValue) ? numberValue : 0;
 };
 
+// Prix promo tel qu'enregistré dans warehouse_products (sans repli sur products)
 const getPromoPrice = (stock) => {
-  return toNumber(stock.price_promo ?? stock.product?.price_promo);
+  return toNumber(stock.price_promo);
 };
+
+const getPriceHTVA = (stock) => toNumber(stock.unit_price);
+
+const getPriceTVAC = (stock) => {
+  return getPriceHTVA(stock) * (1 + toNumber(stock.product?.vat_rate) / 100);
+};
+
+// Compare les prix du catalogue (products) avec ceux du stock (warehouse_products).
+// Le POS privilégie products.price et se rabat sur products.price_promo : tout écart
+// signifie que le prix facturé n'est pas celui du stock.
+const getPriceMismatches = (stock) => {
+  const issues = [];
+  const catalogPrice = toNumber(stock.product?.price);
+  const catalogPromo = toNumber(stock.product?.price_promo);
+
+  if (catalogPrice > 0 && catalogPrice !== getPriceHTVA(stock)) {
+    issues.push(
+      `Prix catalogue ${formatNumber(catalogPrice)} ≠ prix stock ${formatNumber(getPriceHTVA(stock))}`,
+    );
+  }
+  if (
+    (stock.price_promo === null || stock.price_promo === undefined) &&
+    catalogPromo > 0
+  ) {
+    issues.push(
+      `Promo absente du stock, promo catalogue ${formatNumber(catalogPromo)} utilisée`,
+    );
+  } else if (catalogPromo > 0 && catalogPromo !== getPromoPrice(stock)) {
+    issues.push(
+      `Promo catalogue ${formatNumber(catalogPromo)} ≠ promo stock ${formatNumber(getPromoPrice(stock))}`,
+    );
+  }
+  return issues;
+};
+
+const showOnlyMismatches = ref(false);
+
+const mismatchCount = computed(
+  () =>
+    validStocks.value.filter((stock) => getPriceMismatches(stock).length > 0)
+      .length,
+);
 
 const getStockDisplayPrice = (stock) => {
   if (isSuperAdmin.value && getPromoPrice(stock) > 0) {
@@ -812,8 +908,9 @@ const exportStockToExcel = () => {
   const rows = filteredStocks.value
     .map((stock, index) => {
       const quantity = toNumber(stock.quantity);
-      const price = getStockDisplayPrice(stock);
       const total = getStockLineTotal(stock);
+      const currency = escapeHtml(stock.currency || "BIF");
+      const mismatches = getPriceMismatches(stock);
 
       return `
       <tr>
@@ -823,8 +920,11 @@ const exportStockToExcel = () => {
         <td style="text-align:right;">${formatNumber(quantity)}</td>
         <td style="text-align:center;">${stock.is_alert ? "Alerte" : "-"}</td>
         <td style="text-align:center;">${formatNumber(stock.product?.vat_rate || 0)}%</td>
-        <td style="text-align:right;">${formatNumber(price)} ${escapeHtml(stock.currency || "BIF")}</td>
-        <td style="text-align:right;">${formatNumber(total)} ${escapeHtml(stock.currency || "BIF")}</td>
+        <td style="text-align:right;">${formatNumber(getPriceHTVA(stock))} ${currency}</td>
+        <td style="text-align:right;">${formatNumber(getPriceTVAC(stock))} ${currency}</td>
+        <td style="text-align:right;">${getPromoPrice(stock) > 0 ? `${formatNumber(getPromoPrice(stock))} ${currency}` : "-"}</td>
+        <td style="text-align:right;">${formatNumber(total)} ${currency}</td>
+        <td>${mismatches.length ? escapeHtml(mismatches.join(" ; ")) : "OK"}</td>
       </tr>
     `;
     })
@@ -858,8 +958,11 @@ const exportStockToExcel = () => {
               <th>Quantité</th>
               <th>Alerte</th>
               <th>TVA</th>
-              <th>Prix</th>
+              <th>P.U. HTVA</th>
+              <th>P.U. TVAC</th>
+              <th>Prix Promo</th>
               <th>Total Produit</th>
+              <th>Contrôle prix</th>
             </tr>
           </thead>
           <tbody>
@@ -882,10 +985,14 @@ const exportStockToExcel = () => {
 
 // Computed property pour filtrer les stocks
 const filteredStocks = computed(() => {
-  if (!searchQuery.value) return validStocks.value;
+  const baseStocks = showOnlyMismatches.value
+    ? validStocks.value.filter((stock) => getPriceMismatches(stock).length > 0)
+    : validStocks.value;
+
+  if (!searchQuery.value) return baseStocks;
 
   const query = searchQuery.value.toLowerCase().trim();
-  return validStocks.value.filter((stock) => {
+  return baseStocks.filter((stock) => {
     const code = stock.product?.item_code?.toLowerCase() || "";
     const designation = stock.product?.item_designation?.toLowerCase() || "";
     return code.includes(query) || designation.includes(query);
@@ -989,7 +1096,7 @@ onMounted(() => {
   fetchDashboard();
 });
 
-watch(searchQuery, () => {
+watch([searchQuery, showOnlyMismatches], () => {
   currentPage.value = 1;
 });
 
@@ -1117,7 +1224,7 @@ const openUnitPriceEdit = (stock) => {
   selectedStock.value = stock;
   unitPriceEditForm.value = {
     unit_price: stock.unit_price ?? "",
-    price_promo: stock.price_promo ?? stock.product?.price_promo ?? "",
+    price_promo: stock.price_promo ?? "",
     vat_rate: stock.product?.vat_rate ?? 0,
   };
   showUnitPriceEditModal.value = true;

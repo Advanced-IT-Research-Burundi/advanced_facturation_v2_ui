@@ -4,6 +4,7 @@ import { useStore } from "vuex";
 import StockHeader from "../stocks/StockHeader.vue";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import api from "@/services/api";
 
 // Child Components
 import ProductHeader from "./ProductHeader.vue";
@@ -98,6 +99,27 @@ const handleDelete = async (product) => {
   }
 };
 
+const applyingVat = ref(false);
+
+const applyVat = async () => {
+  if (applyingVat.value) return;
+  const confirmed = await confirmDialog(
+    "Appliquer la TVA de 18 % à tous les produits qui n'en ont pas ? Le prix de vente TTC ne change pas : le prix enregistré devient le prix hors TVA (prix / 1,18)."
+  );
+  if (!confirmed) return;
+
+  applyingVat.value = true;
+  try {
+    const response = await api.post("/products/apply-vat", { taux: 18 });
+    toast.success(response.data.message);
+    store.dispatch("products/fetchProducts", { page: 1, search: searchQuery.value });
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Erreur lors de l'application de la TVA");
+  } finally {
+    applyingVat.value = false;
+  }
+};
+
 onMounted(() => {
   store.dispatch("products/fetchProductLookups");
 
@@ -128,7 +150,7 @@ onMounted(() => {
       ></button>
     </div>
 
-    <ProductHeader @create="openCreateModal" />
+    <ProductHeader @create="openCreateModal" @apply-vat="applyVat" />
 
     <ProductFilters
       :modelValue="searchQuery"
