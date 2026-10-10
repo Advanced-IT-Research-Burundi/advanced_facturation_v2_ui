@@ -132,46 +132,27 @@ const handleUnitChange = (e) => {
   }
 };
 
-const isCalculating = ref(false);
+// Recalcul HT <-> TTC uniquement sur saisie utilisateur (pas de watchers
+// croisés, qui se relançaient mutuellement et écrasaient la saisie).
+const computeTtc = (price, vat) =>
+  parseFloat(((parseFloat(price) || 0) * (1 + (parseFloat(vat) || 0) / 100)).toFixed(2));
 
-watch(
-  () => form.value.price,
-  (newVal) => {
-    if (isCalculating.value) return;
-    isCalculating.value = true;
-    const price = parseFloat(newVal) || 0;
-    const vat = parseFloat(form.value.vat_rate) || 0;
-    form.value.price_ttc = parseFloat((price * (1 + vat / 100)).toFixed(2));
-    isCalculating.value = false;
-  }
-);
+const onPriceInput = (e) => {
+  if (e.target.value === "") return;
+  form.value.price_ttc = computeTtc(e.target.value, form.value.vat_rate);
+};
 
-watch(
-  () => form.value.vat_rate,
-  (newVal) => {
-    if (isCalculating.value) return;
-    isCalculating.value = true;
-    const price = parseFloat(form.value.price) || 0;
-    const vat = parseFloat(newVal) || 0;
-    form.value.price_ttc = parseFloat((price * (1 + vat / 100)).toFixed(2));
-    isCalculating.value = false;
-  }
-);
+const onVatInput = (e) => {
+  if (e.target.value === "") return;
+  form.value.price_ttc = computeTtc(form.value.price, e.target.value);
+};
 
-watch(
-  () => form.value.price_ttc,
-  (newVal) => {
-    if (isCalculating.value) return;
-    isCalculating.value = true;
-    const ttc = parseFloat(newVal) || 0;
-    const vat = parseFloat(form.value.vat_rate) || 0;
-    const divisor = 1 + vat / 100;
-    if (divisor !== 0) {
-      form.value.price = parseFloat((ttc / divisor).toFixed(2));
-    }
-    isCalculating.value = false;
-  }
-);
+const onTtcInput = (e) => {
+  if (e.target.value === "") return;
+  const ttc = parseFloat(e.target.value) || 0;
+  const vat = parseFloat(form.value.vat_rate) || 0;
+  form.value.price = parseFloat((ttc / (1 + vat / 100)).toFixed(2));
+};
 
 const libelleInput = ref(null);
 const libelleSuggestions = ref([]);
@@ -432,6 +413,7 @@ const updateLibelle = (value) => {
                       type="number"
                       class="form-control bg-light"
                       v-model.number="form.price"
+                      @input="onPriceInput"
                       min="0"
                       step="0.01"
                     />
@@ -458,6 +440,7 @@ const updateLibelle = (value) => {
                       type="number"
                       class="form-control bg-light"
                       v-model.number="form.vat_rate"
+                      @input="onVatInput"
                       required
                       min="0"
                       max="100"
@@ -473,6 +456,7 @@ const updateLibelle = (value) => {
                       type="number"
                       class="form-control bg-light"
                       v-model.number="form.price_ttc"
+                      @input="onTtcInput"
                       min="0"
                       step="0.01"
                     />

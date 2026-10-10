@@ -381,7 +381,7 @@
       style="background: rgba(0, 0, 0, 0.5)"
       tabindex="-1"
     >
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header bg-primary text-white">
             <h5 class="modal-title">
@@ -400,11 +400,12 @@
               <small>{{ selectedStock?.product?.item_code }}</small>
             </div>
             <div class="row g-3">
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <label class="form-label">Prix unitaire *</label>
                 <div class="input-group">
                   <input
                     v-model="unitPriceEditForm.unit_price"
+                    @input="onUnitPriceEditInput"
                     type="number"
                     step="0.01"
                     min="0"
@@ -416,7 +417,7 @@
                   }}</span>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <label class="form-label">Prix promo</label>
                 <div class="input-group">
                   <input
@@ -431,10 +432,11 @@
                   }}</span>
                 </div>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <label class="form-label">TVA (%) *</label>
                 <input
                   v-model.number="unitPriceEditForm.vat_rate"
+                  @input="onVatEditInput"
                   type="number"
                   step="0.01"
                   min="0"
@@ -442,6 +444,22 @@
                   class="form-control"
                   required
                 />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Prix TTC</label>
+                <div class="input-group">
+                  <input
+                    v-model="unitPriceEditForm.price_ttc"
+                    @input="onTtcEditInput"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                  />
+                  <span class="input-group-text">{{
+                    selectedStock?.currency || "BIF"
+                  }}</span>
+                </div>
               </div>
             </div>
             <!-- <small class="text-muted">
@@ -1090,7 +1108,36 @@ const unitPriceEditForm = ref({
   unit_price: "",
   price_promo: "",
   vat_rate: "",
+  price_ttc: "",
 });
+
+// Recalcul HT <-> TTC uniquement sur saisie utilisateur (même logique que
+// le formulaire produit).
+const computeTtc = (price, vat) =>
+  parseFloat(((parseFloat(price) || 0) * (1 + (parseFloat(vat) || 0) / 100)).toFixed(2));
+
+const onUnitPriceEditInput = (e) => {
+  if (e.target.value === "") return;
+  unitPriceEditForm.value.price_ttc = computeTtc(
+    e.target.value,
+    unitPriceEditForm.value.vat_rate,
+  );
+};
+
+const onVatEditInput = (e) => {
+  if (e.target.value === "") return;
+  unitPriceEditForm.value.price_ttc = computeTtc(
+    unitPriceEditForm.value.unit_price,
+    e.target.value,
+  );
+};
+
+const onTtcEditInput = (e) => {
+  if (e.target.value === "") return;
+  const ttc = parseFloat(e.target.value) || 0;
+  const vat = parseFloat(unitPriceEditForm.value.vat_rate) || 0;
+  unitPriceEditForm.value.unit_price = parseFloat((ttc / (1 + vat / 100)).toFixed(2));
+};
 
 onMounted(() => {
   fetchDashboard();
@@ -1226,13 +1273,22 @@ const openUnitPriceEdit = (stock) => {
     unit_price: stock.unit_price ?? "",
     price_promo: stock.price_promo ?? "",
     vat_rate: stock.product?.vat_rate ?? 0,
+    price_ttc:
+      stock.unit_price === null || stock.unit_price === undefined
+        ? ""
+        : computeTtc(stock.unit_price, stock.product?.vat_rate),
   };
   showUnitPriceEditModal.value = true;
 };
 
 const closeUnitPriceEdit = () => {
   showUnitPriceEditModal.value = false;
-  unitPriceEditForm.value = { unit_price: "", price_promo: "", vat_rate: "" };
+  unitPriceEditForm.value = {
+    unit_price: "",
+    price_promo: "",
+    vat_rate: "",
+    price_ttc: "",
+  };
 };
 
 const submitUnitPriceEdit = async () => {

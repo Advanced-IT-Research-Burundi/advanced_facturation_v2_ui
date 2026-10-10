@@ -5,11 +5,11 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
       <h1 class="h3 mb-0">{{ tabTitles[activeTab] }}</h1>
       <div>
-        <button v-if="activeTab !== 'tvaCorrection'" class="btn btn-outline-primary me-2" @click="refreshActiveTab">
+        <button v-if="!['tvaCorrection', 'priceRevision'].includes(activeTab)" class="btn btn-outline-primary me-2" @click="refreshActiveTab">
           <i class="bi bi-arrow-clockwise"></i> Actualiser
         </button>
         <button
-          v-if="activeTab !== 'configs'"
+          v-if="!['configs', 'priceRevision'].includes(activeTab)"
           class="btn btn-success me-2"
           :disabled="syncingObr"
           @click="syncAllObr"
@@ -38,6 +38,11 @@
       <li class="nav-item">
         <button class="nav-link" :class="{ active: activeTab === 'tvaCorrection' }" @click="switchTab('tvaCorrection')">
           <i class="bi bi-percent me-1"></i> Correction TVA
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: activeTab === 'priceRevision' }" @click="switchTab('priceRevision')">
+          <i class="bi bi-tags me-1"></i> Révision des prix
         </button>
       </li>
     </ul>
@@ -106,6 +111,10 @@
 
     <section v-else-if="activeTab === 'tvaCorrection'">
       <tva-correction></tva-correction>
+    </section>
+
+    <section v-else-if="activeTab === 'priceRevision'">
+      <price-revision></price-revision>
     </section>
 
     <section v-else>
@@ -359,6 +368,7 @@ import { useStore } from 'vuex';
 import api from '@/services/api';
 import SettingsHeader from './SettingsHeader.vue';
 import TvaCorrection from './TvaCorrection.vue';
+import PriceRevision from './PriceRevision.vue';
 import ObrSyncModal from './ObrSyncModal.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
@@ -375,11 +385,13 @@ const tabTitles = {
   configs: 'Configurations',
   obrInvoices: 'Factures OBR',
   tvaCorrection: 'Correction TVA',
+  priceRevision: 'Révision des prix',
 };
 
 const resolveRouteTab = () => {
   if (route.name === 'settings.obr-invoices' || route.query.tab === 'obrInvoices') return 'obrInvoices';
   if (route.query.tab === 'tvaCorrection') return 'tvaCorrection';
+  if (route.query.tab === 'priceRevision') return 'priceRevision';
   return 'configs';
 };
 
@@ -461,7 +473,7 @@ watch(
 );
 
 const goToTabRoute = (tab) => {
-  if (tab === 'tvaCorrection') {
+  if (tab === 'tvaCorrection' || tab === 'priceRevision') {
     router.push({ name: 'settings', query: { tab } });
     return;
   }
