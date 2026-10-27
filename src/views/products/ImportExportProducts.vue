@@ -134,6 +134,16 @@
               placeholder="Nom ou code produit..."
             />
           </div>
+          <div class="option-group option-checkbox">
+            <label class="option-checkbox-label">
+              <input
+                type="checkbox"
+                v-model="exportFilters.without_libelle"
+                class="option-checkbox-input"
+              />
+              Uniquement les produits sans libellé
+            </label>
+          </div>
         </div>
 
         <div class="export-stats">
@@ -314,7 +324,8 @@ export default {
       importResults: {},
       exportFilters: {
         category_id: '',
-        search: ''
+        search: '',
+        without_libelle: false
       },
       categories: [],
       totalProducts: 0
@@ -472,6 +483,9 @@ export default {
         }
         if (this.exportFilters.search) {
           params.append('search', this.exportFilters.search);
+        }
+        if (this.exportFilters.without_libelle) {
+          params.append('without_libelle', '1');
         }
 
         const response = await api.get(`/export/products?${params.toString()}`, {
@@ -747,6 +761,23 @@ export default {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.option-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.option-checkbox-input {
+  width: 16px;
+  height: 16px;
+  accent-color: #059669;
+  cursor: pointer;
 }
 
 .export-stats {
