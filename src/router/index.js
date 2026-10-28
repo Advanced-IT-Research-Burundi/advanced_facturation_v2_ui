@@ -324,6 +324,12 @@ const router = createRouter({
           meta: { permission: "finance" },
         },
         {
+          path: "cash-register/users/:userId",
+          name: "cash-register-user",
+          component: () => import("../views/finance/CashUserActivity.vue"),
+          meta: { permission: "finance" },
+        },
+        {
           path: "bank-deposits",
           name: "bank-deposits",
           component: () => import("../views/finance/BankDeposits.vue"),

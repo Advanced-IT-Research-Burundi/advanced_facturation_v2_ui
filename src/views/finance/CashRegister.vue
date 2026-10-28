@@ -1,17 +1,18 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
-  Clock, XCircle, Plus, RefreshCw, Printer, Users, Calendar
+  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import api from '@/services/api';
 import FinanceHeader from './FinanceHeader.vue';
 
 const store = useStore();
+const router = useRouter();
 
 // State
-const loading = ref(false);
 const dailySummaryLoading = ref(false);
 const currentRegister = ref(store.state.data.financeCashRegisterCurrent || null);
 const registers = ref(store.state.data.financeCashRegisterHistory || []);
@@ -28,7 +29,6 @@ const getStoredUser = () => {
   }
 };
 const currentUser = computed(() => store.getters['auth/currentUser'] || getStoredUser());
-const selectedUserId = ref('all');
 const todayIso = () => {
   const now = new Date();
   const timezoneOffset = now.getTimezoneOffset() * 60000;
@@ -79,16 +79,7 @@ const summary = computed(() => currentRegister.value?.summary || {
   total_expense: 0,
   expected_balance: 0
 });
-const dailyTotals = computed(() => dailySummary.value?.summary || {
-  total_opening: 0,
-  total_income: 0,
-  total_expense: 0,
-  total_adjustment: 0,
-  net_amount: 0,
-  total_transactions: 0
-});
 const userSummaries = computed(() => dailySummary.value?.user_summaries || []);
-const recentDailyMovements = computed(() => dailySummary.value?.recent_movements || []);
 const adminRoleNames = ['admin', 'super_admin'];
 const isAdminRole = (role) => {
   const name = role?.name?.toLowerCase();
@@ -106,14 +97,6 @@ const isAdmin = computed(() => {
     || roleNames.some((name) => adminRoleNames.includes(name?.toLowerCase()));
 });
 const canFilterUsers = computed(() => isAdmin.value || dailySummary.value?.can_filter_users === true);
-const effectiveUserId = computed(() => (canFilterUsers.value ? selectedUserId.value : currentUser.value?.id));
-const displayedCurrentMovements = computed(() => {
-  const movements = currentRegister.value?.register?.movements || [];
-  const userId = effectiveUserId.value;
-
-  if (canFilterUsers.value && (!userId || userId === 'all')) return movements;
-  return movements.filter((mov) => Number(mov.created_by?.id || mov.created_by) === Number(userId));
-});
 const emptyUserCashRow = (user, fallbackId = null) => ({
   user_id: user?.id ?? fallbackId,
   user_name: user?.name || 'Utilisateur',
@@ -128,7 +111,7 @@ const emptyUserCashRow = (user, fallbackId = null) => ({
 const userCashRows = computed(() => {
   const summariesByUser = new Map(userSummaries.value.map((row) => [Number(row.user_id), row]));
 
-  if (canFilterUsers.value && selectedUserId.value === 'all') {
+  if (canFilterUsers.value) {
     const rows = users.value.map((user) => ({
       ...emptyUserCashRow(user),
       ...(summariesByUser.get(Number(user.id)) || {})
@@ -143,17 +126,17 @@ const userCashRows = computed(() => {
     return rows;
   }
 
-  if (canFilterUsers.value && selectedUserId.value !== 'all') {
-    const selectedUser = users.value.find((user) => Number(user.id) === Number(selectedUserId.value));
-    return [{
-      ...emptyUserCashRow(selectedUser, selectedUserId.value),
-      ...(summariesByUser.get(Number(selectedUserId.value)) || {})
-    }];
-  }
-
   if (userSummaries.value.length) return userSummaries.value;
   return [emptyUserCashRow(currentUser.value)];
 });
+
+const viewUserActivity = (userId) => {
+  router.push({ name: 'cash-register-user', params: { userId: String(userId) } });
+};
+
+const onTransferClick = () => {
+  showNotification('bienvenue');
+};
 
 // Fetch current register
 const fetchCurrentRegister = async () => {
@@ -207,7 +190,7 @@ const fetchDailySummary = async () => {
     };
 
     if (canFilterUsers.value) {
-      params.user_id = selectedUserId.value;
+      params.user_id = 'all';
     }
 
     const res = await api.get('/cash-registers/daily-summary', {
@@ -432,57 +415,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Actions & Movements -->
-        <div class="col-12">
-          <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-              <h6 class="mb-0 fw-bold">Mouvements de caisse</h6>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary" @click="printReceipt">
-                  <Printer :size="16" class="me-1" /> Imprimer
-                </button>
-                <button class="btn btn-sm btn-primary" @click="showMovementModal = true">
-                  <Plus :size="16" class="me-1" /> Ajouter mouvement
-                </button>
-              </div>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Heure</th>
-                      <th>Type</th>
-                      <th>Utilisateur</th>
-                      <th>Description</th>
-                      <th>Référence</th>
-                      <th class="text-end">Montant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="!displayedCurrentMovements.length">
-                      <td colspan="6" class="text-center text-muted py-4">Aucun mouvement</td>
-                    </tr>
-                    <tr v-for="mov in displayedCurrentMovements" :key="mov.id">
-                      <td>{{ formatDateTime(mov.created_at) }}</td>
-                      <td>
-                        <span :class="['badge', mov.type === 'income' ? 'bg-success' : mov.type === 'expense' ? 'bg-danger' : 'bg-warning']">
-                          {{ mov.type === 'income' ? 'Entrée' : mov.type === 'expense' ? 'Sortie' : 'Ajustement' }}
-                        </span>
-                      </td>
-                      <td>{{ mov.created_by?.name || '-' }}</td>
-                      <td>{{ mov.description }}</td>
-                      <td>{{ mov.reference || '-' }}</td>
-                      <td class="text-end fw-bold" :class="mov.type === 'income' ? 'text-success' : mov.type === 'expense' ? 'text-danger' : ''">
-                        {{ mov.type === 'expense' ? '-' : '+' }}{{ formatCurrency(mov.amount) }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- No Open Register -->
@@ -495,15 +427,14 @@ onMounted(async () => {
         </button>
       </div>
 
-      <!-- Daily User Summary -->
+      <!-- Users table -->
       <div class="card border-0 shadow-sm mt-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div class="d-flex align-items-center gap-2">
             <Users :size="18" class="text-primary" />
-            <h6 class="mb-0 fw-bold">Caisse journalière par utilisateur</h6>
+            <h6 class="mb-0 fw-bold">Utilisateurs</h6>
           </div>
-          <div class="d-flex align-items-center gap-2">
-            <Calendar :size="16" class="text-muted" />
+          <div class="d-flex align-items-center gap-2 flex-wrap">
             <input
               type="date"
               v-model="selectedSummaryDate"
@@ -511,131 +442,72 @@ onMounted(async () => {
               style="width: 150px"
               @change="fetchDailySummary"
             >
-            <select
-              v-if="canFilterUsers"
-              v-model="selectedUserId"
-              class="form-select form-select-sm user-filter"
-              @change="fetchDailySummary"
-            >
-              <option value="all">Tous les utilisateurs</option>
-              <option v-for="user in users" :key="user.id" :value="user.id">{{ user.name }}</option>
-            </select>
-            <span v-else class="badge bg-light text-dark border">
-              {{ currentUser?.name || 'Mon compte' }}
-            </span>
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              :disabled="dailySummaryLoading"
-              @click="fetchDailySummary"
-            >
-              <RefreshCw :size="16" class="me-1" :class="{ 'spin-icon': dailySummaryLoading }" />
-              Actualiser
-            </button>
+            
+            <template v-if="currentRegister?.register">
+              <button class="btn btn-sm btn-outline-secondary" @click="printReceipt">
+                <Printer :size="16" class="me-1" /> Imprimer
+              </button>
+              <button class="btn btn-sm btn-primary" @click="showMovementModal = true">
+                <Plus :size="16" class="me-1" /> Ajouter mouvement
+              </button>
+            </template>
           </div>
         </div>
-        <div class="card-body">
-          <div>
-            <div class="row g-3 mb-4">
-              <div class="col-6 col-lg-3">
-                <div class="summary-tile">
-                  <p class="text-muted small mb-1">Transactions</p>
-                  <h5 class="mb-0">{{ dailyTotals.total_transactions || 0 }}</h5>
-                </div>
-              </div>
-              <div class="col-6 col-lg-3">
-                <div class="summary-tile">
-                  <p class="text-muted small mb-1">Entrées du jour</p>
-                  <h5 class="mb-0 text-success">+{{ formatCurrency(dailyTotals.total_income) }}</h5>
-                </div>
-              </div>
-              <div class="col-6 col-lg-3">
-                <div class="summary-tile">
-                  <p class="text-muted small mb-1">Sorties du jour</p>
-                  <h5 class="mb-0 text-danger">-{{ formatCurrency(dailyTotals.total_expense) }}</h5>
-                </div>
-              </div>
-              <div class="col-6 col-lg-3">
-                <div class="summary-tile">
-                  <p class="text-muted small mb-1">Montant net caisse</p>
-                  <h5 class="mb-0" :class="dailyTotals.net_amount < 0 ? 'text-danger' : 'text-success'">
-                    {{ dailyTotals.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(dailyTotals.net_amount || 0)) }}
-                  </h5>
-                </div>
-              </div>
-            </div>
-
-            <div class="table-responsive mb-4">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>Utilisateur</th>
-                    <th class="text-center">Transactions</th>
-                    <th class="text-end">Entrées</th>
-                    <th class="text-end">Sorties</th>
-                    <th class="text-end">Ajustements</th>
-                    <th class="text-end">Montant caisse</th>
-                    <th>Dernière transaction</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-if="!userCashRows.length">
-                    <td colspan="7" class="text-center text-muted py-4">Aucune transaction pour cette date</td>
-                  </tr>
-                  <tr v-for="user in userCashRows" :key="user.user_id">
-                    <td>
-                      <div class="fw-semibold">{{ user.user_name }}</div>
-                      <small class="text-muted">{{ user.user_email || '-' }}</small>
-                    </td>
-                    <td class="text-center">{{ user.transaction_count }}</td>
-                    <td class="text-end text-success">+{{ formatCurrency(user.total_income) }}</td>
-                    <td class="text-end text-danger">-{{ formatCurrency(user.total_expense) }}</td>
-                    <td class="text-end">{{ formatCurrency(user.total_adjustment) }}</td>
-                    <td class="text-end fw-bold" :class="user.net_amount < 0 ? 'text-danger' : 'text-success'">
-                      {{ user.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(user.net_amount || 0)) }}
-                    </td>
-                    <td>{{ user.latest_transaction_at ? formatDateTime(user.latest_transaction_at) : '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="d-flex align-items-center gap-2 mb-2">
-              <Clock :size="16" class="text-muted" />
-              <h6 class="mb-0 fw-bold">Historique des transactions du jour</h6>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>Heure</th>
-                    <th>Utilisateur</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Référence</th>
-                    <th class="text-end">Montant</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-if="!recentDailyMovements.length">
-                    <td colspan="6" class="text-center text-muted py-4">Aucune transaction enregistrée</td>
-                  </tr>
-                  <tr v-for="mov in recentDailyMovements" :key="mov.id">
-                    <td>{{ formatDateTime(mov.created_at) }}</td>
-                    <td>{{ mov.created_by?.name || '-' }}</td>
-                    <td>
-                      <span :class="['badge', mov.type === 'income' ? 'bg-success' : mov.type === 'expense' ? 'bg-danger' : 'bg-warning']">
-                        {{ mov.type === 'income' ? 'Entrée' : mov.type === 'expense' ? 'Sortie' : 'Ajustement' }}
-                      </span>
-                    </td>
-                    <td>{{ mov.description }}</td>
-                    <td>{{ mov.reference || '-' }}</td>
-                    <td class="text-end fw-bold" :class="mov.type === 'income' ? 'text-success' : mov.type === 'expense' ? 'text-danger' : ''">
-                      {{ mov.type === 'expense' ? '-' : '+' }}{{ formatCurrency(mov.amount) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Utilisateur</th>
+                  <th class="text-center">Transactions</th>
+                  <th class="text-end">Entrées</th>
+                  <th class="text-end">Sorties</th>
+                  <th class="text-end">Ajustements</th>
+                  <th class="text-end">Montant caisse</th>
+                  <th>Dernière transaction</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!userCashRows.length">
+                  <td colspan="8" class="text-center text-muted py-4">Aucun utilisateur</td>
+                </tr>
+                <tr v-for="user in userCashRows" :key="user.user_id">
+                  <td>
+                    <div class="fw-semibold">{{ user.user_name }}</div>
+                    <small class="text-muted">{{ user.user_email || '-' }}</small>
+                  </td>
+                  <td class="text-center">{{ user.transaction_count }}</td>
+                  <td class="text-end text-success">+{{ formatCurrency(user.total_income) }}</td>
+                  <td class="text-end text-danger">-{{ formatCurrency(user.total_expense) }}</td>
+                  <td class="text-end">{{ formatCurrency(user.total_adjustment) }}</td>
+                  <td class="text-end fw-bold" :class="user.net_amount < 0 ? 'text-danger' : 'text-success'">
+                    {{ user.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(user.net_amount || 0)) }}
+                  </td>
+                  <td>{{ user.latest_transaction_at ? formatDateTime(user.latest_transaction_at) : '-' }}</td>
+                  <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        title="Voir l'activité"
+                        @click="viewUserActivity(user.user_id)"
+                      >
+                        <Eye :size="14" class="me-1" />
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        title="Transfert (bientôt)"
+                        @click="onTransferClick"
+                      >
+                        <ArrowLeftRight :size="14" class="me-1" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -795,18 +667,6 @@ onMounted(async () => {
 <style scoped>
 .card {
   border-radius: 12px;
-}
-
-.summary-tile {
-  background: #f8f9fa;
-  border: 1px solid #eef0f2;
-  border-radius: 8px;
-  min-height: 86px;
-  padding: 14px;
-}
-
-.user-filter {
-  min-width: 210px;
 }
 
 .spin-icon {
