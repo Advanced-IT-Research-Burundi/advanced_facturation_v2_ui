@@ -276,7 +276,7 @@
                   <button
                     class="btn btn-sm btn-outline-primary"
                     @click="openUnitPriceEdit(stock)"
-                    title="Modifier le prix unitaire"
+                    title="Modifier les prix"
                   >
                     <i class="bi bi-pencil-square"></i>
                   </button>
@@ -385,7 +385,7 @@
         <div class="modal-content">
           <div class="modal-header bg-primary text-white">
             <h5 class="modal-title">
-              <i class="bi bi-pencil-square me-2"></i>Modifier le prix unitaire
+              <i class="bi bi-pencil-square me-2"></i>Modifier les prix
             </h5>
             <button
               class="btn-close btn-close-white"
@@ -401,11 +401,25 @@
             </div>
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label">Prix unitaire *</label>
+                <label class="form-label">Prix d'achat</label>
+                <div class="input-group">
+                  <input
+                    v-model="unitPriceEditForm.purchase_price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                  />
+                  <span class="input-group-text">{{
+                    selectedStock?.currency || "BIF"
+                  }}</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Prix de vente *</label>
                 <div class="input-group">
                   <input
                     v-model="unitPriceEditForm.unit_price"
-                    @input="onUnitPriceEditInput"
                     type="number"
                     step="0.01"
                     min="0"
@@ -418,25 +432,9 @@
                 </div>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Prix promo</label>
-                <div class="input-group">
-                  <input
-                    v-model="unitPriceEditForm.price_promo"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    class="form-control"
-                  />
-                  <span class="input-group-text">{{
-                    selectedStock?.currency || "BIF"
-                  }}</span>
-                </div>
-              </div>
-              <div class="col-md-6">
                 <label class="form-label">TVA (%) *</label>
                 <input
                   v-model.number="unitPriceEditForm.vat_rate"
-                  @input="onVatEditInput"
                   type="number"
                   step="0.01"
                   min="0"
@@ -449,17 +447,16 @@
                 <label class="form-label">Prix TTC</label>
                 <div class="input-group">
                   <input
-                    v-model="unitPriceEditForm.price_ttc"
-                    @input="onTtcEditInput"
+                    :value="unitPriceEditTtc"
                     type="number"
-                    step="0.01"
-                    min="0"
-                    class="form-control"
+                    class="form-control bg-light"
+                    readonly
                   />
                   <span class="input-group-text">{{
                     selectedStock?.currency || "BIF"
                   }}</span>
                 </div>
+                <small class="text-muted">Calculé à partir du prix de vente</small>
               </div>
             </div>
             <!-- <small class="text-muted">
@@ -542,7 +539,7 @@
                 />
               </div>
               <div class="col-md-6">
-                <label class="form-label">Prix Unitaire *</label>
+                <label class="form-label">Prix d'entrée *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -673,9 +670,7 @@
                 />
               </div>
               <div class="col-md-6">
-                <label class="form-label">{{
-                  isSuperAdmin ? "Prix Promo" : "Prix Unitaire"
-                }}</label>
+                <label class="form-label">Prix de sortie</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1110,39 +1105,21 @@ const quickExitForm = ref({
 });
 
 const unitPriceEditForm = ref({
+  purchase_price: "",
   unit_price: "",
-  price_promo: "",
   vat_rate: "",
-  price_ttc: "",
 });
 
-// Recalcul HT <-> TTC uniquement sur saisie utilisateur (même logique que
-// le formulaire produit).
+// Prix TTC calculé à partir du prix de vente et de la TVA
 const computeTtc = (price, vat) =>
   parseFloat(((parseFloat(price) || 0) * (1 + (parseFloat(vat) || 0) / 100)).toFixed(2));
 
-const onUnitPriceEditInput = (e) => {
-  if (e.target.value === "") return;
-  unitPriceEditForm.value.price_ttc = computeTtc(
-    e.target.value,
-    unitPriceEditForm.value.vat_rate,
-  );
-};
-
-const onVatEditInput = (e) => {
-  if (e.target.value === "") return;
-  unitPriceEditForm.value.price_ttc = computeTtc(
-    unitPriceEditForm.value.unit_price,
-    e.target.value,
-  );
-};
-
-const onTtcEditInput = (e) => {
-  if (e.target.value === "") return;
-  const ttc = parseFloat(e.target.value) || 0;
-  const vat = parseFloat(unitPriceEditForm.value.vat_rate) || 0;
-  unitPriceEditForm.value.unit_price = parseFloat((ttc / (1 + vat / 100)).toFixed(2));
-};
+const unitPriceEditTtc = computed(() =>
+  unitPriceEditForm.value.unit_price === "" ||
+  unitPriceEditForm.value.unit_price === null
+    ? ""
+    : computeTtc(unitPriceEditForm.value.unit_price, unitPriceEditForm.value.vat_rate),
+);
 
 onMounted(() => {
   fetchDashboard();
@@ -1275,13 +1252,9 @@ const submitQuickExit = async () => {
 const openUnitPriceEdit = (stock) => {
   selectedStock.value = stock;
   unitPriceEditForm.value = {
+    purchase_price: stock.purchase_price ?? "",
     unit_price: stock.unit_price ?? "",
-    price_promo: stock.price_promo ?? "",
     vat_rate: stock.product?.vat_rate ?? 0,
-    price_ttc:
-      stock.unit_price === null || stock.unit_price === undefined
-        ? ""
-        : computeTtc(stock.unit_price, stock.product?.vat_rate),
   };
   showUnitPriceEditModal.value = true;
 };
@@ -1289,21 +1262,20 @@ const openUnitPriceEdit = (stock) => {
 const closeUnitPriceEdit = () => {
   showUnitPriceEditModal.value = false;
   unitPriceEditForm.value = {
+    purchase_price: "",
     unit_price: "",
-    price_promo: "",
     vat_rate: "",
-    price_ttc: "",
   };
 };
 
 const submitUnitPriceEdit = async () => {
   const rawUnitPrice = unitPriceEditForm.value.unit_price;
-  const rawPromoPrice = unitPriceEditForm.value.price_promo;
+  const rawPurchasePrice = unitPriceEditForm.value.purchase_price;
   const unitPrice = Number(rawUnitPrice);
-  const promoPrice =
-    rawPromoPrice === "" || rawPromoPrice === null
+  const purchasePrice =
+    rawPurchasePrice === "" || rawPurchasePrice === null
       ? null
-      : Number(rawPromoPrice);
+      : Number(rawPurchasePrice);
   const vatRate = Number(unitPriceEditForm.value.vat_rate);
   if (
     rawUnitPrice === "" ||
@@ -1313,10 +1285,11 @@ const submitUnitPriceEdit = async () => {
     !Number.isFinite(vatRate) ||
     vatRate < 0 ||
     vatRate > 100 ||
-    (promoPrice !== null && (!Number.isFinite(promoPrice) || promoPrice < 0))
+    (purchasePrice !== null &&
+      (!Number.isFinite(purchasePrice) || purchasePrice < 0))
   ) {
     error.value =
-      "Veuillez saisir un prix unitaire, un prix promo et un taux de TVA valides.";
+      "Veuillez saisir un prix d'achat, un prix de vente et un taux de TVA valides.";
     return;
   }
 
@@ -1326,34 +1299,32 @@ const submitUnitPriceEdit = async () => {
       selectedStock.value?.product?.id || selectedStock.value?.product_id;
     const productResp = await api.patch(`products/${productId}`, {
       vat_rate: vatRate,
-      price_promo: promoPrice,
     });
     if (!productResp.data.success) {
       throw new Error(
-        productResp.data.message ||
-          "Impossible de modifier la TVA et le prix promo.",
+        productResp.data.message || "Impossible de modifier la TVA.",
       );
     }
     const resp = await api.patch(
       `warehouse-products/${selectedStock.value.id}`,
-      { unit_price: unitPrice, price_promo: promoPrice },
+      { unit_price: unitPrice, purchase_price: purchasePrice },
     );
     if (resp.data.success) {
       successMessage.value =
-        "Prix unitaire, prix promo et TVA modifiés avec succès.";
+        "Prix d'achat, prix de vente et TVA modifiés avec succès.";
       closeUnitPriceEdit();
       await fetchDashboard();
       setTimeout(() => (successMessage.value = null), 3000);
     } else {
       throw new Error(
-        resp.data.message || "Impossible de modifier le prix unitaire.",
+        resp.data.message || "Impossible de modifier les prix.",
       );
     }
   } catch (err) {
     error.value =
       err.response?.data?.message ||
       err.message ||
-      "Erreur lors de la modification du prix unitaire.";
+      "Erreur lors de la modification des prix.";
     setTimeout(() => (error.value = null), 5000);
   } finally {
     submitting.value = false;
