@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { Printer } from "lucide-vue-next";
+import { ref, computed, onMounted } from "vue";
+import { Printer, ArrowLeft } from "lucide-vue-next";
 import { useStore } from "vuex";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
+import InvoicePrintModal from "@/views/sales/InvoicePrintModal.vue";
 
 const toast = useToast();
 const store = useStore();
@@ -12,6 +13,9 @@ const store = useStore();
 const invoices = ref(store.state.data.journalInvoices || []);
 const loading = ref(false);
 const error = ref(null);
+const currentCompany = ref(null);
+const showPrintModal = ref(false);
+const invoiceToPrint = ref(null);
 
 // Dates - par défaut vide pour afficher tout
 const startDate = ref("");
@@ -130,107 +134,38 @@ const printPage = () => {
   window.print();
 };
 
-// Print single invoice
+const fetchCompany = async () => {
+  try {
+    const response = await api.get("/companies");
+    if (response.data?.success && response.data.data?.data?.length > 0) {
+      currentCompany.value = response.data.data.data[0];
+    }
+  } catch (e) {
+    console.error("Error fetching company", e);
+  }
+};
+
+// Même aperçu/impression que l'historique des ventes (Sales)
 const printInvoice = async (invoice) => {
   try {
     const response = await api.get(`/invoices/${invoice.id}`);
-    if (response.data.success) {
-      const fullInvoice = response.data.data;
-      const printContent = generatePrintContent(fullInvoice);
-      const printWindow = window.open("", "_blank", "width=800,height=600");
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    }
+    invoiceToPrint.value = response.data?.data ?? invoice;
+    showPrintModal.value = true;
   } catch (err) {
     console.error("Error fetching invoice for print:", err);
     toast.error("Erreur lors de la récupération de la facture");
   }
 };
 
-const generatePrintContent = (invoice) => {
-  const itemsRows =
-    invoice.invoiceItems
-      ?.map(
-        (item) => `
-    <tr>
-      <td>${item.item_designation || item.product?.name || "Produit"}</td>
-      <td style="text-align: center;">${item.item_quantity}</td>
-      <td style="text-align: right;">${formatPrice(item.item_price)} FBU</td>
-      <td style="text-align: right;">${formatPrice(item.item_total_amount)} FBU</td>
-    </tr>
-  `,
-      )
-      .join("") || "";
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Facture ${invoice.invoice_number}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .company-name { font-size: 18px; font-weight: bold; }
-        .invoice-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .info-block { width: 48%; }
-        .info-block h4 { background: #f0f0f0; padding: 5px; margin-bottom: 5px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #333; color: white; }
-        .totals { margin-top: 20px; }
-        .totals table { width: 300px; margin-left: auto; }
-        .totals td { border: none; padding: 5px; }
-        .total-row { font-weight: bold; font-size: 14px; background: #f0f0f0; }
-        .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #666; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div class="company-name">${invoice.tp_name || "Entreprise"}</div>
-        <div>NIF: ${invoice.tp_TIN || ""}</div>
-        <div>Tél: ${invoice.tp_phone_number || ""}</div>
-      </div>
-      <h2 style="text-align: center; margin-bottom: 20px;">FACTURE N° ${invoice.invoice_number}</h2>
-      <div class="invoice-info">
-        <div class="info-block">
-          <h4>Client</h4>
-          <p><strong>Nom:</strong> ${invoice.customer?.customer_name || invoice.customer_name || "Client Anonyme"}</p>
-          <p><strong>NIF:</strong> ${invoice.customer?.customer_TIN || invoice.customer_TIN || "-"}</p>
-        </div>
-        <div class="info-block">
-          <h4>Facture</h4>
-          <p><strong>Date:</strong> ${new Date(invoice.invoice_date || invoice.created_at).toLocaleDateString("fr-FR")}</p>
-          <p><strong>Vendeur:</strong> ${invoice.user?.name || "Inconnu"}</p>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr><th>Désignation</th><th style="text-align:center;">Qté</th><th style="text-align:right;">Prix Unit.</th><th style="text-align:right;">Total</th></tr>
-        </thead>
-        <tbody>${itemsRows}</tbody>
-      </table>
-      <div class="totals">
-        <table>
-          <tr><td>Total HTVA:</td><td style="text-align:right;">${formatPrice(invoice.invoice_amount_nvat)} FBU</td></tr>
-          <tr><td>TVA:</td><td style="text-align:right;">${formatPrice(invoice.invoice_vat_amount)} FBU</td></tr>
-          <tr class="total-row"><td>Total TVAC:</td><td style="text-align:right;">${formatPrice(invoice.invoice_total_amount)} FBU</td></tr>
-        </table>
-      </div>
-      ${invoice.obr_electronic_signature ? `<div style="margin-top:20px;font-size:10px;"><strong>Signature:</strong> ${invoice.obr_electronic_signature}</div>` : ""}
-      <div class="footer"><p>Merci pour votre confiance!</p></div>
-    </body>
-    </html>
-  `;
+const closePrintModal = () => {
+  showPrintModal.value = false;
+  invoiceToPrint.value = null;
 };
 
 // Init
 onMounted(() => {
   fetchInvoices();
+  fetchCompany();
 });
 </script>
 
@@ -422,6 +357,13 @@ onMounted(() => {
         </tr>
       </tbody>
     </table>
+
+    <InvoicePrintModal
+      :show="showPrintModal"
+      :invoice="invoiceToPrint"
+      :company="currentCompany"
+      @close="closePrintModal"
+    />
   </div>
 </template>
 

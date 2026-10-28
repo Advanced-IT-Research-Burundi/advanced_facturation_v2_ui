@@ -474,6 +474,7 @@ export function useInvoicePrint() {
     ${obrHtml}
 
     <div class="footer">
+      
       <p>Merci pour votre confiance !</p>
       <p>Document généré le ${formatDate(new Date())}</p>
       ${electronicSignature ? `<p class="electronic-signature">Signature électronique : ${electronicSignature}</p>` : ''}
