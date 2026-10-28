@@ -68,11 +68,22 @@ const userSummary = computed(() => {
   };
 });
 
+const toLocalDateKey = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
+};
+
 const sessionMovements = computed(() => {
   const movements = currentRegister.value?.register?.movements || [];
-  return movements.filter(
-    (mov) => Number(mov.created_by?.id || mov.created_by) === userId.value,
-  );
+  const selected = selectedDate.value;
+  return movements.filter((mov) => {
+    const sameUser = Number(mov.created_by?.id || mov.created_by) === userId.value;
+    const sameDay = toLocalDateKey(mov.created_at) === selected;
+    return sameUser && sameDay;
+  });
 });
 
 const dayHistoryMovements = computed(() => dailySummary.value?.recent_movements || []);
