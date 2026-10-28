@@ -363,7 +363,7 @@ onUnmounted(() => {
           <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
               <h6 class="mb-0 fw-bold">Top Produits Vendus</h6>
-              <router-link to="/reports" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
+              <router-link to="/dashboard/top-products" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -403,7 +403,7 @@ onUnmounted(() => {
           <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
               <h6 class="mb-0 fw-bold">Top Clients</h6>
-              <router-link to="/clients" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
+              <router-link to="/dashboard/top-customers" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -449,7 +449,7 @@ onUnmounted(() => {
                 <AlertTriangle :size="16" class="text-warning me-2" />
                 Alertes Stock Bas
               </h6>
-              <router-link to="/stock" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
+              <router-link to="/dashboard/low-stock" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -492,7 +492,7 @@ onUnmounted(() => {
           <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
               <h6 class="mb-0 fw-bold">Factures Récentes</h6>
-              <router-link to="/sales" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
+              <router-link to="/dashboard/recent-invoices" class="btn btn-sm btn-link text-decoration-none">Voir tout</router-link>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">

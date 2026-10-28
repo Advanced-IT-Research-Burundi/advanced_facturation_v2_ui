@@ -33,6 +33,7 @@ const invoiceTotals = computed(() => ({
 }));
 
 const electronicSignature = computed(() => {
+  console.log("Calculating electronic signature for invoice:", props.invoice);
   return props.invoice?.obr_electronic_signature || props.invoice?.electronic_signature || "";
 });
 

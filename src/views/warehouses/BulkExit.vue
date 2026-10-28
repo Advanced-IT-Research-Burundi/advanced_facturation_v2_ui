@@ -101,7 +101,7 @@
                 <small class="text-muted">Max: {{ getStockQuantity(item.product_id) }}</small>
               </div>
               <div class="col-md-2">
-                <label class="form-label small fw-bold">Prix Unitaire</label>
+                <label class="form-label small fw-bold">Prix de sortie</label>
                 <input type="number" step="0.01" class="form-control"
                        v-model="item.unit_price" min="0"
                        placeholder="0.00">

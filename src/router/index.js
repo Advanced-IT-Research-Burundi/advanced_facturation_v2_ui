@@ -19,6 +19,26 @@ const router = createRouter({
           // Dashboard accessible à tous les utilisateurs authentifiés
         },
         {
+          path: "dashboard/top-products",
+          name: "dashboard-top-products",
+          component: () => import("../views/dashboard/TopProducts.vue"),
+        },
+        {
+          path: "dashboard/top-customers",
+          name: "dashboard-top-customers",
+          component: () => import("../views/dashboard/TopCustomers.vue"),
+        },
+        {
+          path: "dashboard/low-stock",
+          name: "dashboard-low-stock",
+          component: () => import("../views/dashboard/LowStockAlerts.vue"),
+        },
+        {
+          path: "dashboard/recent-invoices",
+          name: "dashboard-recent-invoices",
+          component: () => import("../views/dashboard/RecentInvoices.vue"),
+        },
+        {
           path: "/importation",
           name: "importation",
           component: () => import("../views/importation/ImportationPage.vue"),

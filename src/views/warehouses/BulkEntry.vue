@@ -91,7 +91,7 @@
                        placeholder="0.00">
               </div>
               <div class="col-md-2">
-                <label class="form-label small fw-bold">Prix Unitaire *</label>
+                <label class="form-label small fw-bold">Prix d'entrée *</label>
                 <input type="number" step="0.01" class="form-control" 
                        v-model="item.unit_price" min="0"
                        placeholder="0.00">
@@ -224,7 +224,7 @@ const submitBulkEntry = async () => {
 
   submitting.value = true;
   try {
-    const resp = await api.post(`warehouses/${warehouseId}/bulk-entry`, form.value);
+    const resp = await api.post(`warehouses/${warehouseId}/bulk-entry`, form.value);64777777
     if (resp.data.success) {
       successMessage.value = resp.data.message;
       setTimeout(() => {
