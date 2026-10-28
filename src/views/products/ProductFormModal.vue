@@ -450,7 +450,7 @@ const updateLibelle = (value) => {
                   <div class="col-md-3">
                     <label
                       class="form-label small text-muted text-uppercase fw-bold"
-                      >Prix TTC</label
+                      >Prix TTC jjj</label
                     >
                     <input
                       type="number"

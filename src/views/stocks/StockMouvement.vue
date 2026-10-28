@@ -186,7 +186,7 @@
                 <th class="text-center">TVA</th>
                 <th class="text-end">P.U. HTVA</th>
                 <th class="text-end">P.U. TVAC</th>
-                <th class="text-end">Prix Promo</th>
+                <th class="text-end">Prix libellé</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Contrôle prix</th>
                 <th class="text-center">Actions</th>
@@ -233,8 +233,8 @@
                   {{ formatCurrency(getPriceTVAC(stock), stock.currency) }}
                 </td>
                 <td class="text-end">
-                  <span v-if="getPromoPrice(stock) > 0" class="text-warning-emphasis fw-semibold">
-                    {{ formatCurrency(getPromoPrice(stock), stock.currency) }}
+                  <span v-if="getLibellePrice(stock) > 0" class="text-warning-emphasis fw-semibold">
+                    {{ formatCurrency(getLibellePrice(stock), stock.currency) }}
                   </span>
                   <span v-else class="text-muted">-</span>
                 </td>
@@ -824,6 +824,11 @@ const getPromoPrice = (stock) => {
   return toNumber(stock.price_promo);
 };
 
+// Prix du libellé associé au produit (catalogue libelles)
+const getLibellePrice = (stock) => {
+  return toNumber(stock.product?.libelle?.price);
+};
+
 const getPriceHTVA = (stock) => toNumber(stock.unit_price);
 
 const getPriceTVAC = (stock) => {
@@ -867,8 +872,8 @@ const mismatchCount = computed(
 );
 
 const getStockDisplayPrice = (stock) => {
-  if (isSuperAdmin.value && getPromoPrice(stock) > 0) {
-    return getPromoPrice(stock);
+  if (isSuperAdmin.value && getLibellePrice(stock) > 0) {
+    return getLibellePrice(stock);
   }
 
   return toNumber(stock.unit_price);
@@ -940,7 +945,7 @@ const exportStockToExcel = () => {
         <td style="text-align:center;">${formatNumber(stock.product?.vat_rate || 0)}%</td>
         <td style="text-align:right;">${formatNumber(getPriceHTVA(stock))} ${currency}</td>
         <td style="text-align:right;">${formatNumber(getPriceTVAC(stock))} ${currency}</td>
-        <td style="text-align:right;">${getPromoPrice(stock) > 0 ? `${formatNumber(getPromoPrice(stock))} ${currency}` : "-"}</td>
+        <td style="text-align:right;">${getLibellePrice(stock) > 0 ? `${formatNumber(getLibellePrice(stock))} ${currency}` : "-"}</td>
         <td style="text-align:right;">${formatNumber(total)} ${currency}</td>
         <td>${mismatches.length ? escapeHtml(mismatches.join(" ; ")) : "OK"}</td>
       </tr>
@@ -978,7 +983,7 @@ const exportStockToExcel = () => {
               <th>TVA</th>
               <th>P.U. HTVA</th>
               <th>P.U. TVAC</th>
-              <th>Prix Promo</th>
+              <th>Prix libellé</th>
               <th>Total Produit</th>
               <th>Contrôle prix</th>
             </tr>
