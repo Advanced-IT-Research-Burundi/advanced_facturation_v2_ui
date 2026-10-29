@@ -527,8 +527,14 @@ export function useInvoicePrint() {
            <tr><td colspan="2"><b>Reste :</b></td><td class="right">${formatPrice(remainingAmount)} ${currency}</td></tr>`
         : '';
 
-    // QR code — encodage de la signature électronique OBR
-    const qrSource = invoice.obr_electronic_signature || invoice.electronic_signature || invoice.obr_invoice_identifier || invoice.invoice_number || '';
+    // Signature électronique OBR + QR code
+    const electronicSignature = getElectronicSignature(invoice);
+    const signatureHtml = electronicSignature
+      ? `<div style="font-size:8px; word-break:break-all; margin: 6px 0 4px 0;">
+           <b>Signature électronique :</b><br>${escapeHtml(electronicSignature)}
+         </div>`
+      : '';
+    const qrSource = electronicSignature || invoice.obr_invoice_identifier || invoice.invoice_number || '';
     let qrCodeHtml = '';
     try {
       const QRCode = (await import('qrcode')).default;
@@ -538,17 +544,19 @@ export function useInvoicePrint() {
         errorCorrectionLevel: 'M',
       });
       const ebmsLabel = invoice.obr_invoice_identifier
-        ? `<div style="font-size:8px; word-break:break-all; margin: 4px 0;"><b>EBMS ID</b><br>${invoice.obr_invoice_identifier}</div>`
+        ? `<div style="font-size:8px; word-break:break-all; margin: 4px 0;"><b>EBMS ID</b><br>${escapeHtml(invoice.obr_invoice_identifier)}</div>`
         : '';
       qrCodeHtml = `
+        ${signatureHtml}
         ${ebmsLabel}
         <div class="center" style="margin-top:6px;">
           <img src="${qrDataUrl}" style="width:120px;height:120px;" alt="QR Code" />
         </div>`;
     } catch (e) {
-      if (invoice.obr_invoice_identifier) {
-        qrCodeHtml = `<div style="font-size:8px;word-break:break-all; margin: 4px 0;"><b>EBMS ID</b><br>${invoice.obr_invoice_identifier}</div>`;
-      }
+      const ebmsFallback = invoice.obr_invoice_identifier
+        ? `<div style="font-size:8px;word-break:break-all; margin: 4px 0;"><b>EBMS ID</b><br>${escapeHtml(invoice.obr_invoice_identifier)}</div>`
+        : '';
+      qrCodeHtml = `${signatureHtml}${ebmsFallback}`;
     }
 
     // Section A — Vendeur
