@@ -47,7 +47,8 @@ const isAdmin = computed(() => {
   const roles = currentUser.value?.roles || [];
   const roleNames = currentUser.value?.role_names || [];
   return roles.some(isAdminRole)
-    || roleNames.some((name) => adminRoleNames.includes(name?.toLowerCase()));
+    || roleNames.some((name) => adminRoleNames.includes(name?.toLowerCase()))
+    || roles.some((role) => Array.isArray(role.permissions) && role.permissions.includes('finance'));
 });
 
 const formatCurrency = (amount) => new Intl.NumberFormat('fr-FR').format(amount || 0) + ' FBU';

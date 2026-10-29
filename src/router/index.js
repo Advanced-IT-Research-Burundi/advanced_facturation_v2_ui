@@ -341,13 +341,13 @@ const router = createRouter({
           path: "cash-register",
           name: "cash-register",
           component: () => import("../views/finance/CashRegister.vue"),
-          meta: { permission: "finance" },
+          // Accessible à tous : sans permission "finance", l'utilisateur ne voit que sa caisse
         },
         {
           path: "cash-register/users/:userId",
           name: "cash-register-user",
           component: () => import("../views/finance/CashUserActivity.vue"),
-          meta: { permission: "finance" },
+          // Accessible à tous : un utilisateur sans accès complet ne voit que sa propre activité
         },
         {
           path: "bank-deposits",

@@ -3,11 +3,12 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
-  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight
+  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import api from '@/services/api';
 import FinanceHeader from './FinanceHeader.vue';
+import TransferConfirmModal from './TransferConfirmModal.vue';
 
 const store = useStore();
 const router = useRouter();
@@ -21,6 +22,18 @@ const users = ref(store.state.data.financeCashRegisterUsers || []);
 const showOpenModal = ref(false);
 const showCloseModal = ref(false);
 const showMovementModal = ref(false);
+const showTransferModal = ref(false);
+const transfers = ref([]);
+const recipients = ref([]);
+const transferSubmitting = ref(false);
+const transferSource = ref(null);
+const transferAvailable = ref(0);
+const transferAvailableLoading = ref(false);
+const transferForm = ref({
+  to_user_id: '',
+  amount: '',
+  note: ''
+});
 const getStoredUser = () => {
   try {
     return JSON.parse(sessionStorage.getItem('user') || 'null');
@@ -96,7 +109,12 @@ const isAdmin = computed(() => {
   return roles.some(isAdminRole)
     || roleNames.some((name) => adminRoleNames.includes(name?.toLowerCase()));
 });
-const canFilterUsers = computed(() => isAdmin.value || dailySummary.value?.can_filter_users === true);
+// Accès complet à la caisse : admin ou permission "finance". Sinon, seulement sa propre caisse.
+const hasFullAccess = computed(() =>
+  isAdmin.value
+  || (currentUser.value?.roles || []).some((role) => Array.isArray(role.permissions) && role.permissions.includes('finance'))
+);
+const canFilterUsers = computed(() => hasFullAccess.value || dailySummary.value?.can_filter_users === true);
 const emptyUserCashRow = (user, fallbackId = null) => ({
   user_id: user?.id ?? fallbackId,
   user_name: user?.name || 'Utilisateur',
@@ -134,8 +152,164 @@ const viewUserActivity = (userId) => {
   router.push({ name: 'cash-register-user', params: { userId: String(userId) } });
 };
 
-const onTransferClick = () => {
-  showNotification('bienvenue');
+// Transferts entre caisses (journalier)
+const isTodaySelected = computed(() => selectedSummaryDate.value === todayIso());
+const transferStatusLabels = { pending: 'En attente', accepted: 'Validé', rejected: 'Refusé', cancelled: 'Annulé' };
+const transferStatusClasses = { pending: 'bg-warning text-dark', accepted: 'bg-success', rejected: 'bg-danger', cancelled: 'bg-secondary' };
+const pendingIncomingCount = computed(() =>
+  transfers.value.filter((t) => t.status === 'pending' && Number(t.to_user_id) === Number(currentUser.value?.id)).length
+);
+const recipientOptions = computed(() =>
+  recipients.value.filter((u) => Number(u.id) !== Number(transferSource.value?.user_id))
+);
+const transferAmountTooHigh = computed(() => Number(transferForm.value.amount) > transferAvailable.value);
+
+const canTransferFrom = (row) =>
+  Boolean(currentRegister.value?.register)
+  && isTodaySelected.value
+  && (hasFullAccess.value || Number(row.user_id) === Number(currentUser.value?.id))
+  && Number(row.net_amount) > 0;
+
+const fetchTransfers = async () => {
+  try {
+    const res = await api.get('/cash-transfers', { params: { date: selectedSummaryDate.value } });
+    if (res.data.success) {
+      transfers.value = res.data.data.transfers || [];
+    }
+  } catch (error) {
+    console.error('Error fetching transfers:', error);
+  }
+};
+
+const fetchRecipients = async () => {
+  if (recipients.value.length) return;
+  try {
+    const res = await api.get('/cash-transfers/recipients');
+    if (res.data.success) {
+      recipients.value = res.data.data || [];
+    }
+  } catch (error) {
+    console.error('Error fetching recipients:', error);
+  }
+};
+
+const onTransferClick = async (row) => {
+  transferSource.value = row;
+  transferForm.value = { to_user_id: '', amount: '', note: '' };
+  transferAvailable.value = 0;
+  showTransferModal.value = true;
+  transferAvailableLoading.value = true;
+  try {
+    const [availableRes] = await Promise.all([
+      api.get(`/cash-transfers/available/${row.user_id}`),
+      fetchRecipients()
+    ]);
+    if (availableRes.data.success) {
+      transferAvailable.value = Number(availableRes.data.data.available) || 0;
+    }
+  } catch (error) {
+    showNotification(error.response?.data?.message || 'Erreur lors du chargement du disponible', 'error');
+  } finally {
+    transferAvailableLoading.value = false;
+  }
+};
+
+const sourceTransfers = computed(() =>
+  transfers.value.filter((t) => Number(t.from_user_id) === Number(transferSource.value?.user_id))
+);
+
+// Annuler depuis le modal puis recharger le disponible de l'expéditeur
+const cancelFromModal = async (transfer) => {
+  await transferAction(transfer, 'cancel');
+  try {
+    const res = await api.get(`/cash-transfers/available/${transferSource.value.user_id}`);
+    if (res.data.success) {
+      transferAvailable.value = Number(res.data.data.available) || 0;
+    }
+  } catch (error) {
+    console.error('Error refreshing available amount:', error);
+  }
+};
+
+const closeTransferModal = () => {
+  showTransferModal.value = false;
+  transferSource.value = null;
+};
+
+const submitTransfer = async () => {
+  const amount = Number(transferForm.value.amount);
+  if (!transferForm.value.to_user_id) {
+    showNotification('Veuillez choisir le destinataire.', 'error');
+    return;
+  }
+  if (!amount || amount <= 0) {
+    showNotification('Le montant doit être supérieur à 0.', 'error');
+    return;
+  }
+  if (amount > transferAvailable.value) {
+    showNotification(`Le montant dépasse le disponible (${formatCurrency(transferAvailable.value)}).`, 'error');
+    return;
+  }
+
+  transferSubmitting.value = true;
+  try {
+    const res = await api.post('/cash-transfers', {
+      from_user_id: transferSource.value.user_id,
+      to_user_id: transferForm.value.to_user_id,
+      amount,
+      note: transferForm.value.note
+    });
+    if (res.data.success) {
+      showNotification(res.data.message);
+      closeTransferModal();
+      await fetchTransfers();
+    }
+  } catch (error) {
+    showNotification(error.response?.data?.message || 'Erreur lors du transfert', 'error');
+  } finally {
+    transferSubmitting.value = false;
+  }
+};
+
+// Confirmation d'un transfert (valider / refuser / annuler)
+const confirmTransfer = ref(null);
+const confirmAction = ref('accept');
+const confirmLoading = ref(false);
+let confirmDone = null;
+
+const transferAction = (transfer, action) => {
+  confirmTransfer.value = transfer;
+  confirmAction.value = action;
+  return new Promise((resolve) => { confirmDone = resolve; });
+};
+
+const closeTransferConfirm = () => {
+  confirmTransfer.value = null;
+  confirmDone?.();
+  confirmDone = null;
+};
+
+const submitTransferConfirm = async () => {
+  const transfer = confirmTransfer.value;
+  if (!transfer) return;
+
+  confirmLoading.value = true;
+  try {
+    const res = await api.post(`/cash-transfers/${transfer.id}/${confirmAction.value}`);
+    if (res.data.success) {
+      showNotification(res.data.message);
+      await Promise.all([fetchTransfers(), fetchDailySummary(), fetchCurrentRegister()]);
+    }
+  } catch (error) {
+    showNotification(error.response?.data?.message || 'Erreur', 'error');
+  } finally {
+    confirmLoading.value = false;
+    closeTransferConfirm();
+  }
+};
+
+const onSummaryDateChange = async () => {
+  await Promise.all([fetchDailySummary(), fetchTransfers()]);
 };
 
 // Fetch current register
@@ -153,6 +327,8 @@ const fetchCurrentRegister = async () => {
 
 // Fetch all registers
 const fetchRegisters = async () => {
+  if (!hasFullAccess.value) return;
+
   try {
     const res = await api.get('/cash-registers');
     if (res.data.success) {
@@ -319,7 +495,7 @@ const printReceipt = () => {
 
 // Init
 onMounted(async () => {
-  const requests = [fetchCurrentRegister(), fetchRegisters(), fetchDailySummary()];
+  const requests = [fetchCurrentRegister(), fetchRegisters(), fetchDailySummary(), fetchTransfers()];
   if (canFilterUsers.value) {
     requests.push(fetchUsers());
   }
@@ -330,14 +506,16 @@ onMounted(async () => {
 
 <template>
   <div class="container-fluid p-0">
-    <FinanceHeader />
+    <FinanceHeader v-if="hasFullAccess" />
 
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h1 class="h3 mb-1">Caisse Journalière</h1>
-        <p class="text-muted mb-0">Gestion de la caisse quotidienne</p>
+        <h1 class="h3 mb-1">{{ hasFullAccess ? 'Caisse Journalière' : 'Ma Caisse' }}</h1>
+        <p class="text-muted mb-0">
+          {{ hasFullAccess ? 'Gestion de la caisse quotidienne' : 'Vos transactions et transferts du jour' }}
+        </p>
       </div>
-      <div class="d-flex gap-2">
+      <div v-if="hasFullAccess" class="d-flex gap-2">
         <button v-if="!currentRegister?.register" class="btn btn-primary" @click="showOpenModal = true">
           <Wallet :size="18" class="me-2" /> Ouvrir la caisse
         </button>
@@ -351,7 +529,7 @@ onMounted(async () => {
       <!-- Current Register -->
       <div v-if="currentRegister?.register" class="row g-4 mb-4">
         <!-- Summary Cards -->
-        <div class="col-md-3">
+        <div v-if="hasFullAccess" class="col-md-3">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
               <div class="d-flex align-items-center mb-2">
@@ -367,7 +545,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="col-md-3">
+        <div :class="hasFullAccess ? 'col-md-3' : 'col-md-4'">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
               <div class="d-flex align-items-center mb-2">
@@ -383,7 +561,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="col-md-3">
+        <div :class="hasFullAccess ? 'col-md-3' : 'col-md-4'">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
               <div class="d-flex align-items-center mb-2">
@@ -399,7 +577,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="col-md-3">
+        <div :class="hasFullAccess ? 'col-md-3' : 'col-md-4'">
           <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
               <div class="d-flex align-items-center mb-2">
@@ -407,7 +585,7 @@ onMounted(async () => {
                   <DollarSign :size="24" class="text-info" />
                 </div>
                 <div>
-                  <p class="text-muted small mb-0">Solde actuel</p>
+                  <p class="text-muted small mb-0">{{ hasFullAccess ? 'Solde actuel' : 'Montant de ma caisse' }}</p>
                   <h4 class="mb-0">{{ formatCurrency(summary.expected_balance) }}</h4>
                 </div>
               </div>
@@ -421,8 +599,9 @@ onMounted(async () => {
       <div v-else class="text-center py-5">
         <Wallet :size="64" class="text-muted mb-3" />
         <h4>Aucune caisse ouverte</h4>
-        <p class="text-muted">Ouvrez une caisse pour commencer à enregistrer les transactions</p>
-        <button class="btn btn-primary btn-lg" @click="showOpenModal = true">
+        <p v-if="hasFullAccess" class="text-muted">Ouvrez une caisse pour commencer à enregistrer les transactions</p>
+        <p v-else class="text-muted">Demandez au responsable de caisse d'ouvrir la caisse du jour</p>
+        <button v-if="hasFullAccess" class="btn btn-primary btn-lg" @click="showOpenModal = true">
           <Wallet :size="20" class="me-2" /> Ouvrir la caisse
         </button>
       </div>
@@ -432,7 +611,7 @@ onMounted(async () => {
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div class="d-flex align-items-center gap-2">
             <Users :size="18" class="text-primary" />
-            <h6 class="mb-0 fw-bold">Utilisateurs</h6>
+            <h6 class="mb-0 fw-bold">{{ hasFullAccess ? 'Utilisateurs' : 'Ma caisse du jour' }}</h6>
           </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <input
@@ -440,11 +619,11 @@ onMounted(async () => {
               v-model="selectedSummaryDate"
               class="form-control form-control-sm"
               style="width: 150px"
-              @change="fetchDailySummary"
+              @change="onSummaryDateChange"
             >
             
             <template v-if="currentRegister?.register">
-              <button class="btn btn-sm btn-outline-secondary" @click="printReceipt">
+              <button v-if="hasFullAccess" class="btn btn-sm btn-outline-secondary" @click="printReceipt">
                 <Printer :size="16" class="me-1" /> Imprimer
               </button>
               <button class="btn btn-sm btn-primary" @click="showMovementModal = true">
@@ -497,11 +676,12 @@ onMounted(async () => {
                       </button>
                       <button
                         type="button"
-                        class="btn btn-outline-secondary"
-                        title="Transfert (bientôt)"
-                        @click="onTransferClick"
+                        class="btn btn-warning text-dark fw-semibold"
+                        title="Transférer vers un autre utilisateur"
+                        :disabled="!canTransferFrom(user)"
+                        @click="onTransferClick(user)"
                       >
-                        <ArrowLeftRight :size="14" class="me-1" />
+                        <ArrowLeftRight :size="16" :stroke-width="2.5" class="me-1" /> Transférer
                       </button>
                     </div>
                   </td>
@@ -512,8 +692,84 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- History -->
+      <!-- Transferts du jour -->
       <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <ArrowLeftRight :size="18" class="text-warning" />
+            <h6 class="mb-0 fw-bold">Transferts du {{ formatDate(selectedSummaryDate) }}</h6>
+            <span v-if="pendingIncomingCount" class="badge bg-danger">{{ pendingIncomingCount }} à valider</span>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary" @click="fetchTransfers" title="Actualiser">
+            <RefreshCw :size="14" />
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Heure</th>
+                  <th>De</th>
+                  <th>Vers</th>
+                  <th class="text-end">Montant</th>
+                  <th>Note</th>
+                  <th>Statut</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!transfers.length">
+                  <td colspan="7" class="text-center text-muted py-4">Aucun transfert</td>
+                </tr>
+                <tr v-for="transfer in transfers" :key="transfer.id">
+                  <td>{{ new Date(transfer.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}</td>
+                  <td>{{ transfer.from_user?.name || '-' }}</td>
+                  <td>{{ transfer.to_user?.name || '-' }}</td>
+                  <td class="text-end fw-bold">{{ formatCurrency(transfer.amount) }}</td>
+                  <td><small class="text-muted">{{ transfer.note || '-' }}</small></td>
+                  <td>
+                    <span :class="['badge', transfer.status === 'pending' && !isTodaySelected ? 'bg-secondary' : transferStatusClasses[transfer.status]]">
+                      {{ transfer.status === 'pending' && !isTodaySelected ? 'Expiré' : transferStatusLabels[transfer.status] }}
+                    </span>
+                    <div v-if="transfer.validated_at" class="small text-muted">
+                      {{ transfer.status === 'accepted' ? 'Accepté' : 'Refusé' }}
+                      par {{ transfer.validated_by?.name || '-' }}
+                      à {{ new Date(transfer.validated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <template v-if="transfer.status === 'pending' && isTodaySelected">
+                      <div class="btn-group btn-group-sm">
+                        <template v-if="Number(transfer.to_user_id) === Number(currentUser?.id)">
+                          <button class="btn btn-success" title="Valider l'arrivée" @click="transferAction(transfer, 'accept')">
+                            <Check :size="14" class="me-1" /> Valider
+                          </button>
+                          <button class="btn btn-outline-danger" title="Refuser" @click="transferAction(transfer, 'reject')">
+                            <X :size="14" />
+                          </button>
+                        </template>
+                        <button
+                          v-if="Number(transfer.from_user_id) === Number(currentUser?.id) || hasFullAccess"
+                          class="btn btn-outline-secondary"
+                          title="Annuler"
+                          @click="transferAction(transfer, 'cancel')"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </template>
+                    <span v-else class="text-muted">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div v-if="hasFullAccess" class="card border-0 shadow-sm mt-4">
         <div class="card-header bg-white">
           <h6 class="mb-0 fw-bold">Historique des caisses</h6>
         </div>
@@ -649,6 +905,118 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+    <!-- Transfer Modal -->
+    <div v-if="showTransferModal" class="modal show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <ArrowLeftRight :size="18" class="me-2" />Transfert de caisse
+            </h5>
+            <button type="button" class="btn-close" @click="closeTransferModal" :disabled="transferSubmitting"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <div><strong>De :</strong> {{ transferSource?.user_name }}</div>
+              <div>
+                <strong>Disponible :</strong>
+                <span v-if="transferAvailableLoading" class="spinner-border spinner-border-sm ms-1"></span>
+                <span v-else>{{ formatCurrency(transferAvailable) }}</span>
+              </div>
+              <small class="text-muted">Montant caisse du jour, moins les transferts déjà en attente.</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Destinataire *</label>
+              <select v-model="transferForm.to_user_id" class="form-select">
+                <option value="" disabled>Choisir un utilisateur</option>
+                <option v-for="recipient in recipientOptions" :key="recipient.id" :value="recipient.id">
+                  {{ recipient.name }}
+                </option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Montant à transférer *</label>
+              <div class="input-group">
+                <input
+                  type="number"
+                  v-model="transferForm.amount"
+                  class="form-control"
+                  :class="{ 'is-invalid': transferAmountTooHigh }"
+                  min="0"
+                  :max="transferAvailable"
+                >
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  @click="transferForm.amount = transferAvailable"
+                  :disabled="transferAvailableLoading || transferAvailable <= 0"
+                >
+                  Tout
+                </button>
+                <span class="input-group-text">FBU</span>
+              </div>
+              <div v-if="transferAmountTooHigh" class="text-danger small mt-1">
+                Le montant ne peut pas dépasser {{ formatCurrency(transferAvailable) }}.
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Note (optionnel)</label>
+              <input type="text" v-model="transferForm.note" class="form-control" maxlength="255">
+            </div>
+            <div v-if="sourceTransfers.length" class="border-top pt-3">
+              <div class="small fw-semibold mb-2">Transferts du jour de {{ transferSource?.user_name }}</div>
+              <div
+                v-for="transfer in sourceTransfers"
+                :key="transfer.id"
+                class="d-flex align-items-center gap-2 py-1 border-bottom small"
+              >
+                <ArrowLeftRight :size="14" class="text-warning flex-shrink-0" />
+                <div class="flex-grow-1">
+                  <span class="fw-semibold">{{ formatCurrency(transfer.amount) }}</span>
+                  vers {{ transfer.to_user?.name || '-' }}
+                  <div v-if="transfer.validated_by" class="text-muted">
+                    {{ transfer.status === 'accepted' ? 'Accepté' : 'Refusé' }} par {{ transfer.validated_by.name }}
+                    <span v-if="transfer.validated_at"> à {{ new Date(transfer.validated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+                  </div>
+                </div>
+                <span :class="['badge', transferStatusClasses[transfer.status]]">
+                  {{ transferStatusLabels[transfer.status] }}
+                </span>
+                <button
+                  v-if="transfer.status === 'pending'"
+                  type="button"
+                  class="btn btn-sm btn-outline-danger py-0"
+                  @click="cancelFromModal(transfer)"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeTransferModal" :disabled="transferSubmitting">Annuler</button>
+            <button
+              type="button"
+              class="btn btn-warning"
+              @click="submitTransfer"
+              :disabled="transferSubmitting || transferAvailableLoading || transferAmountTooHigh || transferAvailable <= 0"
+            >
+              <span v-if="transferSubmitting" class="spinner-border spinner-border-sm me-1"></span>
+              Envoyer le transfert
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <TransferConfirmModal
+      :transfer="confirmTransfer"
+      :action="confirmAction"
+      :loading="confirmLoading"
+      @confirm="submitTransferConfirm"
+      @close="closeTransferConfirm"
+    />
+
     <!-- Toast Notification -->
     <div v-if="showToast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
       <div class="toast show" :class="toastType === 'success' ? 'border-success' : 'border-danger'">

@@ -192,6 +192,7 @@ const navItems = [
     "domains":["bakery"] 
   },
   { to: "/bank-deposits", icon: Landmark, label: "Banque", permission: "finance" },
+  { to: "/cash-register", icon: Wallet, label: "Ma Caisse", hideIfPermission: "finance" },
   { to: "/expenses", icon: Wallet, label: "Dépenses", permission: "expenses" },
   { to: "/company", icon: Building, label: "Entreprise", permission: "company" },
   { to: "/users", icon: UserCog, label: "Utilisateurs", permission: "users" },
@@ -235,6 +236,11 @@ const filteredNavItems = computed(() => {
     .filter((item) => {
       // Filtrer par domaine d'entreprise
       if (item.domains && !item.domains.includes(companyDomain.value)) {
+        return false;
+      }
+
+      // Masqué pour ceux qui ont déjà l'accès complet par un autre menu
+      if (item.hideIfPermission && userHasPermission(item.hideIfPermission)) {
         return false;
       }
 
