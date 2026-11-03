@@ -401,7 +401,7 @@ defineExpose({ clearClient });
         <span class="badge bg-white text-primary fw-bold"
           >{{ cart.length }} Articles</span
         >
-        <label class="btn btn-sm btn-light text-primary cart-price-toggle" title="Utiliser les prix des libelles">
+        <label class="btn btn-sm btn-light text-primary cart-price-toggle" title="Utiliser les prix promotionnels">
           <input
             type="checkbox"
             class="form-check-input me-1"
@@ -409,7 +409,7 @@ defineExpose({ clearClient });
             :disabled="cart.length === 0 || isSubmitting"
             @change="toggleLibellePrices"
           />
-          Prix libelle
+          Prix Promotionnel
         </label>
         <button
           type="button"
@@ -509,7 +509,7 @@ defineExpose({ clearClient });
                 class="form-control form-control-sm text-end compact-input"
                 :class="{ 'is-invalid': !item.price || item.price <= 0 }"
                 :readonly="useLibellePrices"
-                :title="useLibellePrices ? 'Prix provenant du libelle' : 'Prix produit'"
+                :title="useLibellePrices ? 'Prix promotionnel' : 'Prix produit'"
                 min="0.01"
                 step="0.01"
                 required

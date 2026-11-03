@@ -186,7 +186,7 @@
                 <th class="text-center">TVA</th>
                 <th class="text-end">P.U. HTVA</th>
                 <th class="text-end">P.U. TVAC</th>
-                <th class="text-end">Prix libellé</th>
+                <th class="text-end">Prix Promotionnel</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Contrôle prix</th>
                 <th class="text-center">Actions</th>
@@ -978,7 +978,7 @@ const exportStockToExcel = () => {
               <th>TVA</th>
               <th>P.U. HTVA</th>
               <th>P.U. TVAC</th>
-              <th>Prix libellé</th>
+              <th>Prix Promotionnel</th>
               <th>Total Produit</th>
               <th>Contrôle prix</th>
             </tr>

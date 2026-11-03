@@ -68,7 +68,7 @@ const fetchInvoices = async () => {
   error.value = null;
   console.log("Journal: Fetching invoices...");
   try {
-    const params = {};
+    const params = { with_items: 1 };
 
     // Filtres de date optionnels
     if (startDate.value) {
@@ -296,7 +296,7 @@ onMounted(() => {
                 []"
                 :key="idx"
               >
-                {{ item.item_designation || item.product?.name }} | Qte :
+                {{ item.item_designation || item.product?.item_designation }} | Qte :
                 {{ item.item_quantity }} | PRIX :
                 {{ formatPrice(item.item_price) }}
               </li>

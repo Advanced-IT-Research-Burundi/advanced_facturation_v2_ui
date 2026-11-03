@@ -251,9 +251,9 @@ const toggleLibellePrices = () => {
   const count = applyPriceMode();
   if (useLibellePrices.value) {
     if (count > 0) {
-      toast.success(`Prix des libellés appliqués sur ${count} article(s).`);
+      toast.success(`Prix promotionnels appliqués sur ${count} article(s).`);
     } else {
-      toast.info("Aucun des articles de cette facture ne possède de libellé avec prix configuré.");
+      toast.info("Aucun des articles de cette facture ne possède de prix promotionnel configuré.");
     }
   } else {
     toast.info("Prix standards des produits rétablis.");
@@ -453,7 +453,7 @@ const handleValidate = async () => {
               </span>
             </h5>
             <small class="text-muted">
-              Vérifiez les articles, appliquez les prix des libellés si souhaité, et validez définitivement
+              Vérifiez les articles, appliquez les prix promotionnels si souhaité, et validez définitivement
             </small>
           </div>
           <button
@@ -586,7 +586,7 @@ const handleValidate = async () => {
                   <!-- Case à cocher Prix libellé (liée à la table libelles) -->
                   <label
                     class="btn btn-sm btn-light border text-primary d-flex align-items-center gap-2 cart-price-toggle cursor-pointer shadow-sm mb-0"
-                    title="Appliquer les prix issus de la table libelles"
+                    title="Appliquer les prix promotionnels"
                   >
                     <input
                       type="checkbox"
@@ -596,7 +596,7 @@ const handleValidate = async () => {
                       @change="toggleLibellePrices"
                     />
                     <Tag :size="14" />
-                    <span class="fw-semibold">Prix libellé</span>
+                    <span class="fw-semibold">Prix Promotionnel</span>
                   </label>
 
                   <!-- Ajouter une ligne -->

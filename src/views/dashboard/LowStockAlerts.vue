@@ -57,6 +57,142 @@ watch(filteredAlerts, () => {
   currentPage.value = 1;
 });
 
+// Export : on exporte la liste filtrée (toutes les pages, pas seulement la page courante)
+const exportHeaders = ['Code', 'Produit', 'Stock', 'Qté', 'Niveau'];
+
+const getExportRows = () =>
+  filteredAlerts.value.map((a) => [
+    a.product_code || '',
+    a.product_name || '',
+    a.warehouse_name || '',
+    Number(a.quantity) || 0,
+    levelLabels[a.alert_level] || a.alert_level || '',
+  ]);
+
+const escapeXml = (str) =>
+  String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+const exportToExcel = () => {
+  const rows = getExportRows();
+  if (rows.length === 0) return;
+
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<?mso-application progid="Excel.Sheet"?>\n';
+  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ';
+  xml += 'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+  xml += '<Styles><Style ss:ID="Bold"><Font ss:Bold="1"/></Style></Styles>\n';
+  xml += '<Worksheet ss:Name="Stock bas"><Table>\n';
+
+  xml += '<Row ss:StyleID="Bold">';
+  exportHeaders.forEach((h) => {
+    xml += `<Cell><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+  });
+  xml += '</Row>\n';
+
+  rows.forEach((row) => {
+    xml += '<Row>';
+    row.forEach((cell) => {
+      const type = typeof cell === 'number' ? 'Number' : 'String';
+      xml += `<Cell><Data ss:Type="${type}">${escapeXml(cell)}</Data></Cell>`;
+    });
+    xml += '</Row>\n';
+  });
+
+  xml += '</Table></Worksheet></Workbook>';
+
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  downloadBlob(blob, `alertes_stock_bas_${getTimestamp()}.xls`);
+};
+
+// PDF : ouvre une fenêtre d'impression propre (choisir « Enregistrer en PDF »)
+const exportToPdf = () => {
+  const rows = getExportRows();
+  if (rows.length === 0) return;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Alertes Stock Bas</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; padding: 15px; }
+        .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .header h2 { font-size: 16px; margin-bottom: 5px; }
+        .header p { font-size: 11px; color: #666; }
+        .summary { display: flex; justify-content: space-around; margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #333; padding: 6px 8px; text-align: left; }
+        th { background-color: #e9ecef; font-weight: bold; font-size: 10px; }
+        td { font-size: 10px; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .text-right { text-align: right; }
+        @media print {
+          body { padding: 0; }
+          .summary, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>Alertes Stock Bas</h2>
+        <p>Seuil : ${escapeXml(threshold.value)} — ${new Date().toLocaleString('fr-FR')}</p>
+      </div>
+      <div class="summary">
+        <span><strong>Total :</strong> ${formatNumber(rows.length)}</span>
+        <span><strong>Critique :</strong> ${formatNumber(rows.filter((r) => r[4] === levelLabels.critical).length)}</span>
+        <span><strong>Urgent :</strong> ${formatNumber(rows.filter((r) => r[4] === levelLabels.danger).length)}</span>
+        <span><strong>Attention :</strong> ${formatNumber(rows.filter((r) => r[4] === levelLabels.warning).length)}</span>
+      </div>
+      <table>
+        <thead>
+          <tr>${exportHeaders.map((h) => `<th>${h}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <td>${escapeXml(row[0])}</td>
+              <td>${escapeXml(row[1])}</td>
+              <td>${escapeXml(row[2])}</td>
+              <td class="text-right">${formatNumber(row[3])}</td>
+              <td>${escapeXml(row[4])}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 250);
+};
+
 onMounted(fetchData);
 </script>
 
@@ -67,9 +203,25 @@ onMounted(fetchData);
         <h1 class="h3 mb-1">Alertes Stock Bas</h1>
         <p class="text-muted mb-0">Produits dont la quantité est sous le seuil</p>
       </div>
-      <router-link to="/dashboard" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left"></i> Tableau de bord
-      </router-link>
+      <div class="d-flex gap-2">
+        <div class="dropdown">
+          <button
+            class="btn btn-outline-success btn-sm dropdown-toggle"
+            type="button"
+            data-bs-toggle="dropdown"
+            :disabled="loading || filteredAlerts.length === 0"
+          >
+            <i class="bi bi-download me-1"></i> Exporter
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#" @click.prevent="exportToPdf"><i class="bi bi-file-pdf me-2"></i>PDF</a></li>
+            <li><a class="dropdown-item" href="#" @click.prevent="exportToExcel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
+          </ul>
+        </div>
+        <router-link to="/dashboard" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i> Tableau de bord
+        </router-link>
+      </div>
     </div>
 
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
