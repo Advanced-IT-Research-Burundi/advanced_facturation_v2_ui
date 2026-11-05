@@ -885,10 +885,6 @@ const savePayment = async () => {
       payment_method: paymentForm.payment_method,
       reference: paymentForm.reference || null,
     });
-    await registerPaymentInCaisse(
-      paymentForm.amount,
-      `Réservation salle ${payingBooking.value.reception_hall?.name ?? ''}`.trim(),
-    );
     showPaymentModal.value = false;
     await loadAll();
   } catch (e) {

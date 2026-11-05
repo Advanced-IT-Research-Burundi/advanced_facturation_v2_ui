@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
@@ -167,7 +167,7 @@ const transferAmountTooHigh = computed(() => Number(transferForm.value.amount) >
 const canTransferFrom = (row) =>
   Boolean(currentRegister.value?.register)
   && isTodaySelected.value
-  && (hasFullAccess.value || Number(row.user_id) === Number(currentUser.value?.id))
+  && Number(row.user_id) === Number(currentUser.value?.id)
   && Number(row.net_amount) > 0;
 
 const fetchTransfers = async () => {
@@ -289,6 +289,9 @@ const closeTransferConfirm = () => {
   confirmDone = null;
 };
 
+const refreshAfterTransferChange = () =>
+  Promise.all([fetchTransfers(), fetchDailySummary(), fetchCurrentRegister()]);
+
 const submitTransferConfirm = async () => {
   const transfer = confirmTransfer.value;
   if (!transfer) return;
@@ -298,7 +301,8 @@ const submitTransferConfirm = async () => {
     const res = await api.post(`/cash-transfers/${transfer.id}/${confirmAction.value}`);
     if (res.data.success) {
       showNotification(res.data.message);
-      await Promise.all([fetchTransfers(), fetchDailySummary(), fetchCurrentRegister()]);
+      window.dispatchEvent(new CustomEvent('cash-transfers-changed'));
+      await refreshAfterTransferChange();
     }
   } catch (error) {
     showNotification(error.response?.data?.message || 'Erreur', 'error');
@@ -501,6 +505,11 @@ onMounted(async () => {
   }
 
   await Promise.all(requests);
+  window.addEventListener('cash-transfers-changed', refreshAfterTransferChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('cash-transfers-changed', refreshAfterTransferChange);
 });
 </script>
 
@@ -626,7 +635,7 @@ onMounted(async () => {
               <button v-if="hasFullAccess" class="btn btn-sm btn-outline-secondary" @click="printReceipt">
                 <Printer :size="16" class="me-1" /> Imprimer
               </button>
-              <button class="btn btn-sm btn-primary" @click="showMovementModal = true">
+              <button v-if="hasFullAccess" class="btn btn-sm btn-primary" @click="showMovementModal = true">
                 <Plus :size="16" class="me-1" /> Ajouter mouvement
               </button>
             </template>

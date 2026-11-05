@@ -14,6 +14,7 @@ const defaultState = () => ({
     start_date: "",
     end_date: "",
     category_id: "",
+    status: "",
   },
   lastUpdatedAt: null,
   loading: false,
@@ -69,7 +70,11 @@ const expensesModule = {
         start_date: query.start_date || "",
         end_date: query.end_date || "",
         category_id: query.category_id || "",
+        status: query.status || "",
       };
+    },
+    SET_EXPENSE_TOTALS(state, total) {
+      state.expenseTotals = total;
     },
     SET_UPDATED_AT(state) {
       state.lastUpdatedAt = Date.now();
@@ -80,15 +85,16 @@ const expensesModule = {
   },
   actions: {
     // --- Expenses ---
-    async fetchExpenses({ commit }, { page = 1, search = '', start_date = '', end_date = '', category_id = '' } = {}) {
+    async fetchExpenses({ commit }, { page = 1, search = '', start_date = '', end_date = '', category_id = '', status = '' } = {}) {
       commit("SET_LOADING", true);
-      commit("SET_LAST_QUERY", { page, search, start_date, end_date, category_id });
+      commit("SET_LAST_QUERY", { page, search, start_date, end_date, category_id, status });
       commit("SET_ERROR", null);
       try {
-        const params = { page, search, start_date, end_date, category_id };
+        const params = { page, search, start_date, end_date, category_id, status };
         const response = await api.get('/depenses', { params });
         const { data, ...meta } = response.data.data;
         commit("SET_EXPENSES", { data, meta });
+        commit("SET_EXPENSE_TOTALS", response.data.total_approved);
         commit("SET_UPDATED_AT");
         return response.data;
       } catch (error) {
@@ -144,6 +150,24 @@ const expensesModule = {
       } finally {
         commit("SET_LOADING", false);
       }
+    },
+    async approveExpense({ commit }, id) {
+       try {
+           const response = await api.post(`/depenses/${id}/approve`);
+           commit("UPDATE_EXPENSE", response.data.data);
+           return { success: true, message: response.data.message };
+       } catch (error) {
+           return { success: false, message: error.response?.data?.message || "Erreur lors de la validation" };
+       }
+    },
+    async rejectExpense({ commit }, { id, rejection_reason }) {
+       try {
+           const response = await api.post(`/depenses/${id}/reject`, { rejection_reason });
+           commit("UPDATE_EXPENSE", response.data.data);
+           return { success: true, message: response.data.message };
+       } catch (error) {
+           return { success: false, message: error.response?.data?.message || "Erreur lors du refus" };
+       }
     },
     async deleteExpense({ commit }, id) {
        try {
@@ -243,7 +267,7 @@ const expensesModule = {
     isLoading: state => state.loading,
     paginationExpenses: state => state.pagination.expenses,
     paginationCategories: state => state.pagination.categories,
-    totalExpensesVal: state => state.expenses.reduce((acc, curr) => acc + Number(curr.montant), 0)
+    totalExpensesVal: state => state.expenseTotals
   }
 };
 

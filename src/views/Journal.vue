@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { Printer, ArrowLeft } from "lucide-vue-next";
+import { Printer, ArrowLeft, FileSpreadsheet } from "lucide-vue-next";
 import { useStore } from "vuex";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
@@ -20,6 +20,27 @@ const invoiceToPrint = ref(null);
 // Dates - par défaut vide pour afficher tout
 const startDate = ref("");
 const endDate = ref("");
+
+// Export Excel - par défaut le mois en cours
+const toInputDate = (date) => {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+const today = new Date();
+const exportStartDate = ref(
+  toInputDate(new Date(today.getFullYear(), today.getMonth(), 1)),
+);
+const exportEndDate = ref(toInputDate(today));
+const exportIncludeUnvalidated = ref(false);
+const exporting = ref(false);
+
+const isExportPeriodValid = computed(
+  () =>
+    exportStartDate.value &&
+    exportEndDate.value &&
+    exportStartDate.value <= exportEndDate.value,
+);
 
 // Summary statistics
 const summary = computed(() => {
@@ -162,6 +183,46 @@ const closePrintModal = () => {
   invoiceToPrint.value = null;
 };
 
+const exportSales = async () => {
+  exporting.value = true;
+  try {
+    const params = {
+      start_date: exportStartDate.value,
+      end_date: exportEndDate.value,
+    };
+    if (exportIncludeUnvalidated.value) {
+      params.include_unvalidated = 1;
+    }
+
+    const response = await api.get("/export/sales", {
+      params,
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `ventes_${exportStartDate.value}_au_${exportEndDate.value}.xlsx`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Journal: Error exporting sales:", err);
+    // La réponse d'erreur arrive aussi sous forme de blob
+    let message = "Erreur lors de l'export des ventes";
+    if (err.response?.status === 404) {
+      message = JSON.parse(await err.response.data.text()).message;
+    }
+    toast.error(message);
+  } finally {
+    exporting.value = false;
+  }
+};
+
 // Init
 onMounted(() => {
   fetchInvoices();
@@ -256,6 +317,58 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Export Excel -->
+    <div class="card mb-4 noprint">
+      <div class="card-body py-3">
+        <h6 class="card-title mb-3">
+          <FileSpreadsheet :size="16" class="me-1" />
+          Exporter les ventes vers Excel
+        </h6>
+        <form class="row g-2 align-items-end" @submit.prevent="exportSales">
+          <div class="col-6 col-md-2">
+            <label class="small" for="export-start-date">DU</label>
+            <input
+              id="export-start-date"
+              type="date"
+              class="form-control form-control-sm"
+              v-model="exportStartDate"
+            />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="small" for="export-end-date">AU</label>
+            <input
+              id="export-end-date"
+              type="date"
+              class="form-control form-control-sm"
+              v-model="exportEndDate"
+            />
+          </div>
+          <div class="col-12 col-md-auto">
+            <div class="form-check mb-1">
+              <input
+                id="export-include-unvalidated"
+                type="checkbox"
+                class="form-check-input"
+                v-model="exportIncludeUnvalidated"
+              />
+              <label class="form-check-label small" for="export-include-unvalidated">
+                Inclure les factures non validées
+              </label>
+            </div>
+          </div>
+          <div class="col-12 col-md-auto">
+            <button
+              type="submit"
+              class="btn btn-success btn-sm"
+              :disabled="!isExportPeriodValid || exporting"
+            >
+              {{ exporting ? "Export en cours..." : "Exporter" }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 

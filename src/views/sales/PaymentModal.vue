@@ -109,7 +109,7 @@ const submitPayment = async () => {
      }
   } catch (e) {
       console.error(e);
-      toast.error('Erreur lors de l\'enregistrement du paiement');
+      toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement du paiement');
   } finally {
       loading.value = false;
   }

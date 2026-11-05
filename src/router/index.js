@@ -249,6 +249,12 @@ const router = createRouter({
           meta: { permission: "expenses" },
         },
         {
+          path: "expenses/fund",
+          name: "expenses.fund",
+          component: () => import("../views/depenses/ExpenseFund.vue"),
+          meta: { permission: "expenses" },
+        },
+        {
           path: "company",
           name: "company",
           component: () => import("../views/companies/Company.vue"),

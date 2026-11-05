@@ -18,9 +18,24 @@
         <i class="bi bi-tags fs-5"></i>
         <span class="fw-medium">Catégories</span>
       </router-link>
+      <router-link
+        v-if="isAdmin"
+        to="/expenses/fund"
+        class="nav-link d-flex align-items-center justify-content-center gap-2 px-4 py-2 bg-white text-secondary border shadow-sm"
+        active-class="active-nav-link"
+      >
+        <i class="bi bi-safe fs-5"></i>
+        <span class="fw-medium">Caisse des dépenses</span>
+      </router-link>
     </div>
   </div>
 </template>
+
+<script setup>
+import { useAdminAccess } from "@/composables/useAdminAccess";
+
+const { isAdmin } = useAdminAccess();
+</script>
 
 <style scoped>
 .nav-link {

@@ -1038,12 +1038,6 @@ const submitRecordPayment = async () => {
       payment_date: paymentDate.value,
       payment_method: paymentMethod.value,
     });
-    const roomNum = paymentModal.value.room?.room_number ?? '';
-    await registerPaymentInCaisse(
-      paymentAmount.value,
-      `Paiement chambre N°${roomNum} — ${paymentModal.value.guest_name ?? ''}`.trim(),
-      `CHAMBRE N°${roomNum}`,
-    );
     paymentModal.value = null;
     showToast('Paiement enregistré avec succès', 'success');
     await loadReservations();

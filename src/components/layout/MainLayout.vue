@@ -23,6 +23,7 @@ import { RouterLink, RouterView, useRouter, useRoute } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 import { networkActivity } from "@/services/api";
+import TransferNotifications from "@/components/layout/TransferNotifications.vue";
 
 const store = useStore();
 const router = useRouter();
@@ -317,6 +318,8 @@ const filteredNavItems = computed(() => {
             <RefreshCw :size="14" :class="{ 'sync-spin': isSyncing }" />
             <span>{{ isSyncing ? "Mise à jour" : "À jour" }}</span>
           </div>
+
+          <TransferNotifications />
 
           <div class="dropdown">
             <a

@@ -9,7 +9,7 @@
        <div class="col-md-12 col-xl-4">
            <div class="card shadow-sm border-0 bg-primary text-white h-100">
                <div class="card-body">
-                   <h6 class="text-white-50 text-uppercase mb-2">Total Dépenses</h6>
+                   <h6 class="text-white-50 text-uppercase mb-2">Total Dépenses validées</h6>
                    <h2 class="display-6 mb-0 fw-bold">{{ formatCurrency(totalVal) }}</h2>
                    <div class="mt-2 small text-white-50">
                        Période sélectionnée
@@ -41,6 +41,13 @@
                        <div class="col-md-6 col-lg-3">
                            <label class="form-label small text-muted">Au</label>
                            <input type="date" class="form-control" v-model="filters.end_date" @change="applyFilters">
+                       </div>
+                       <div class="col-md-6 col-lg-3">
+                           <label class="form-label small text-muted">Statut</label>
+                           <select class="form-select" v-model="filters.status" @change="applyFilters">
+                               <option value="">Tous</option>
+                               <option v-for="(meta, key) in statusMeta" :key="key" :value="key">{{ meta.label }}</option>
+                           </select>
                        </div>
                        <div class="col-12 d-flex gap-2 justify-content-end align-items-end">
                            <button class="btn btn-outline-secondary" @click="resetFilters">
@@ -75,6 +82,8 @@
                 <th class="ps-4">Description</th>
                 <th>Catégorie</th>
                 <th>Justificatif</th>
+                <th>Saisie par</th>
+                <th>Statut</th>
                 <th>Date</th>
                 <th class="text-end">Montant</th>
                 <th class="text-center">Actions</th>
@@ -95,19 +104,31 @@
                     </button>
                     <span v-else class="text-muted small">-</span>
                 </td>
+                <td class="small">{{ expense.user?.name || '-' }}</td>
+                <td>
+                    <span class="badge" :class="statusMeta[expense.status]?.badge">{{ statusMeta[expense.status]?.label }}</span>
+                    <div v-if="expense.validated_by?.name" class="small text-muted mt-1">par {{ expense.validated_by.name }}</div>
+                    <div v-if="expense.status === 'rejected' && expense.rejection_reason" class="small text-muted mt-1">
+                        {{ expense.rejection_reason }}
+                    </div>
+                </td>
                 <td class="text-muted small">{{ formatDate(expense.created_at) }}</td>
                 <td class="text-end fw-bold text-dark">{{ formatCurrency(expense.montant) }}</td>
                 <td class="text-center">
-                  <button class="btn btn-sm btn-link text-primary p-1" @click="openEditModal(expense)">
+                  <template v-if="isAdmin && expense.status === 'pending'">
+                    <button class="btn btn-sm btn-success me-1" @click="approveExpense(expense)">Valider</button>
+                    <button class="btn btn-sm btn-outline-danger me-1" @click="openRejectModal(expense)">Refuser</button>
+                  </template>
+                  <button v-if="canEdit(expense)" class="btn btn-sm btn-link text-primary p-1" title="Modifier" @click="openEditModal(expense)">
                       <i class="bi bi-pencil"></i>
                   </button>
-                  <button class="btn btn-sm btn-link text-danger p-1" @click="confirmDelete(expense)">
+                  <button v-if="canDelete(expense)" class="btn btn-sm btn-link text-danger p-1" title="Supprimer" @click="confirmDelete(expense)">
                       <i class="bi bi-trash"></i>
                   </button>
                 </td>
               </tr>
               <tr v-if="!loading && expenses.length === 0">
-                 <td colspan="6" class="text-center py-5 text-muted">
+                 <td colspan="8" class="text-center py-5 text-muted">
                      <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
                      Aucune dépense trouvée pour cette période.
                  </td>
@@ -186,6 +207,27 @@
         </div>
       </div>
     </div>
+
+    <!-- Refus d'une dépense -->
+    <div v-if="expenseToReject" class="modal fade show d-block" style="background: rgba(0,0,0,0.5)" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">Refuser la dépense</h5>
+            <button type="button" class="btn-close" @click="expenseToReject = null"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-3">{{ expenseToReject.name }} : <b>{{ formatCurrency(expenseToReject.montant) }}</b></p>
+            <label class="form-label small text-muted text-uppercase fw-bold">Motif (optionnel)</label>
+            <textarea class="form-control" rows="2" maxlength="255" v-model="rejectionReason"></textarea>
+          </div>
+          <div class="modal-footer bg-light">
+            <button type="button" class="btn btn-outline-secondary" @click="expenseToReject = null">Annuler</button>
+            <button type="button" class="btn btn-danger px-4" :disabled="submitting" @click="submitReject">Refuser</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -196,10 +238,18 @@ import DepenseHeader from "./DepenseHeader.vue";
 import api from "@/services/api";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import { useAdminAccess } from '@/composables/useAdminAccess';
 
 const store = useStore();
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
+const { currentUser, isAdmin } = useAdminAccess();
+
+const statusMeta = {
+    pending: { label: "En attente", badge: "bg-warning text-dark" },
+    approved: { label: "Validée", badge: "bg-success" },
+    rejected: { label: "Refusée", badge: "bg-danger" },
+};
 
 // State
 const showModal = ref(false);
@@ -207,12 +257,15 @@ const submitting = ref(false);
 const isEditing = ref(false);
 const fileInput = ref(null);
 const searchTimeout = ref(null);
+const expenseToReject = ref(null);
+const rejectionReason = ref("");
 
 const filters = reactive({
     search: "",
     category_id: "",
     start_date: "",
-    end_date: ""
+    end_date: "",
+    status: ""
 });
 
 const form = reactive({
@@ -237,6 +290,7 @@ onMounted(() => {
   filters.category_id = lastQuery.category_id || "";
   filters.start_date = lastQuery.start_date || "";
   filters.end_date = lastQuery.end_date || "";
+  filters.status = lastQuery.status || "";
   fetchData(lastQuery.page || 1);
   // Fetch categories for dropdown
   store.dispatch("expenses/fetchCategories", { page: -1 }); 
@@ -262,6 +316,7 @@ const resetFilters = () => {
     filters.category_id = "";
     filters.start_date = "";
     filters.end_date = "";
+    filters.status = "";
     fetchData(1);
 };
 
@@ -315,6 +370,9 @@ const submitForm = async () => {
     
     submitting.value = false;
     if (res.success) {
+        if (!isEditing.value) {
+            toast.success("Dépense envoyée, en attente de validation par un administrateur");
+        }
         closeModal();
         fetchData(pagination.value.current_page);
     } else {
@@ -324,8 +382,51 @@ const submitForm = async () => {
 
 const confirmDelete = async (item) => {
     if(await confirmDialog("Supprimer cette dépense ?")) {
-        await store.dispatch("expenses/deleteExpense", item.id);
+        const res = await store.dispatch("expenses/deleteExpense", item.id);
+        if (!res.success) {
+            toast.error(res.message || "Erreur lors de la suppression");
+        }
         fetchData(pagination.value.current_page);
+    }
+};
+
+const isOwnExpense = (item) => Number(item.user_id) === Number(currentUser.value?.id);
+
+const canEdit = (item) => item.status === "pending" && (isAdmin.value || isOwnExpense(item));
+
+const canDelete = (item) => isAdmin.value || (item.status !== "approved" && isOwnExpense(item));
+
+const approveExpense = async (item) => {
+    if (!await confirmDialog(`Valider « ${item.name} » ? ${formatCurrency(item.montant)} sortiront de la caisse des dépenses.`, { confirmText: "Valider", confirmClass: "btn-success" })) {
+        return;
+    }
+    const res = await store.dispatch("expenses/approveExpense", item.id);
+    if (res.success) {
+        toast.success(res.message);
+        fetchData(pagination.value.current_page);
+    } else {
+        toast.error(res.message);
+    }
+};
+
+const openRejectModal = (item) => {
+    expenseToReject.value = item;
+    rejectionReason.value = "";
+};
+
+const submitReject = async () => {
+    submitting.value = true;
+    const res = await store.dispatch("expenses/rejectExpense", {
+        id: expenseToReject.value.id,
+        rejection_reason: rejectionReason.value || null,
+    });
+    submitting.value = false;
+    if (res.success) {
+        toast.success(res.message);
+        expenseToReject.value = null;
+        fetchData(pagination.value.current_page);
+    } else {
+        toast.error(res.message);
     }
 };
 
