@@ -6,7 +6,8 @@ import { useAdminAccess } from "@/composables/useAdminAccess";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 
-const REFRESH_INTERVAL_MS = 30000;
+const REFRESH_INTERVAL_MS = 10000;
+const NOTIFICATION_DURATION_MS = 8000;
 
 const toast = useToast();
 const { confirm } = useConfirm();
@@ -14,7 +15,7 @@ const { currentUser } = useAdminAccess();
 
 const transfers = ref([]);
 const processingId = ref(null);
-let knownTransferIds = null;
+let knownStatuses = null;
 let refreshTimer = null;
 
 const pendingTransfers = computed(() =>
@@ -28,27 +29,65 @@ const formatAmount = (amount) =>
 
 const senderName = (transfer) => transfer.from_user?.name || "Un utilisateur";
 
-const announceNewTransfers = () => {
-  // Au premier chargement, seul le compteur de la cloche signale les transferts existants
-  if (knownTransferIds) {
-    pendingTransfers.value
-      .filter((transfer) => !knownTransferIds.has(transfer.id))
-      .forEach((transfer) => {
-        toast.info(`${senderName(transfer)} vous a envoyé ${formatAmount(transfer.amount)}`);
-      });
+const recipientName = (transfer) => transfer.to_user?.name || "Le destinataire";
+
+const announceFirstLoad = () => {
+  const count = pendingTransfers.value.length;
+  if (count) {
+    toast.info(`Vous avez ${count} transfert(s) reçu(s) à traiter`, NOTIFICATION_DURATION_MS);
   }
-  knownTransferIds = new Set(pendingTransfers.value.map((transfer) => transfer.id));
+};
+
+const announceChanges = () => {
+  pendingTransfers.value
+    .filter((transfer) => !knownStatuses.has(transfer.id))
+    .forEach((transfer) => {
+      toast.info(`${senderName(transfer)} vous a envoyé ${formatAmount(transfer.amount)}`, NOTIFICATION_DURATION_MS);
+    });
+
+  transfers.value
+    .filter(
+      (transfer) =>
+        Number(transfer.from_user_id) === Number(currentUser.value?.id) && knownStatuses.get(transfer.id) === "pending",
+    )
+    .forEach((transfer) => {
+      if (transfer.status === "accepted") {
+        toast.success(`${recipientName(transfer)} a accepté ${formatAmount(transfer.amount)}`, NOTIFICATION_DURATION_MS);
+      } else if (transfer.status === "rejected") {
+        toast.error(`${recipientName(transfer)} a refusé ${formatAmount(transfer.amount)}`, NOTIFICATION_DURATION_MS);
+      }
+    });
 };
 
 const fetchTransfers = async () => {
   try {
     const response = await api.get("/cash-transfers");
-    if (response.data.success) {
-      transfers.value = response.data.data.transfers || [];
-      announceNewTransfers();
+    if (!response.data.success) return false;
+
+    transfers.value = response.data.data.transfers || [];
+    const hasChanged =
+      knownStatuses &&
+      (knownStatuses.size !== transfers.value.length ||
+        transfers.value.some((transfer) => knownStatuses.get(transfer.id) !== transfer.status));
+
+    if (!knownStatuses) {
+      announceFirstLoad();
+    } else if (hasChanged) {
+      announceChanges();
     }
+    knownStatuses = new Map(transfers.value.map((transfer) => [transfer.id, transfer.status]));
+
+    return hasChanged;
   } catch (error) {
     console.error("Error fetching transfer notifications:", error);
+    return false;
+  }
+};
+
+// Un changement fait par un autre utilisateur doit aussi rafraîchir l'écran de caisse ouvert
+const pollTransfers = async () => {
+  if (await fetchTransfers()) {
+    window.dispatchEvent(new CustomEvent("cash-transfers-changed"));
   }
 };
 
@@ -78,7 +117,7 @@ const decide = async (transfer, action) => {
 
 onMounted(() => {
   fetchTransfers();
-  refreshTimer = setInterval(fetchTransfers, REFRESH_INTERVAL_MS);
+  refreshTimer = setInterval(pollTransfers, REFRESH_INTERVAL_MS);
   window.addEventListener("cash-transfers-changed", fetchTransfers);
 });
 

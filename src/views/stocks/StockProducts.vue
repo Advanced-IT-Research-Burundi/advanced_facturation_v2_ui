@@ -26,10 +26,19 @@
       <!-- Colonne 1: Produits hors stock -->
       <div class="col-md-6">
         <div class="card shadow-sm h-100">
-          <div class="card-header bg-primary text-white">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h6 class="mb-0">
               <i class="bi bi-plus-circle me-2"></i>Produits Disponibles
             </h6>
+            <button
+              class="btn btn-light btn-sm"
+              :disabled="!selectedToAdd.size || bulkWorking"
+              @click="bulkAdd"
+            >
+              <span v-if="bulkWorking === 'add'" class="spinner-border spinner-border-sm me-1"></span>
+              <i v-else class="bi bi-plus-lg me-1"></i>
+              Ajouter la sélection ({{ selectedToAdd.size }})
+            </button>
           </div>
           <div class="card-body p-0">
             <div class="p-3">
@@ -45,6 +54,16 @@
               <table class="table table-sm table-hover mb-0">
                 <thead class="table-light">
                   <tr>
+                    <th class="ps-3" style="width: 1%">
+                      <input
+                        type="checkbox"
+                        class="form-check-input"
+                        title="Sélectionner la page"
+                        :checked="isPageSelected(notInStock, selectedToAdd)"
+                        :disabled="!notInStock.length"
+                        @change="togglePage(notInStock, selectedToAdd, $event.target.checked)"
+                      />
+                    </th>
                     <th class="px-3">Code</th>
                     <th class="px-3">Désignation</th>
                     <th class="text-end px-3"></th>
@@ -52,6 +71,14 @@
                 </thead>
                 <tbody>
                   <tr v-for="p in notInStock" :key="p.id">
+                    <td class="ps-3">
+                      <input
+                        type="checkbox"
+                        class="form-check-input"
+                        :checked="selectedToAdd.has(p.id)"
+                        @change="toggleOne(selectedToAdd, p.id)"
+                      />
+                    </td>
                     <td class="px-3">{{ p.item_code }}</td>
                     <td class="px-3">{{ p.item_designation }}</td>
                     <td class="text-end px-3">
@@ -65,7 +92,7 @@
                     </td>
                   </tr>
                   <tr v-if="!loadingProductsNotInStock && !notInStock.length">
-                    <td colspan="3" class="text-center py-3 text-muted">
+                    <td colspan="4" class="text-center py-3 text-muted">
                       Tous les produits sont inclus
                     </td>
                   </tr>
@@ -103,10 +130,18 @@
       <!-- Colonne 2: Produits déjà dans ce stock -->
       <div class="col-md-6">
         <div class="card shadow-sm h-100">
-          <div class="card-header bg-success text-white">
+          <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
             <h6 class="mb-0">
               <i class="bi bi-box-fill me-2"></i>Produits en Stock
             </h6>
+            <button
+              class="btn btn-light btn-sm text-danger"
+              :disabled="!selectedToRemove.size || bulkWorking"
+              @click="showBulkRemoveModal = true"
+            >
+              <i class="bi bi-trash me-1"></i>
+              Retirer la sélection ({{ selectedToRemove.size }})
+            </button>
           </div>
           <div class="card-body p-0">
             <div class="p-3">
@@ -122,6 +157,16 @@
               <table class="table table-sm table-hover mb-0">
                 <thead class="table-light">
                   <tr>
+                    <th class="ps-3" style="width: 1%">
+                      <input
+                        type="checkbox"
+                        class="form-check-input"
+                        title="Sélectionner la page"
+                        :checked="isPageSelected(inStock, selectedToRemove)"
+                        :disabled="!inStock.length"
+                        @change="togglePage(inStock, selectedToRemove, $event.target.checked)"
+                      />
+                    </th>
                     <th class="px-3">Code</th>
                     <th class="px-3">Désignation</th>
                     <th class="text-end px-3">Quantité</th>
@@ -131,6 +176,14 @@
                 </thead>
                 <tbody>
                   <tr v-for="p in inStock" :key="p.id">
+                    <td class="ps-3">
+                      <input
+                        type="checkbox"
+                        class="form-check-input"
+                        :checked="selectedToRemove.has(p.id)"
+                        @change="toggleOne(selectedToRemove, p.id)"
+                      />
+                    </td>
                     <td class="px-3">{{ p.item_code }}</td>
                     <td class="px-3">{{ p.item_designation }}</td>
                     <td class="text-end px-3">
@@ -165,7 +218,7 @@
                     </td>
                   </tr>
                   <tr v-if="!loadingProductsInStock && !inStock.length">
-                    <td colspan="5" class="text-center py-3 text-muted">
+                    <td colspan="6" class="text-center py-3 text-muted">
                       Vide
                     </td>
                   </tr>
@@ -196,6 +249,57 @@
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de confirmation du retrait groupé -->
+    <div
+      v-if="showBulkRemoveModal"
+      class="modal show d-block"
+      style="background: rgba(0, 0, 0, 0.5)"
+      tabindex="-1"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-exclamation-triangle me-2"></i>Retirer
+              {{ selectedToRemove.size }} produit(s)
+            </h5>
+            <button
+              class="btn-close btn-close-white"
+              :disabled="bulkWorking"
+              @click="showBulkRemoveModal = false"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2">
+              Retirer les {{ selectedToRemove.size }} produit(s) sélectionné(s) de ce stock ?
+            </p>
+            <p class="text-muted small mb-0">
+              <i class="bi bi-info-circle me-1"></i>
+              Les produits qui ont encore une quantité en stock seront conservés.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              :disabled="bulkWorking"
+              @click="showBulkRemoveModal = false"
+            >
+              Annuler
+            </button>
+            <button class="btn btn-danger" :disabled="bulkWorking" @click="bulkRemove">
+              <span
+                v-if="bulkWorking === 'remove'"
+                class="spinner-border spinner-border-sm me-1"
+              ></span>
+              <i v-else class="bi bi-trash me-1"></i>
+              Retirer
+            </button>
           </div>
         </div>
       </div>
@@ -284,6 +388,10 @@ const showDeleteModal = ref(false);
 const productToDelete = ref(null);
 const deleting = ref(null);
 const successMessage = ref(null);
+const selectedToAdd = ref(new Set());
+const selectedToRemove = ref(new Set());
+const bulkWorking = ref(null);
+const showBulkRemoveModal = ref(false);
 const perPage = 20;
 const inStockPagination = ref({
   current_page: 1,
@@ -380,6 +488,94 @@ const transfer = async (productId) => {
     toast.error("Erreur lors de l'ajout du produit");
   } finally {
     working.value = null;
+  }
+};
+
+const showSuccess = (message) => {
+  successMessage.value = message;
+  setTimeout(() => {
+    successMessage.value = null;
+  }, 3000);
+};
+
+const toggleOne = (selection, productId) => {
+  if (selection.has(productId)) {
+    selection.delete(productId);
+  } else {
+    selection.add(productId);
+  }
+};
+
+const isPageSelected = (products, selection) => {
+  return products.length > 0 && products.every((p) => selection.has(p.id));
+};
+
+const togglePage = (products, selection, checked) => {
+  products.forEach((p) => {
+    if (checked) {
+      selection.add(p.id);
+    } else {
+      selection.delete(p.id);
+    }
+  });
+};
+
+const bulkAdd = async () => {
+  if (!selectedToAdd.value.size) return;
+
+  bulkWorking.value = "add";
+  try {
+    const res = await api.post(`/warehouses/${warehouseId}/products/bulk-add`, {
+      product_ids: [...selectedToAdd.value],
+    });
+
+    if (res.data.success) {
+      showSuccess(res.data.message);
+      selectedToAdd.value.clear();
+    }
+
+    await loadProductsInStock();
+    await loadProductsNotInStock();
+  } catch (error) {
+    console.error("Erreur lors de l'ajout groupé:", error);
+    toast.error(error.response?.data?.message || "Erreur lors de l'ajout des produits");
+  } finally {
+    bulkWorking.value = null;
+  }
+};
+
+const bulkRemove = async () => {
+  if (!selectedToRemove.value.size) return;
+
+  bulkWorking.value = "remove";
+  try {
+    const res = await api.post(`/warehouses/${warehouseId}/products/bulk-remove`, {
+      product_ids: [...selectedToRemove.value],
+    });
+
+    if (res.data.success) {
+      const skipped = res.data.data?.skipped_with_stock || [];
+      showSuccess(res.data.message);
+      if (skipped.length) {
+        toast.warning(
+          `${skipped.length} produit(s) conservé(s) car leur stock n'est pas nul : ` +
+            skipped.map((p) => p.item_designation).slice(0, 5).join(", ") +
+            (skipped.length > 5 ? "…" : ""),
+          8000
+        );
+      }
+      selectedToRemove.value.clear();
+      skipped.forEach((p) => selectedToRemove.value.add(p.product_id));
+    }
+
+    showBulkRemoveModal.value = false;
+    await loadProductsInStock();
+    await loadProductsNotInStock();
+  } catch (error) {
+    console.error("Erreur lors du retrait groupé:", error);
+    toast.error(error.response?.data?.message || "Erreur lors du retrait des produits");
+  } finally {
+    bulkWorking.value = null;
   }
 };
 

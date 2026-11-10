@@ -262,7 +262,7 @@ const submitTransfer = async () => {
     if (res.data.success) {
       showNotification(res.data.message);
       closeTransferModal();
-      await fetchTransfers();
+      window.dispatchEvent(new CustomEvent('cash-transfers-changed'));
     }
   } catch (error) {
     showNotification(error.response?.data?.message || 'Erreur lors du transfert', 'error');
@@ -596,6 +596,9 @@ onUnmounted(() => {
                 <div>
                   <p class="text-muted small mb-0">{{ hasFullAccess ? 'Solde actuel' : 'Montant de ma caisse' }}</p>
                   <h4 class="mb-0">{{ formatCurrency(summary.expected_balance) }}</h4>
+                  <small v-if="summary.pending_out > 0" class="text-warning-emphasis">
+                    {{ formatCurrency(summary.pending_out) }} en attente de validation
+                  </small>
                 </div>
               </div>
             </div>
@@ -671,6 +674,9 @@ onUnmounted(() => {
                   <td class="text-end">{{ formatCurrency(user.total_adjustment) }}</td>
                   <td class="text-end fw-bold" :class="user.net_amount < 0 ? 'text-danger' : 'text-success'">
                     {{ user.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(user.net_amount || 0)) }}
+                    <small v-if="user.pending_out > 0" class="d-block fw-normal text-warning-emphasis">
+                      {{ formatCurrency(user.pending_out) }} en attente
+                    </small>
                   </td>
                   <td>{{ user.latest_transaction_at ? formatDateTime(user.latest_transaction_at) : '-' }}</td>
                   <td class="text-center">

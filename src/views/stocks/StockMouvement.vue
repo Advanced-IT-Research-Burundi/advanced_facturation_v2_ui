@@ -187,6 +187,7 @@
                 <th class="text-end">P.U. HTVA</th>
                 <th class="text-end">P.U. TVAC</th>
                 <th class="text-end">Prix Promotionnel</th>
+                <th class="text-center">TVA Promo</th>
                 <th class="text-end">Total Produit</th>
                 <th class="text-center">Contrôle prix</th>
                 <th class="text-center">Actions</th>
@@ -238,6 +239,12 @@
                   </span>
                   <span v-else class="text-muted">-</span>
                 </td>
+                <td class="text-center">
+                  <template v-if="hasLibelleVat(stock)">
+                    {{ formatNumber(stock.product.libelle.tva) }}%
+                  </template>
+                  <span v-else class="text-muted">-</span>
+                </td>
                 <td class="text-end fw-bold text-success">
                   {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
                 </td>
@@ -283,7 +290,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="12" class="text-center py-5 text-muted">
+                <td colspan="13" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery
@@ -293,6 +300,17 @@
                 </td>
               </tr>
             </tbody>
+            <tfoot v-if="filteredStocks.length > 0" class="table-light">
+              <tr class="fw-bold">
+                <td colspan="3" class="text-end">Total</td>
+                <td class="text-end">{{ formatNumber(filteredStockQuantity) }}</td>
+                <td colspan="6"></td>
+                <td class="text-end text-success">
+                  {{ formatCurrencyTotals(filteredStockRevenueByCurrency) }}
+                </td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
@@ -824,6 +842,12 @@ const getLibellePrice = (stock) => {
   return toNumber(stock.product?.libelle?.price);
 };
 
+// TVA du libellé : optionnelle, et sans objet s'il n'y a pas de prix promotionnel
+const hasLibelleVat = (stock) => {
+  const vat = stock.product?.libelle?.tva;
+  return getLibellePrice(stock) > 0 && vat !== null && vat !== undefined;
+};
+
 const getPriceHTVA = (stock) => toNumber(stock.unit_price);
 
 const getPriceTVAC = (stock) => {
@@ -941,6 +965,7 @@ const exportStockToExcel = () => {
         <td style="text-align:right;">${formatNumber(getPriceHTVA(stock))} ${currency}</td>
         <td style="text-align:right;">${formatNumber(getPriceTVAC(stock))} ${currency}</td>
         <td style="text-align:right;">${getLibellePrice(stock) > 0 ? `${formatNumber(getLibellePrice(stock))} ${currency}` : "-"}</td>
+        <td style="text-align:center;">${hasLibelleVat(stock) ? `${formatNumber(stock.product.libelle.tva)}%` : "-"}</td>
         <td style="text-align:right;">${formatNumber(total)} ${currency}</td>
         <td>${mismatches.length ? escapeHtml(mismatches.join(" ; ")) : "OK"}</td>
       </tr>
@@ -979,6 +1004,7 @@ const exportStockToExcel = () => {
               <th>P.U. HTVA</th>
               <th>P.U. TVAC</th>
               <th>Prix Promotionnel</th>
+              <th>TVA Promo</th>
               <th>Total Produit</th>
               <th>Contrôle prix</th>
             </tr>
@@ -986,6 +1012,15 @@ const exportStockToExcel = () => {
           <tbody>
             ${rows}
           </tbody>
+          <tfoot>
+            <tr style="font-weight:bold; background:#f2f2f2;">
+              <td colspan="3" style="text-align:right;">Total</td>
+              <td style="text-align:right;">${formatNumber(filteredStockQuantity.value)}</td>
+              <td colspan="6"></td>
+              <td style="text-align:right;">${escapeHtml(formatCurrencyTotals(filteredStockRevenueByCurrency.value))}</td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
       </body>
     </html>`;
