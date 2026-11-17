@@ -25,6 +25,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 import { networkActivity } from "@/services/api";
 import TransferNotifications from "@/components/layout/TransferNotifications.vue";
+import metroLogo from "@/assets/metrologo.jpeg";
 
 const store = useStore();
 const router = useRouter();
@@ -61,18 +62,7 @@ const userInitials = computed(() => {
     : "";
 });
 
-// Company name
 const fetchedCompany = ref(null);
-
-const companyName = computed(() => {
-  const user = store.state.auth.user;
-
-  if (user?.company?.name) return user.company.name;
-  if (user?.company_name) return user.company_name;
-  if (fetchedCompany.value?.name) return fetchedCompany.value.name;
-
-  return "Nom de l'entreprise";
-});
 
 const loadCompanyInfo = async () => {
   const user = store.state.auth.user;
@@ -276,10 +266,8 @@ const filteredNavItems = computed(() => {
     <!-- Sidebar -->
     <aside class="sidebar bg-dark text-white" :class="{ 'sidebar-open': sidebarOpen }">
       <div class="logo-section">
-        <div class="logo-circle bg-primary">
-          <span class="fw-bold fs-3">A</span>
-        </div>
-        <small class="logo-text">ADVANCED</small>
+        <img class="logo-image" :src="metroLogo" alt="Logo Metro Supermarket" />
+        <small class="logo-text"></small>
       </div>
 
       <ul
@@ -309,7 +297,7 @@ const filteredNavItems = computed(() => {
           <Menu v-else :size="20" />
         </button>
 
-        <h4 class="mb-0 fw-bold text-primary company-title text-truncate">{{ companyName }}</h4>
+        <h4 class="mb-0 fw-bold text-primary company-title text-truncate">METRO SUPERMARKET</h4>
 
         <div class="d-flex align-items-center gap-2 ms-auto">
           <div
@@ -400,17 +388,13 @@ const filteredNavItems = computed(() => {
   border-bottom: 1px solid var(--bs-secondary);
   flex-shrink: 0;
 }
-.logo-circle {
-  width: clamp(32px, 5vh, 44px);
-  height: clamp(32px, 5vh, 44px);
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.logo-image {
+  width: clamp(64px, 8vh, 88px);
+  height: clamp(64px, 8vh, 88px);
+  object-fit: contain;
+  border-radius: 50%;
+  background-color: #fff;
   margin-bottom: 0.25rem;
-}
-.logo-circle span {
-  font-size: clamp(0.9rem, 2vh, 1.5rem) !important;
 }
 .logo-text {
   font-size: clamp(0.55rem, 1vh, 0.75rem);
