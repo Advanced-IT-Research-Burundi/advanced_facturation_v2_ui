@@ -186,6 +186,8 @@
                 <th class="text-center">TVA</th>
                 <th class="text-end">P.U. HTVA</th>
                 <th class="text-end">P.U. TVAC</th>
+                <th class="text-end">Prix d'achat</th>
+                <th class="text-end">Bénéfice</th>
                 <th class="text-end">Prix Promotionnel</th>
                 <th class="text-center">TVA Promo</th>
                 <th class="text-end">Total Produit</th>
@@ -232,6 +234,20 @@
                 </td>
                 <td class="text-end">
                   {{ formatCurrency(getPriceTVAC(stock), stock.currency) }}
+                </td>
+                <td class="text-end">
+                  {{ formatCurrency(getPurchasePrice(stock), stock.currency) }}
+                </td>
+                <td
+                  class="text-end fw-semibold"
+                  :class="getProfit(stock) >= 0 ? 'text-success' : 'text-danger'"
+                >
+                  {{ getProfit(stock) >= 0 ? '+' : '' }}{{
+                    formatCurrency(getProfit(stock), stock.currency)
+                  }}
+                  <small class="d-block text-muted fw-normal">
+                    {{ formatNumber(getProfitMargin(stock)) }}%
+                  </small>
                 </td>
                 <td class="text-end">
                   <span v-if="getLibellePrice(stock) > 0" class="text-warning-emphasis fw-semibold">
@@ -557,7 +573,20 @@
                 />
               </div>
               <div class="col-md-6">
-                <label class="form-label">Prix d'entrée *</label>
+                <label class="form-label">Prix d'achat réel *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="form-control"
+                  v-model="quickEntryForm.purchase_price"
+                  required
+                  min="0"
+                />
+              </div>
+            </div>
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <label class="form-label">Prix de vente HTVA *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -567,8 +596,6 @@
                   min="0"
                 />
               </div>
-            </div>
-            <div class="row g-3 mt-1">
               <div class="col-md-6">
                 <label class="form-label">Devise *</label>
                 <select
@@ -581,6 +608,8 @@
                   <option value="EUR">EUR</option>
                 </select>
               </div>
+            </div>
+            <div class="row g-3 mt-1">
               <div class="col-md-6">
                 <label class="form-label">Date d'expiration</label>
                 <input
@@ -591,15 +620,15 @@
               </div>
             </div>
             <div
-              v-if="quickEntryForm.quantity && quickEntryForm.unit_price"
+              v-if="quickEntryForm.quantity && quickEntryForm.purchase_price"
               class="alert alert-success mt-3 mb-0"
             >
               <div class="d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">Montant Total :</span>
+                <span class="fw-semibold">Montant Total (achat) :</span>
                 <span class="fw-bold fs-5">
                   {{
                     new Intl.NumberFormat("fr-FR").format(
-                      quickEntryForm.quantity * quickEntryForm.unit_price,
+                      quickEntryForm.quantity * quickEntryForm.purchase_price,
                     )
                   }}
                   {{ quickEntryForm.currency }}
@@ -854,6 +883,16 @@ const getPriceTVAC = (stock) => {
   return getPriceHTVA(stock) * (1 + toNumber(stock.product?.vat_rate) / 100);
 };
 
+const getPurchasePrice = (stock) => toNumber(stock.purchase_price);
+
+// Bénéfice unitaire HTVA = prix de vente du stock - prix d'achat réel.
+const getProfit = (stock) => getPriceHTVA(stock) - getPurchasePrice(stock);
+
+const getProfitMargin = (stock) => {
+  const sellingPrice = getPriceHTVA(stock);
+  return sellingPrice > 0 ? (getProfit(stock) / sellingPrice) * 100 : 0;
+};
+
 // Compare les prix du catalogue (products) avec ceux du stock (warehouse_products).
 // Le POS privilégie products.price et se rabat sur products.price_promo : tout écart
 // signifie que le prix facturé n'est pas celui du stock.
@@ -964,6 +1003,8 @@ const exportStockToExcel = () => {
         <td style="text-align:center;">${formatNumber(stock.product?.vat_rate || 0)}%</td>
         <td style="text-align:right;">${formatNumber(getPriceHTVA(stock))} ${currency}</td>
         <td style="text-align:right;">${formatNumber(getPriceTVAC(stock))} ${currency}</td>
+        <td style="text-align:right;">${formatNumber(getPurchasePrice(stock))} ${currency}</td>
+        <td style="text-align:right;">${formatNumber(getProfit(stock))} ${currency} (${formatNumber(getProfitMargin(stock))}%)</td>
         <td style="text-align:right;">${getLibellePrice(stock) > 0 ? `${formatNumber(getLibellePrice(stock))} ${currency}` : "-"}</td>
         <td style="text-align:center;">${hasLibelleVat(stock) ? `${formatNumber(stock.product.libelle.tva)}%` : "-"}</td>
         <td style="text-align:right;">${formatNumber(total)} ${currency}</td>
@@ -1003,6 +1044,8 @@ const exportStockToExcel = () => {
               <th>TVA</th>
               <th>P.U. HTVA</th>
               <th>P.U. TVAC</th>
+              <th>Prix d'achat</th>
+              <th>Bénéfice</th>
               <th>Prix Promotionnel</th>
               <th>TVA Promo</th>
               <th>Total Produit</th>
@@ -1016,7 +1059,7 @@ const exportStockToExcel = () => {
             <tr style="font-weight:bold; background:#f2f2f2;">
               <td colspan="3" style="text-align:right;">Total</td>
               <td style="text-align:right;">${formatNumber(filteredStockQuantity.value)}</td>
-              <td colspan="6"></td>
+              <td colspan="8"></td>
               <td style="text-align:right;">${escapeHtml(formatCurrencyTotals(filteredStockRevenueByCurrency.value))}</td>
               <td></td>
             </tr>
@@ -1123,6 +1166,7 @@ const selectedStock = ref(null);
 const quickEntryForm = ref({
   product_id: "",
   quantity: "",
+  purchase_price: "",
   unit_price: "",
   currency: "BIF",
   date_expiration: "",
@@ -1193,6 +1237,7 @@ const openQuickEntry = (stock) => {
   quickEntryForm.value = {
     product_id: stock.product_id,
     quantity: "",
+    purchase_price: stock.purchase_price ?? stock.unit_price ?? "",
     unit_price: stock.unit_price,
     currency: stock.currency,
     date_expiration: "",
@@ -1207,6 +1252,7 @@ const closeQuickEntry = () => {
   quickEntryForm.value = {
     product_id: "",
     quantity: "",
+    purchase_price: "",
     unit_price: "",
     currency: "BIF",
     date_expiration: "",

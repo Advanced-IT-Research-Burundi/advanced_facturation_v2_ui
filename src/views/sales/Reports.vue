@@ -26,6 +26,29 @@ const reportData = ref(null);
 const users = ref([]);
 const warehouses = ref([]);
 
+// Tableau croisé : une ligne par jour, une colonne par moyen de paiement
+const paymentsTable = computed(() => {
+    const rows = reportData.value?.daily_payments || [];
+    const columns = [];
+    const byDate = {};
+    rows.forEach((row) => {
+        if (!columns.some((c) => c.key === row.key)) columns.push({ key: row.key, label: row.label });
+        byDate[row.date] = byDate[row.date] || { date: row.date, amounts: {}, total: 0 };
+        byDate[row.date].amounts[row.key] = (byDate[row.date].amounts[row.key] || 0) + row.total;
+        byDate[row.date].total += row.total;
+    });
+    const totals = {};
+    columns.forEach((c) => {
+        totals[c.key] = rows.filter((r) => r.key === c.key).reduce((sum, r) => sum + r.total, 0);
+    });
+    return {
+        columns,
+        days: Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)),
+        totals,
+        grandTotal: rows.reduce((sum, r) => sum + r.total, 0),
+    };
+});
+
 // Chart instances
 let salesChart = null;
 let userChart = null;
@@ -234,6 +257,12 @@ watch(filters, () => {
                              <td>Stock</td><td>{{ warehouse.name }}</td><td class="text-end">{{ Number(warehouse.total || 0).toLocaleString() }} FBU</td>
                          </tr>
                          <tr v-if="!reportData.sales_by_warehouse.length"><td colspan="3" class="text-center text-muted">Aucune donnée</td></tr>
+
+                         <tr class="print-section-row"><th colspan="3">Encaissements par moyen de paiement</th></tr>
+                         <tr v-for="col in paymentsTable.columns" :key="col.key">
+                             <td>Moyen de paiement</td><td>{{ col.label }}</td><td class="text-end">{{ Number(paymentsTable.totals[col.key] || 0).toLocaleString() }} FBU</td>
+                         </tr>
+                         <tr v-if="!paymentsTable.columns.length"><td colspan="3" class="text-center text-muted">Aucune donnée</td></tr>
                      </tbody>
                  </table>
              </div>
@@ -296,6 +325,41 @@ watch(filters, () => {
                                  Données non disponibles pour cette vue
                              </div>
                          </div>
+                     </div>
+                 </div>
+             </div>
+             <div class="card mt-3 no-print">
+                 <div class="card-header bg-white fw-bold">Encaissements par jour et par moyen de paiement</div>
+                 <div class="card-body p-0">
+                     <div class="table-responsive">
+                         <table class="table table-sm table-hover table-bordered align-middle mb-0">
+                             <thead class="table-light">
+                                 <tr>
+                                     <th>Date</th>
+                                     <th v-for="col in paymentsTable.columns" :key="col.key" class="text-end">{{ col.label }}</th>
+                                     <th class="text-end">Total</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 <tr v-for="day in paymentsTable.days" :key="day.date">
+                                     <td>{{ new Date(day.date).toLocaleDateString() }}</td>
+                                     <td v-for="col in paymentsTable.columns" :key="col.key" class="text-end">
+                                         {{ day.amounts[col.key] ? day.amounts[col.key].toLocaleString() : '-' }}
+                                     </td>
+                                     <td class="text-end fw-bold">{{ day.total.toLocaleString() }}</td>
+                                 </tr>
+                                 <tr v-if="!paymentsTable.days.length">
+                                     <td :colspan="paymentsTable.columns.length + 2" class="text-center text-muted py-3">Aucune vente pour cette période</td>
+                                 </tr>
+                             </tbody>
+                             <tfoot v-if="paymentsTable.days.length" class="table-light fw-bold">
+                                 <tr>
+                                     <td>Total</td>
+                                     <td v-for="col in paymentsTable.columns" :key="col.key" class="text-end">{{ paymentsTable.totals[col.key].toLocaleString() }}</td>
+                                     <td class="text-end">{{ paymentsTable.grandTotal.toLocaleString() }} FBU</td>
+                                 </tr>
+                             </tfoot>
+                         </table>
                      </div>
                  </div>
              </div>

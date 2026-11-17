@@ -91,7 +91,7 @@
                        placeholder="0.00">
               </div>
               <div class="col-md-2">
-                <label class="form-label small fw-bold">Prix d'entrée *</label>
+                <label class="form-label small fw-bold">Prix de vente HTVA *</label>
                 <input type="number" step="0.01" class="form-control" 
                        v-model="item.unit_price" min="0"
                        placeholder="0.00">
@@ -116,9 +116,17 @@
                 </button>
               </div>
             </div>
-            <div v-if="item.quantity && item.unit_price" class="mt-2">
+            <div class="row g-3 mt-1">
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Prix d'achat réel *</label>
+                <input type="number" step="0.01" class="form-control"
+                       v-model="item.purchase_price" min="0"
+                       placeholder="0.00">
+              </div>
+            </div>
+            <div v-if="item.quantity && item.purchase_price" class="mt-2">
               <span class="badge bg-success fs-6">
-                Montant : {{ new Intl.NumberFormat('fr-FR').format(item.quantity * item.unit_price) }} {{ item.currency }}
+                Montant (achat) : {{ new Intl.NumberFormat('fr-FR').format(item.quantity * item.purchase_price) }} {{ item.currency }}
               </span>
             </div>
           </div>
@@ -162,7 +170,7 @@ const availableProducts = ref([]);
 const form = ref({
   movement_type: 'EN',
   invoice_ref: '',
-  items: [{ product_id: '', quantity: '', unit_price: '', currency: 'BIF', date_expiration: '' }]
+  items: [{ product_id: '', quantity: '', unit_price: '', purchase_price: '', currency: 'BIF', date_expiration: '' }]
 });
 
 const getAvailableProductsForItem = (index) => {
@@ -194,7 +202,7 @@ onMounted(async () => {
 
 const addItem = () => {
   const lastItem = form.value.items[form.value.items.length - 1];
-  if (!lastItem.product_id || !lastItem.quantity || !lastItem.unit_price) {
+  if (!lastItem.product_id || !lastItem.quantity || !lastItem.unit_price || !lastItem.purchase_price) {
     error.value = 'Veuillez remplir la ligne actuelle avant d\'en ajouter une nouvelle';
     setTimeout(() => error.value = null, 3000);
     return;
@@ -203,6 +211,7 @@ const addItem = () => {
     product_id: '', 
     quantity: '', 
     unit_price: '', 
+    purchase_price: '', 
     currency: 'BIF', 
     date_expiration: '' 
   });
@@ -215,7 +224,7 @@ const removeItem = (index) => {
 const submitBulkEntry = async () => {
   // Validation
   for (const item of form.value.items) {
-    if (!item.product_id || !item.quantity || !item.unit_price) {
+    if (!item.product_id || !item.quantity || !item.unit_price || !item.purchase_price) {
       error.value = 'Veuillez remplir tous les champs obligatoires';
       window.scrollTo(0, 0);
       return;

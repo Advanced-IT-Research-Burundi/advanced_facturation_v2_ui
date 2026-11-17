@@ -565,7 +565,7 @@ const handleValidate = async () => {
                       <option value="1">1 - Espèces (Cash)</option>
                       <option value="2">2 - Banque / Virement</option>
                       <option value="3">3 - À Crédit</option>
-                      <option value="4">4 - Autres (Mobile Money)</option>
+                      <option value="4">4 - Autres (Mobile Money, Enoti…)</option>
                     </select>
                   </div>
                 </div>

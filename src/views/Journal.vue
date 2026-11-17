@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { Printer, ArrowLeft, FileSpreadsheet } from "lucide-vue-next";
+import { Printer, ArrowLeft, FileSpreadsheet, TrendingUp } from "lucide-vue-next";
 import { useStore } from "vuex";
 import api from "@/services/api";
 import { useToast } from "@/composables/useToast";
@@ -62,12 +62,30 @@ const summary = computed(() => {
   };
 });
 
+// Montants par moyen de paiement (calculés côté serveur sur toute la période)
+const paymentTotals = ref([]);
+const paymentTotalsSum = computed(() =>
+  paymentTotals.value.reduce((sum, row) => sum + row.total, 0),
+);
+
+const fetchPaymentTotals = async () => {
+  try {
+    const params = {};
+    if (startDate.value) params.start_date = startDate.value;
+    if (endDate.value) params.end_date = endDate.value;
+    const response = await api.get("/reports/payments-by-method", { params });
+    if (response.data.success) paymentTotals.value = response.data.data;
+  } catch (err) {
+    console.error("Journal: Error fetching payment totals:", err);
+  }
+};
+
 // Payment types mapping (comme dans la démo)
 const TYPE_PAYMENT = {
   1: "Espèces",
   2: "Banque",
   3: "Crédit",
-  4: "Mobile Money",
+  4: "Autres",
   cash: "Espèces",
   bank: "Banque",
   credit: "Crédit",
@@ -85,6 +103,7 @@ const INVOICE_TYPES = {
 
 // Fetch invoices - EXACTEMENT comme InvoicesList
 const fetchInvoices = async () => {
+  fetchPaymentTotals();
   loading.value = true;
   error.value = null;
   console.log("Journal: Fetching invoices...");
@@ -244,6 +263,11 @@ onMounted(() => {
         OBR Mouvements Stock
       </RouterLink>
 
+      <RouterLink to="/profit" class="btn btn-success btn-sm me-2">
+        <TrendingUp :size="14" class="me-1" />
+        Voir les bénéfices
+      </RouterLink>
+
       <button class="btn btn-info btn-sm" @click="printPage">
         <Printer :size="14" class="me-1" />
         Imprimer
@@ -316,6 +340,43 @@ onMounted(() => {
               <td class="text-nowrap">{{ formatPrice(summary.total_htva) }}</td>
             </tr>
           </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Montant par mode de paiement -->
+    <div class="card mb-4">
+      <div class="card-body py-3">
+        <h6 class="card-title mb-3">Montant par mode de paiement</h6>
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>MODE DE PAIEMENT</th>
+              <th>MOYEN</th>
+              <th class="text-end">NOMBRE DE FACTURES</th>
+              <th class="text-end">MONTANT TVAC</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="paymentTotals.length === 0">
+              <td colspan="4" class="text-center text-muted">Aucune vente pour cette période</td>
+            </tr>
+            <tr
+              v-for="row in paymentTotals"
+              :key="`${row.payment_type}-${row.payment_method_id}`"
+            >
+              <td>{{ row.payment_type_label }}</td>
+              <td>{{ row.payment_method_name || "-" }}</td>
+              <td class="text-end">{{ formatPrice(row.invoices_count) }}</td>
+              <td class="text-end fw-bold text-nowrap">{{ formatPrice(row.total) }}</td>
+            </tr>
+          </tbody>
+          <tfoot v-if="paymentTotals.length" class="table-light fw-bold">
+            <tr>
+              <td colspan="3">TOTAL</td>
+              <td class="text-end text-nowrap">{{ formatPrice(paymentTotalsSum) }}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
@@ -445,6 +506,9 @@ onMounted(() => {
           <!-- MODE DE PAIEMENT -->
           <td class="noprint">
             {{ getPaymentTypeLabel(invoice.payment_type) }}
+            <div v-if="invoice.payment_method?.name" class="small text-muted">
+              {{ invoice.payment_method.name }}
+            </div>
           </td>
 
           <!-- TYPE DE FACTURE -->

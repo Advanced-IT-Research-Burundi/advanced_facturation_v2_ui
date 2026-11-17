@@ -65,9 +65,9 @@ const useLibellePrices = ref(false);
 const paymentInfo = computed(() => {
   const isBank = selectedPaymentType.value === "2";
   return {
-    title: isBank ? "Informations bancaires" : "Informations Mobile Money",
-    label: isBank ? "Banque" : "Mobile Money",
-    type: isBank ? "bank" : "mobile_money",
+    title: isBank ? "Informations bancaires" : "Autres moyens de paiement",
+    label: isBank ? "Banque" : "Moyen de paiement",
+    types: isBank ? ["bank"] : ["mobile_money", "other"],
   };
 });
 
@@ -366,7 +366,7 @@ const openPaymentInformation = async () => {
     const methods = Array.isArray(data?.data) ? data.data : [];
     paymentMethods.value = methods.filter(
       (method) =>
-        method.method_type === paymentInfo.value.type &&
+        paymentInfo.value.types.includes(method.method_type) &&
         method.is_active !== false &&
         method.is_active !== 0 &&
         method.is_active !== "0"

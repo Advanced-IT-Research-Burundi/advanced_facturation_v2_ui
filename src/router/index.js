@@ -219,6 +219,12 @@ const router = createRouter({
           meta: { permission: "journal" },
         },
         {
+          path: "profit",
+          name: "profit",
+          component: () => import("../views/Profit.vue"),
+          meta: { permission: "journal" },
+        },
+        {
           path: "obr-invoices",
           name: "obr-invoices",
           component: () => import("../views/ObrInvoices.vue"),

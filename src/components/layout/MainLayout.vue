@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
   BedDouble,
   FileText,
+  TrendingUp,
   BarChart2,
   Wallet,
   Landmark,
@@ -178,6 +179,7 @@ const navItems = [
     domains: ["hotel"],
   },
   { to: "/journal", icon: FileText, label: "Journal", permission: "journal" },
+  { to: "/profit", icon: TrendingUp, label: "Bénéfices", permission: "journal" },
   { 
     to: "/reports", 
     icon: BarChart2, 
