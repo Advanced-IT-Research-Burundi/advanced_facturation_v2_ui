@@ -11,8 +11,12 @@ import expenses from "./modules/expenses";
 import pharmaceutical from "./modules/pharmaceutical";
 import dashboard from "./modules/dashboard";
 import obrInvoices from "./modules/obrInvoices";
+import profit from "./modules/profit";
+import cashTransfers from "./modules/cashTransfers";
+import apiCache from "./modules/apiCache";
+import freshness from "./modules/freshness";
 import { createStoreCachePlugin, getCachedModuleState } from "./cache";
-import api from "@/services/api";
+import api, { onApiWrite } from "@/services/api";
 
 const defaultRootState = () => ({
   data: {
@@ -170,8 +174,19 @@ const store = createStore({
     pharmaceutical,
     dashboard,
     obrInvoices,
+    profit,
+    cashTransfers,
+    apiCache,
+    freshness,
   },
   plugins: [createStoreCachePlugin()],
+});
+
+// Toute modification réussie peut changer stocks, factures, etc. :
+// on vide le cache générique des GET pour ne jamais afficher de données périmées
+onApiWrite(() => {
+  store.commit("apiCache/CLEAR_ENTRIES");
+  store.commit("freshness/CLEAR");
 });
 
 export default store;

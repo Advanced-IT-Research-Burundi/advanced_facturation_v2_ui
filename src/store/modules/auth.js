@@ -1,4 +1,5 @@
 import api from "@/services/api";
+import { clearStoreCache, resumeStoreCache } from "@/store/cache";
 
 let sessionTimer = null;
 
@@ -6,7 +7,7 @@ const startSessionTimer = (commit) => {
   if (sessionTimer) clearTimeout(sessionTimer);
   sessionTimer = setTimeout(() => {
     commit("CLEAR_AUTH");
-    window.location.href = "/login";
+    window.location.replace("/login");
   }, 8 * 60 * 60 * 1000);
 };
 
@@ -33,9 +34,13 @@ export default {
       state.isAuthenticated = !!token;
 
       if (token) {
+        // Nouvelle session : on repart d'un cache vide, puis on le réactive
+        clearStoreCache();
+        resumeStoreCache();
         sessionStorage.setItem("token", token);
         sessionStorage.setItem("user", JSON.stringify(user));
       } else {
+        clearStoreCache();
         sessionStorage.removeItem("token");
         sessionStorage.removeItem("user");
       }
@@ -56,6 +61,7 @@ export default {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      clearStoreCache();
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");
     },
@@ -114,6 +120,9 @@ export default {
         await api.post("/logout");
       } finally {
         commit("SET_AUTH", { user: null, token: null });
+        // Rechargement complet : vide aussi les données de l'ancien utilisateur
+        // gardées en mémoire par les modules du store
+        window.location.replace("/login");
       }
     },
   },

@@ -74,7 +74,12 @@ export default {
   },
 
   actions: {
-    async fetchDashboardData({ commit, state }) {
+    async fetchDashboardData({ commit, state, rootGetters }, { force = false } = {}) {
+      // Tableau de bord chargé récemment : pas de rechargement
+      // (un changement de période passe par fetchSalesChart)
+      const query = {};
+      if (!force && rootGetters["freshness/isFresh"]("dashboard", query)) return;
+
       commit("SET_LOADING", true);
       commit("SET_ERROR", "");
 
@@ -117,6 +122,7 @@ export default {
         }
 
         commit("SET_UPDATED_AT");
+        commit("freshness/MARK_FETCHED", { dataset: "dashboard", query: query }, { root: true });
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         commit("SET_ERROR", "Erreur lors du chargement des donnees du tableau de bord.");

@@ -85,7 +85,11 @@ const expensesModule = {
   },
   actions: {
     // --- Expenses ---
-    async fetchExpenses({ commit }, { page = 1, search = '', start_date = '', end_date = '', category_id = '', status = '' } = {}) {
+    async fetchExpenses({ commit, rootGetters }, { page = 1, search = '', start_date = '', end_date = '', category_id = '', status = '', force = false } = {}) {
+      // Même requête chargée récemment : on garde la liste du store
+      const query = { page, search, start_date, end_date, category_id, status };
+      if (!force && rootGetters["freshness/isFresh"]("expenses", query)) return;
+
       commit("SET_LOADING", true);
       commit("SET_LAST_QUERY", { page, search, start_date, end_date, category_id, status });
       commit("SET_ERROR", null);
@@ -96,6 +100,7 @@ const expensesModule = {
         commit("SET_EXPENSES", { data, meta });
         commit("SET_EXPENSE_TOTALS", response.data.total_approved);
         commit("SET_UPDATED_AT");
+        commit("freshness/MARK_FETCHED", { dataset: "expenses", query: query }, { root: true });
         return response.data;
       } catch (error) {
         commit("SET_ERROR", error.response?.data?.message || "Erreur chargement dépenses");
@@ -180,7 +185,12 @@ const expensesModule = {
     },
     
     // --- Categories ---
-    async fetchCategories({ commit }, { page = 1, search = '' } = {}) {
+    async fetchCategories({ commit, rootGetters, state }, { page = 1, search = '', force = false } = {}) {
+      // Même requête chargée récemment : on garde la liste du store
+      if (!force && rootGetters["freshness/isFresh"]("expenseCategories", { page, search })) {
+        return state.categories;
+      }
+
       // If page is -1, maybe we fetch all for dropdown
       commit("SET_LOADING", true);
       try {
@@ -191,6 +201,7 @@ const expensesModule = {
         const { data, ...meta } = response.data.data;
         commit("SET_CATEGORIES", { data, meta });
         commit("SET_UPDATED_AT");
+        commit("freshness/MARK_FETCHED", { dataset: "expenseCategories", query: { page, search } }, { root: true });
         return data; 
       } catch (error) {
          console.error(error);

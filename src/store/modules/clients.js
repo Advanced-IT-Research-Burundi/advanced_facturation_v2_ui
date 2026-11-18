@@ -32,7 +32,10 @@ const getters = {
 };
 
 const actions = {
-  async fetchClients({ commit }, { page = 1, search = '' } = {}) {
+  async fetchClients({ commit, rootGetters }, { page = 1, search = '', force = false } = {}) {
+    // Même requête chargée récemment : on garde la liste du store
+    if (!force && rootGetters["freshness/isFresh"]("clients", { page, search })) return;
+
     commit("SET_LOADING", true);
     commit("SET_LAST_QUERY", { page, search });
     commit("SET_ERROR", null);
@@ -44,6 +47,7 @@ const actions = {
         commit("SET_CLIENTS", response.data.data.data || response.data.data);
         commit("SET_PAGINATION", response.data.data);
         commit("SET_UPDATED_AT");
+        commit("freshness/MARK_FETCHED", { dataset: "clients", query: { page, search } }, { root: true });
       }
     } catch (error) {
       console.error("Error fetching clients:", error);
