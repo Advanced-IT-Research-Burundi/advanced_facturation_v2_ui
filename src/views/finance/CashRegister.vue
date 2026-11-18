@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
-  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X, History
+  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X, History, Smartphone
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import api from '@/services/api';
@@ -96,6 +96,8 @@ const summary = computed(() => currentRegister.value?.summary || {
   expected_balance: 0
 });
 const userSummaries = computed(() => dailySummary.value?.user_summaries || []);
+const electronicTotal = computed(() => Number(dailySummary.value?.summary?.total_electronic || 0));
+const electronicCount = computed(() => Number(dailySummary.value?.summary?.electronic_count || 0));
 const adminRoleNames = ['admin', 'super_admin'];
 const isAdminRole = (role) => {
   const name = role?.name?.toLowerCase();
@@ -127,6 +129,8 @@ const emptyUserCashRow = (user, fallbackId = null) => ({
   total_expense: 0,
   total_adjustment: 0,
   net_amount: 0,
+  electronic_amount: 0,
+  electronic_count: 0,
   latest_transaction_at: null
 });
 const userCashRows = computed(() => {
@@ -625,6 +629,26 @@ onUnmounted(() => {
         </button>
       </div>
 
+      <!-- Ventes par argent électronique (hors caisse espèces) -->
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="d-flex align-items-center">
+            <div class="rounded-3 p-2 bg-warning bg-opacity-10 me-3">
+              <Smartphone :size="24" class="text-warning" />
+            </div>
+            <div>
+              <p class="text-muted small mb-0">
+                Factures vendues par argent électronique — {{ formatDate(selectedSummaryDate) }}
+              </p>
+              <h4 class="mb-0">{{ formatCurrency(electronicTotal) }}</h4>
+            </div>
+          </div>
+          <span class="badge bg-light text-dark border">
+            {{ electronicCount }} facture{{ electronicCount > 1 ? 's' : '' }} · non inclus dans le solde espèces
+          </span>
+        </div>
+      </div>
+
       <!-- Users table -->
       <div class="card border-0 shadow-sm mt-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3">
@@ -662,13 +686,14 @@ onUnmounted(() => {
                   <th class="text-end">Sorties</th>
                   <th class="text-end">Ajustements</th>
                   <th class="text-end">Montant caisse</th>
+                  <th class="text-end">Argent électronique</th>
                   <th>Dernière transaction</th>
                   <th class="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="!userCashRows.length">
-                  <td colspan="8" class="text-center text-muted py-4">Aucun utilisateur</td>
+                  <td colspan="9" class="text-center text-muted py-4">Aucun utilisateur</td>
                 </tr>
                 <tr v-for="user in userCashRows" :key="user.user_id">
                   <td>
@@ -683,6 +708,12 @@ onUnmounted(() => {
                     {{ user.net_amount < 0 ? '-' : '+' }}{{ formatCurrency(Math.abs(user.net_amount || 0)) }}
                     <small v-if="user.pending_out > 0" class="d-block fw-normal text-warning-emphasis">
                       {{ formatCurrency(user.pending_out) }} en attente
+                    </small>
+                  </td>
+                  <td class="text-end">
+                    {{ formatCurrency(user.electronic_amount) }}
+                    <small v-if="user.electronic_count > 0" class="d-block text-muted">
+                      {{ user.electronic_count }} facture{{ user.electronic_count > 1 ? 's' : '' }}
                     </small>
                   </td>
                   <td>{{ user.latest_transaction_at ? formatDateTime(user.latest_transaction_at) : '-' }}</td>
