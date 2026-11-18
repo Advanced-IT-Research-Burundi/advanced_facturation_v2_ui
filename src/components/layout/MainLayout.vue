@@ -20,14 +20,13 @@ import {
   RefreshCw,
   X,
 } from "lucide-vue-next";
-import { RouterLink, RouterView, useRouter, useRoute } from "vue-router";
+import { RouterLink, RouterView, useRoute } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 import { networkActivity } from "@/services/api";
 import TransferNotifications from "@/components/layout/TransferNotifications.vue";
 
 const store = useStore();
-const router = useRouter();
 const route = useRoute();
 
 const sidebarOpen = ref(false);
@@ -40,14 +39,8 @@ const closeSidebar = () => {
   sidebarOpen.value = false;
 };
 
-// Logout handler
-const handleLogout = async () => {
-  try {
-    await store.dispatch("auth/logout");
-  } finally {
-    router.push("/login");
-  }
-};
+// Logout handler : l'action recharge la page de connexion
+const handleLogout = () => store.dispatch("auth/logout");
 
 // Compute initials from the connected user's name
 const userInitials = computed(() => {

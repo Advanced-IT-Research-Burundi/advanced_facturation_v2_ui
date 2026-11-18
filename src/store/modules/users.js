@@ -28,7 +28,10 @@ const getters = {
 };
 
 const actions = {
-  async fetchUsers({ commit }, { page = 1, search = '' } = {}) {
+  async fetchUsers({ commit, rootGetters }, { page = 1, search = '', force = false } = {}) {
+    // Même requête chargée récemment : on garde la liste du store
+    if (!force && rootGetters["freshness/isFresh"]("users", { page, search })) return;
+
     commit('setLoading', true);
     commit('setLastQuery', { page, search });
     commit('setError', null);
@@ -49,6 +52,7 @@ const actions = {
           next_page_url: response.data.data.next_page_url,
         });
         commit('setUpdatedAt');
+        commit("freshness/MARK_FETCHED", { dataset: "users", query: { page, search } }, { root: true });
       }
     } catch (error) {
       commit('setError', error.message);
@@ -57,7 +61,9 @@ const actions = {
     }
   },
 
-  async fetchCompanies({ commit }) {
+  async fetchCompanies({ commit, rootGetters }, { force = false } = {}) {
+    if (!force && rootGetters["freshness/isFresh"]("userCompanies", {})) return;
+
     commit('setLoading', true);
     commit('setError', null);
 
@@ -67,6 +73,7 @@ const actions = {
       if (response.data.success && response.data.data) {
         commit('setCompanies', response.data.data.data);
         commit('setUpdatedAt');
+        commit("freshness/MARK_FETCHED", { dataset: "userCompanies", query: {} }, { root: true });
       }
     } catch (error) {
       console.error('Erreur fetchCompanies:', error);
@@ -76,7 +83,9 @@ const actions = {
     }
   },
 
-  async fetchRoles({ commit }) {
+  async fetchRoles({ commit, rootGetters }, { force = false } = {}) {
+    if (!force && rootGetters["freshness/isFresh"]("userRoles", {})) return;
+
     commit('setLoadingRoles', true);
     commit('setError', null);
 
@@ -86,6 +95,7 @@ const actions = {
       if (response.data.success || response.data.data) {
         commit('setRoles', response.data.data || []);
         commit('setUpdatedAt');
+        commit("freshness/MARK_FETCHED", { dataset: "userRoles", query: {} }, { root: true });
       }
     } catch (error) {
       console.error('Erreur fetchRoles:', error);

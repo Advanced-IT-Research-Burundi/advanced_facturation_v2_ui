@@ -1,11 +1,13 @@
 <script setup>
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { Search, Plus, Package, AlertTriangle } from "lucide-vue-next";
 import { onMounted, computed } from "vue";
 import { useStore } from "vuex";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import StockHeader from "./StockHeader.vue";
+
+const { cachedGet } = useCachedApi();
 
 const router = useRouter();
 const store = useStore();
@@ -17,8 +19,8 @@ onMounted(() => {
 
 const fetchStocks = async () => {
   try {
-    const response = await api.get("/stocks");
-    store.state.data.stockItems = response.data?.data;
+    const response = await cachedGet("/stocks");
+    store.commit("SET_DATA_FIELD", { key: "stockItems", value: response.data?.data });
   } catch (err) {
     toast.error("Erreur lors de la récupération des stocks");
   }

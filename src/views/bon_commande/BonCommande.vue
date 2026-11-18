@@ -6,9 +6,12 @@ import {
   ChevronLeft, ChevronRight, Send, Download
 } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import StockHeader from '../stocks/StockHeader.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -73,7 +76,7 @@ const fetchPurchaseOrders = async (page = 1) => {
     if (searchQuery.value) params.search = searchQuery.value;
     if (statusFilter.value !== 'all') params.status = statusFilter.value;
 
-    const response = await api.get('/purchase-orders', { params });
+    const response = await cachedGet('/purchase-orders', { params });
     if (response.data.success) {
       const data = response.data.data;
       purchaseOrders.value = data.data || [];
@@ -95,7 +98,7 @@ const fetchPurchaseOrders = async (page = 1) => {
 
 const fetchStats = async () => {
   try {
-    const response = await api.get('/purchase-orders/stats');
+    const response = await cachedGet('/purchase-orders/stats');
     if (response.data.success) {
       stats.value = response.data.data;
     }
@@ -106,7 +109,7 @@ const fetchStats = async () => {
 
 const fetchFournisseurs = async () => {
   try {
-    const response = await api.get('/fournisseurs');
+    const response = await cachedGet('/fournisseurs');
     if (response.data.success) {
       fournisseurs.value = response.data.data.data || response.data.data || [];
     }
@@ -117,7 +120,7 @@ const fetchFournisseurs = async () => {
 
 const fetchWarehouses = async () => {
   try {
-    const response = await api.get('/warehouses');
+    const response = await cachedGet('/warehouses');
     if (response.data.success) {
       warehouses.value = response.data.data.data || response.data.data || [];
     }
@@ -128,7 +131,7 @@ const fetchWarehouses = async () => {
 
 const fetchProducts = async () => {
   try {
-    const response = await api.get('/products', { params: { per_page: 100 } });
+    const response = await cachedGet('/products', { params: { per_page: 100 } });
     if (response.data.success) {
       products.value = response.data.data.data || response.data.data || [];
     }
@@ -455,7 +458,7 @@ onMounted(() => {
             </select>
           </div>
           <div class="col-md-4 text-end">
-            <button class="btn btn-outline-secondary" @click="fetchPurchaseOrders(1)">
+            <button class="btn btn-outline-secondary" @click="refresh(() => fetchPurchaseOrders(1))">
               <RefreshCw :size="16" class="me-1" />
               Actualiser
             </button>

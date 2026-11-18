@@ -2,8 +2,10 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import Chart from 'chart.js/auto';
 import { useStore } from 'vuex';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { Printer } from 'lucide-vue-next';
+
+const { cachedGet } = useCachedApi();
 
 const store = useStore();
 const currentUser = computed(() => store.getters['auth/currentUser']);
@@ -62,8 +64,8 @@ const warehouseChartCanvas = ref(null);
 const fetchFiltersData = async () => {
     try {
         const requests = isAdmin.value
-            ? [api.get('/users'), api.get('/warehouses')]
-            : [Promise.resolve(null), api.get('/warehouses')];
+            ? [cachedGet('/users'), cachedGet('/warehouses')]
+            : [Promise.resolve(null), cachedGet('/warehouses')];
         const [usersRes, warehousesRes] = await Promise.all(requests);
         if(usersRes?.data.success) users.value = usersRes.data.data.data || usersRes.data.data;
         if(warehousesRes.data.success) warehouses.value = warehousesRes.data.data.data || warehousesRes.data.data;
@@ -80,7 +82,7 @@ const fetchReport = async () => {
             if (!currentUser.value?.id) throw new Error('Utilisateur connecté introuvable');
             params.user_id = currentUser.value.id;
         }
-        const response = await api.get('/reports/sales', { params });
+        const response = await cachedGet('/reports/sales', { params });
         if (response.data.success) {
             reportData.value = response.data.data;
             // Delay chart update slightly to ensure DOM is ready if switching states

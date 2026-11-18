@@ -106,7 +106,10 @@
 import { onMounted, reactive, ref } from "vue";
 import DepenseHeader from "./DepenseHeader.vue";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 
@@ -121,7 +124,7 @@ const depositForm = reactive({ amount: "", description: "" });
 const fetchFund = async (page = 1) => {
   loading.value = true;
   try {
-    const response = await api.get("/expense-fund", { params: { page } });
+    const response = await cachedGet("/expense-fund", { params: { page } });
     const { data, ...meta } = response.data.data.movements;
     balance.value = response.data.data.balance;
     movements.value = data;

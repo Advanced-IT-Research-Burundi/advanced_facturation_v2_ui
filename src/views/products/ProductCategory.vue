@@ -135,8 +135,11 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useStore } from 'vuex';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import StockHeader from '../stocks/StockHeader.vue';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const store = useStore()
 const toast = useToast()
@@ -185,12 +188,12 @@ const fetchCategories = async (url = '/category-products') => {
              endpoint = '/category-products' + urlObj.search;
         }
 
-        const resp = await api.get(endpoint)
+        const resp = await cachedGet(endpoint)
         if (resp.data.success) {
             const result = resp.data.data
            
             // Update store if needed by legacy code
-            store.state.data.categories = result
+            store.commit('SET_DATA_FIELD', { key: 'categories', value: result });
 
 
             pagination.value = {

@@ -122,10 +122,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const router = useRouter();
@@ -139,7 +141,7 @@ onMounted(() => loadInvoice());
 async function loadInvoice() {
   loading.value = true;
   try {
-    const { data } = await api.get(`/hotel/invoices/${route.params.id}`);
+    const { data } = await cachedGet(`/hotel/invoices/${route.params.id}`);
     invoice.value = data.data;
   } catch {
     toast.error('Facture non trouvée');

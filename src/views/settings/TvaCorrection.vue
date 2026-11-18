@@ -1,8 +1,11 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+
+const { cachedGet } = useCachedApi();
 
 const TAUX = 18;
 
@@ -31,7 +34,7 @@ const facturesEnAttente = computed(() => factures.value.filter((f) => !resultats
 const fetchData = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/invoices/tva-correction", { params: { numeros: numeros.value } });
+    const response = await cachedGet("/invoices/tva-correction", { params: { numeros: numeros.value } });
     factures.value = response.data.data.factures;
     totalTTC.value = response.data.data.total_ttc;
     produitsSansTva.value = response.data.data.produits_sans_tva;

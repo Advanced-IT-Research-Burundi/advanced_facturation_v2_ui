@@ -178,8 +178,11 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import api from '@/services/api'; // Adjust path if needed, assuming alias @ works
+import { useCachedApi } from '@/composables/useCachedApi';
 import StockHeader from '../stocks/StockHeader.vue';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const store = useStore()
 const toast = useToast()
@@ -233,7 +236,7 @@ const fetchSuppliers = async (pageOrUrl = 1) => {
       ? {}
       : { page: pageOrUrl, per_page: 20, ...(searchQuery.value ? { search: searchQuery.value } : {}) }
 
-    const resp = await api.get(endpoint, { params })
+    const resp = await cachedGet(endpoint, { params })
     const payload = resp.data?.data
     const rows = payload?.data || resp.data?.data?.data || resp.data?.data || []
     suppliers.value = rows

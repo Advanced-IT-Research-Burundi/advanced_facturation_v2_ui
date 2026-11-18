@@ -138,6 +138,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Select from 'primevue/select';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const router = useRouter();
@@ -167,8 +170,8 @@ onMounted(async () => {
   loading.value = true;
   try {
     const [dashboardResp, warehousesResp] = await Promise.all([
-      api.get(`warehouses/${warehouseId}/dashboard`),
-      api.get(`warehouses/${warehouseId}/available`)
+      cachedGet(`warehouses/${warehouseId}/dashboard`),
+      cachedGet(`warehouses/${warehouseId}/available`)
     ]);
 
     if (dashboardResp.data.success) {

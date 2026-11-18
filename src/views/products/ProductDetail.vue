@@ -168,7 +168,9 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import StockHeader from '../stocks/StockHeader.vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const store = useStore();
@@ -184,12 +186,12 @@ onMounted(async () => {
     // If categories aren't loaded in store, try to load them lightly or just ignore name resolution for now
     if (categories.value.length === 0) {
          try {
-             const catResp = await api.get('/category-products');
-             if(store.state.data) store.state.data.categoriesProducts = catResp.data?.data?.data;
+             const catResp = await cachedGet('/category-products');
+             store.commit('SET_DATA_FIELD', { key: 'categoriesProducts', value: catResp.data?.data?.data });
          } catch(e) {}
     }
     try {
-        const libelleResp = await api.get('/libelles');
+        const libelleResp = await cachedGet('/libelles');
         libelles.value = libelleResp.data?.data?.data || libelleResp.data?.data || [];
     } catch(e) {}
 
@@ -203,7 +205,7 @@ onMounted(async () => {
             }
             
             // Always fetch fresh data
-            const response = await api.get(`/products/${id}`);
+            const response = await cachedGet(`/products/${id}`);
             if (response.data.success) {
                 product.value = response.data.data;
             } else if (response.data.data) {

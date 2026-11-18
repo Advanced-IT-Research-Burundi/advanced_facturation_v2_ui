@@ -73,6 +73,15 @@
         >
           <i class="bi bi-file-earmark-excel me-2"></i>Download
         </button>
+        <button
+          type="button"
+          class="btn btn-outline-danger shadow-sm ms-2"
+          @click="exportStockToPdf"
+          :disabled="filteredStocks.length === 0 || loading"
+          title="Exporter les produits du stock en PDF"
+        >
+          <i class="bi bi-file-earmark-pdf me-2"></i>PDF
+        </button>
       </div>
     </div>
 
@@ -806,6 +815,9 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const store = useStore();
@@ -985,7 +997,7 @@ const slugifyFileName = (value) => {
     .replace(/[^a-z0-9_\-]/g, "");
 };
 
-const exportStockToExcel = () => {
+const buildStockTableHtml = () => {
   const rows = filteredStocks.value
     .map((stock, index) => {
       const quantity = toNumber(stock.quantity);
@@ -1014,25 +1026,7 @@ const exportStockToExcel = () => {
     })
     .join("");
 
-  const fileName = `stock_${slugifyFileName(warehouse.value?.name || "principal")}_${new Date().toISOString().slice(0, 10)}.xls`;
-  const title = escapeHtml(warehouse.value?.name || "Stock");
-  const generatedAt = new Date().toLocaleString("fr-FR");
-
-  const html = `<!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
-          th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; }
-          th { background: #1f4e78; color: white; }
-          .meta { margin-bottom: 12px; font-family: Arial, sans-serif; }
-          .meta h2 { margin: 0 0 4px; }
-          .meta p { margin: 0; color: #555; }
-        </style>
-      </head>
-      <body>
-
+  return `
         <table>
           <thead>
             <tr>
@@ -1064,7 +1058,24 @@ const exportStockToExcel = () => {
               <td></td>
             </tr>
           </tfoot>
-        </table>
+        </table>`;
+};
+
+const exportStockToExcel = () => {
+  const fileName = `stock_${slugifyFileName(warehouse.value?.name || "principal")}_${new Date().toISOString().slice(0, 10)}.xls`;
+
+  const html = `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+          th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; }
+          th { background: #1f4e78; color: white; }
+        </style>
+      </head>
+      <body>
+        ${buildStockTableHtml()}
       </body>
     </html>`;
 
@@ -1077,6 +1088,68 @@ const exportStockToExcel = () => {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+};
+
+// PDF : ouvre une fenêtre d'impression propre (choisir « Enregistrer en PDF »)
+const exportStockToPdf = () => {
+  if (filteredStocks.value.length === 0) return;
+
+  const title = escapeHtml(warehouse.value?.name || "Stock");
+  const location = escapeHtml(warehouse.value?.location || "");
+  const generatedAt = new Date().toLocaleString("fr-FR");
+  const fileTitle = `stock_${slugifyFileName(warehouse.value?.name || "principal")}_${new Date().toISOString().slice(0, 10)}`;
+
+  const html = `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${fileTitle}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; font-size: 9px; padding: 15px; }
+          .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+          .header h2 { font-size: 16px; margin-bottom: 4px; }
+          .header p { font-size: 10px; color: #666; }
+          .summary { display: flex; justify-content: space-around; margin-bottom: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 10px; }
+          table { width: 100%; border-collapse: collapse; }
+          thead { display: table-header-group; }
+          tr { page-break-inside: avoid; }
+          th, td { border: 1px solid #999; padding: 4px 5px; }
+          th { background: #1f4e78; color: white; font-size: 9px; }
+          tbody tr:nth-child(even) { background-color: #f9f9f9; }
+          @media print {
+            body { padding: 0; }
+            .summary, th, tfoot tr, tbody tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>État du stock — ${title}</h2>
+          <p>${location ? `${location} — ` : ""}${generatedAt}</p>
+        </div>
+        <div class="summary">
+          <span><strong>Produits :</strong> ${formatNumber(filteredStocks.value.length)}</span>
+          <span><strong>Quantité totale :</strong> ${formatNumber(filteredStockQuantity.value)}</span>
+          <span><strong>Valeur :</strong> ${escapeHtml(formatCurrencyTotals(filteredStockRevenueByCurrency.value))}</span>
+        </div>
+        ${buildStockTableHtml()}
+      </body>
+    </html>`;
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    error.value =
+      "Impossible d'ouvrir la fenêtre d'impression. Autorisez les fenêtres pop-up pour ce site.";
+    return;
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 250);
 };
 
 // Computed property pour filtrer les stocks
@@ -1217,7 +1290,7 @@ watch(filteredStocks, () => {
 const fetchDashboard = async () => {
   loading.value = true;
   try {
-    const resp = await api.get(`warehouses/${warehouseId}/dashboard`);
+    const resp = await cachedGet(`warehouses/${warehouseId}/dashboard`);
     if (resp.data.success) {
       warehouse.value = resp.data.data.warehouse;
       stocks.value = resp.data.data.stocks;

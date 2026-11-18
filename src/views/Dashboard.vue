@@ -38,8 +38,8 @@ const formatNumber = (num) => new Intl.NumberFormat('fr-FR').format(num || 0);
 const formatCurrency = (num) => `${formatNumber(num)} FBU`;
 
 // Fetch all dashboard data
-const fetchDashboardData = async () => {
-  await store.dispatch('dashboard/fetchDashboardData');
+const fetchDashboardData = async (options = {}) => {
+  await store.dispatch('dashboard/fetchDashboardData', options);
   await nextTick();
   renderSalesChart();
   renderProductsChart();
@@ -48,7 +48,7 @@ const fetchDashboardData = async () => {
 // Refresh data
 const refreshData = async () => {
   refreshing.value = true;
-  await fetchDashboardData();
+  await fetchDashboardData({ force: true });
   refreshing.value = false;
 };
 
@@ -221,7 +221,7 @@ onUnmounted(() => {
     <div v-if="loadError && !hasDashboardData" class="alert alert-danger d-flex align-items-center" role="alert">
       <span class="me-2">&#9888;</span>
       {{ loadError }}
-      <button class="btn btn-sm btn-outline-danger ms-auto" @click="fetchDashboardData">Réessayer</button>
+      <button class="btn btn-sm btn-outline-danger ms-auto" @click="fetchDashboardData({ force: true })">Réessayer</button>
     </div>
 
     <div class="dashboard-content">

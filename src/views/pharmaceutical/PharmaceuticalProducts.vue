@@ -175,9 +175,12 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import ProductFormModal from "../products/ProductFormModal.vue";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -246,7 +249,7 @@ const fetchProducts = async (page = 1) => {
       params.stock_filter = stockFilter.value;
     }
 
-    const response = await api.get("/products/pharmaceutical", { params });
+    const response = await cachedGet("/products/pharmaceutical", { params });
 
     if (response.data.success) {
       const data = response.data.data;
@@ -332,8 +335,8 @@ onMounted(async () => {
   try {
     // Load categories (filter for pharmaceutical ones)
     const [catResp, unitResp] = await Promise.all([
-      api.get("/category-products"),
-      api.get("/product-units"),
+      cachedGet("/category-products"),
+      cachedGet("/product-units"),
     ]);
 
     const allCategories = catResp.data?.data?.data || [];

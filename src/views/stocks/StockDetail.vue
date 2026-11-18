@@ -83,7 +83,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const stock = ref(null);
@@ -92,7 +94,7 @@ const loading = ref(true);
 const fetchStock = async (id) => {
   loading.value = true;
   try {
-    const response = await api.get(`/stocks/${id}`);
+    const response = await cachedGet(`/stocks/${id}`);
     
     if (response.data.success) {
       const data = response.data.data;

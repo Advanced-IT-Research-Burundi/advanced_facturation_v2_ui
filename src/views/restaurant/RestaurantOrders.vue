@@ -270,8 +270,11 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import ClientFormModal from '@/views/sales/ClientFormModal.vue';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const route = useRoute();
 const router = useRouter();
@@ -339,7 +342,7 @@ watch(() => route.query.table, async (tableId) => {
 
 async function loadWarehouses() {
   try {
-    const { data } = await api.get('/restaurant/warehouses');
+    const { data } = await cachedGet('/restaurant/warehouses');
     warehouses.value = data.data || [];
     // Auto-select first warehouse if available
     if (warehouses.value.length > 0) {
@@ -361,7 +364,7 @@ async function loadWarehouseProducts() {
 
   loading.value = true;
   try {
-    const { data } = await api.get(`/restaurant/warehouses/${selectedWarehouseId.value}/products`, {
+    const { data } = await cachedGet(`/restaurant/warehouses/${selectedWarehouseId.value}/products`, {
       params: { per_page: 100, search: searchProduct.value || undefined },
     });
     products.value = data.data?.data || data.data || [];
@@ -375,7 +378,7 @@ async function loadWarehouseProducts() {
 
 async function loadServers() {
   try {
-    const { data } = await api.get('/restaurant/servers');
+    const { data } = await cachedGet('/restaurant/servers');
     servers.value = data.data;
   } catch (error) {
     // Fallback: use current user
@@ -386,7 +389,7 @@ async function loadServers() {
 
 async function loadTable(tableId) {
   try {
-    const { data } = await api.get(`/restaurant/tables/${tableId}`);
+    const { data } = await cachedGet(`/restaurant/tables/${tableId}`);
     currentTable.value = data.data;
   } catch (error) {
     console.error('Erreur chargement table:', error);
@@ -395,7 +398,7 @@ async function loadTable(tableId) {
 
 async function loadTableOrders(tableId) {
   try {
-    const { data } = await api.get(`/restaurant/tables/${tableId}/orders`);
+    const { data } = await cachedGet(`/restaurant/tables/${tableId}/orders`);
     tableOrders.value = data.data;
   } catch (error) {
     console.error('Erreur chargement commandes:', error);
@@ -499,7 +502,7 @@ async function saveOrder() {
 
     // Reload current order
     if (currentOrder.value) {
-      const { data } = await api.get(`/restaurant/orders/${currentOrder.value.id}`);
+      const { data } = await cachedGet(`/restaurant/orders/${currentOrder.value.id}`);
       currentOrder.value = data.data;
       orderItems.value = (data.data.items || []).map(item => ({
         ...item,
@@ -516,7 +519,7 @@ async function saveOrder() {
 // Customer management functions
 async function loadCustomers() {
   try {
-    const { data } = await api.get('/customers', {
+    const { data } = await cachedGet('/customers', {
       params: { per_page: 100, search: customerSearch.value || undefined },
     });
     customers.value = data.data?.data || data.data || [];

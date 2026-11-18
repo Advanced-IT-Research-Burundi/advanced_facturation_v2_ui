@@ -7,7 +7,7 @@
         <h5 class="mb-0 fw-bold">
           <i class="bi bi-bank me-2 text-primary"></i>Caisse Globale Hôtel
         </h5>
-        <button class="btn btn-outline-secondary btn-sm" @click="loadData">
+        <button class="btn btn-outline-secondary btn-sm" @click="refresh(loadData)">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
       </div>
@@ -245,7 +245,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import HotelHeader from '@/views/hotel/HotelHeader.vue';
-import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const loading = ref(false);
 const summary = ref(null);
@@ -326,7 +328,7 @@ const loadData = async (page = 1) => {
     if (filters.value.start_date) params.start_date = filters.value.start_date;
     if (filters.value.end_date) params.end_date = filters.value.end_date;
 
-    const res = await api.get('/hotel/caisse/global-summary', { params });
+    const res = await cachedGet('/hotel/caisse/global-summary', { params });
     const d = res.data.data;
 
     summary.value = d.global;

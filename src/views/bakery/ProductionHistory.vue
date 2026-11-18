@@ -82,8 +82,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 
@@ -103,7 +105,7 @@ onMounted(() => {
 const fetchHistory = async () => {
   loading.value = true;
   try {
-    const resp = await api.get('bakery/production/history', { params: filters });
+    const resp = await cachedGet('bakery/production/history', { params: filters });
     if (resp.data.success) {
       history.value = resp.data.data.data;
     }

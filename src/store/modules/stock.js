@@ -68,7 +68,10 @@ export default {
   },
 
   actions: {
-    async fetchStock({ commit }, { page = 1, search = "", filter = "TOUT" }) {
+    async fetchStock({ commit, rootGetters }, { page = 1, search = "", filter = "TOUT", force = false }) {
+      // Même requête chargée récemment : on garde la liste du store
+      if (!force && rootGetters["freshness/isFresh"]("stock", { page, search, filter })) return;
+
       commit("SET_LOADING", true);
       commit("SET_LAST_QUERY", { page, search, filter });
       try {
@@ -79,6 +82,7 @@ export default {
           commit("SET_STOCK", response.data.data.data);
           commit("SET_PAGINATION", response.data.data);
           commit("SET_UPDATED_AT");
+          commit("freshness/MARK_FETCHED", { dataset: "stock", query: { page, search, filter } }, { root: true });
         }
       } catch (error) {
         console.error("Erreur stock:", error);

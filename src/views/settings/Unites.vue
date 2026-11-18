@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h3">Unités de mesure</h1>
       <div>
-        <button class="btn btn-outline-primary me-2" @click="fetchUnites(pagination.current_page)">
+        <button class="btn btn-outline-primary me-2" @click="refresh(() => fetchUnites(pagination.current_page))">
           <i class="bi bi-arrow-clockwise"></i> Actualiser
         </button>
         <button class="btn btn-primary" @click="openCreateModal">
@@ -114,11 +114,14 @@
 
 <script setup>
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import store from '@/store';
 import { onMounted, computed, ref, reactive } from 'vue';
 import SettingsHeader from './SettingsHeader.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -154,10 +157,10 @@ const fetchUnites = async (page = 1) => {
     loading.value = true;
     error.value = null;
     try {
-        const resp = await api.get('product-units', { params: { page } });
+        const resp = await cachedGet('product-units', { params: { page } });
         // Response format: { success: true, data: { data: [...], current_page: ... } }
         if (resp.data.success) {
-            store.state.data.product_units = resp.data.data.data;
+            store.commit('SET_DATA_FIELD', { key: 'product_units', value: resp.data.data.data });
             // Extract pagination info
             const { data, ...meta } = resp.data.data;
             pagination.value = meta;

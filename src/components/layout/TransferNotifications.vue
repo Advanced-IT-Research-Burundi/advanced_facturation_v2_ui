@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useStore } from "vuex";
 import { Bell } from "lucide-vue-next";
 import api from "@/services/api";
 import { useAdminAccess } from "@/composables/useAdminAccess";
@@ -9,13 +10,14 @@ import { useToast } from "@/composables/useToast";
 const REFRESH_INTERVAL_MS = 10000;
 const NOTIFICATION_DURATION_MS = 8000;
 
+const store = useStore();
 const toast = useToast();
 const { confirm } = useConfirm();
 const { currentUser } = useAdminAccess();
 
-const transfers = ref([]);
+// Transferts conservés dans le store : la cloche s'affiche tout de suite après un F5
+const transfers = computed(() => store.getters["cashTransfers/transfers"]);
 const processingId = ref(null);
-let knownStatuses = null;
 let refreshTimer = null;
 
 const pendingTransfers = computed(() =>
@@ -38,9 +40,9 @@ const announceFirstLoad = () => {
   }
 };
 
-const announceChanges = () => {
+const announceChanges = (previousStatuses) => {
   pendingTransfers.value
-    .filter((transfer) => !knownStatuses.has(transfer.id))
+    .filter((transfer) => !(transfer.id in previousStatuses))
     .forEach((transfer) => {
       toast.info(`${senderName(transfer)} vous a envoyé ${formatAmount(transfer.amount)}`, NOTIFICATION_DURATION_MS);
     });
@@ -48,7 +50,7 @@ const announceChanges = () => {
   transfers.value
     .filter(
       (transfer) =>
-        Number(transfer.from_user_id) === Number(currentUser.value?.id) && knownStatuses.get(transfer.id) === "pending",
+        Number(transfer.from_user_id) === Number(currentUser.value?.id) && previousStatuses[transfer.id] === "pending",
     )
     .forEach((transfer) => {
       if (transfer.status === "accepted") {
@@ -60,32 +62,34 @@ const announceChanges = () => {
 };
 
 const fetchTransfers = async () => {
-  try {
-    const response = await api.get("/cash-transfers");
-    if (!response.data.success) return false;
+  const result = await store.dispatch("cashTransfers/fetchTransfers", {
+    userId: currentUser.value?.id,
+  });
+  if (!result) return false;
 
-    transfers.value = response.data.data.transfers || [];
-    const hasChanged =
-      knownStatuses &&
-      (knownStatuses.size !== transfers.value.length ||
-        transfers.value.some((transfer) => knownStatuses.get(transfer.id) !== transfer.status));
-
-    if (!knownStatuses) {
-      announceFirstLoad();
-    } else if (hasChanged) {
-      announceChanges();
-    }
-    knownStatuses = new Map(transfers.value.map((transfer) => [transfer.id, transfer.status]));
-
-    return hasChanged;
-  } catch (error) {
-    console.error("Error fetching transfer notifications:", error);
+  // Statuts mémorisés (y compris avant un F5) : pas de nouvelle annonce des mêmes transferts
+  const { previousStatuses } = result;
+  if (!previousStatuses) {
+    announceFirstLoad();
     return false;
   }
+
+  const hasChanged =
+    Object.keys(previousStatuses).length !== transfers.value.length ||
+    transfers.value.some((transfer) => previousStatuses[transfer.id] !== transfer.status);
+
+  if (hasChanged) {
+    announceChanges(previousStatuses);
+  }
+
+  return hasChanged;
 };
 
 // Un changement fait par un autre utilisateur doit aussi rafraîchir l'écran de caisse ouvert
 const pollTransfers = async () => {
+  // Pas de requête tant que l'onglet est en arrière-plan
+  if (document.hidden) return;
+
   if (await fetchTransfers()) {
     window.dispatchEvent(new CustomEvent("cash-transfers-changed"));
   }
@@ -115,15 +119,22 @@ const decide = async (transfer, action) => {
   }
 };
 
+// Au retour sur l'onglet, rattrape immédiatement les changements manqués
+const handleVisibilityChange = () => {
+  if (!document.hidden) pollTransfers();
+};
+
 onMounted(() => {
   fetchTransfers();
   refreshTimer = setInterval(pollTransfers, REFRESH_INTERVAL_MS);
   window.addEventListener("cash-transfers-changed", fetchTransfers);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
 });
 
 onUnmounted(() => {
   clearInterval(refreshTimer);
   window.removeEventListener("cash-transfers-changed", fetchTransfers);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 });
 </script>
 

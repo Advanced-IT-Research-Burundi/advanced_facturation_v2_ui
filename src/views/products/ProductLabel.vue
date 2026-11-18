@@ -158,8 +158,11 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import StockHeader from '../stocks/StockHeader.vue';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast()
 const loading = ref(false)
@@ -250,7 +253,7 @@ const fetchLibelles = async (url = '/libelles') => {
   try {
     const endpoint = buildLibelleEndpoint(url)
 
-    const resp = await api.get(endpoint)
+    const resp = await cachedGet(endpoint)
     if (resp.data.success) {
       const result = resp.data.data
       libelles.value = result.data || []

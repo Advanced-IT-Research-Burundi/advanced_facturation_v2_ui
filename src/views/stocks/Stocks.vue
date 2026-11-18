@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1 class="h3">Entrepôts</h1>
       <div>
-        <button class="btn btn-outline-primary me-2" @click="fetchWarehouses(pagination.current_page)">
+        <button class="btn btn-outline-primary me-2" @click="fetchWarehouses(pagination.current_page, { force: true })">
           <i class="bi bi-arrow-clockwise"></i> Actualiser
         </button>
         <button class="btn btn-primary" @click="openCreateModal">
@@ -240,10 +240,13 @@
 
 <script setup>
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import store from '@/store';
 import { onMounted, computed, ref, reactive } from 'vue';
 import SettingsHeader from '../settings/SettingsHeader.vue';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const { confirm: confirmDialog } = useConfirm();
 
@@ -285,13 +288,13 @@ onMounted(() => {
 });
 
 // Actions
-const fetchWarehouses = async (page = 1) => {
+const fetchWarehouses = async (page = 1, { force = false } = {}) => {
     loading.value = true;
     error.value = null;
     try {
-        const resp = await api.get('warehouses', { params: { page } });
+        const resp = await cachedGet('warehouses', { params: { page }, force });
         if (resp.data.success) {
-            store.state.data.warehouses = resp.data.data;
+            store.commit('SET_DATA_FIELD', { key: 'warehouses', value: resp.data.data });
             const { data, ...meta } = resp.data.data;
             pagination.value = meta;
         }
@@ -410,8 +413,8 @@ const loadUsers = async (warehouseId) => {
     loadingUsers.value = true;
     try {
         const [assignedResp, availableResp] = await Promise.all([
-            api.get(`warehouses/${warehouseId}/users`),
-            api.get(`warehouses/${warehouseId}/available-users`)
+            cachedGet(`warehouses/${warehouseId}/users`),
+            cachedGet(`warehouses/${warehouseId}/available-users`)
         ]);
 
         if (assignedResp.data.success) {

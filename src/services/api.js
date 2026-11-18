@@ -1,5 +1,6 @@
 import axios from "axios";
 import { reactive } from "vue";
+import { clearStoreCache } from "@/store/cache";
 
 let isRedirecting = false;
 export const networkActivity = reactive({
@@ -16,6 +17,34 @@ const beginRequest = () => {
 const endRequest = () => {
   networkActivity.activeRequests = Math.max(networkActivity.activeRequests - 1, 0);
   networkActivity.lastFinishedAt = Date.now();
+};
+
+// Écritures qui ne modifient pas les données affichées (lectures en POST, brouillons…)
+const NON_MUTATING_WRITES = [
+  "login",
+  "logout",
+  "saved-pos-carts",
+  "customers/checkTIN",
+  "import/products/preview",
+  "bakery/production/report",
+];
+
+const writeListeners = new Set();
+
+// Appelé après chaque POST/PUT/PATCH/DELETE réussi (sert à vider le cache des GET)
+export const onApiWrite = (listener) => {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+};
+
+const notifyWrite = (config) => {
+  const method = String(config?.method || "get").toLowerCase();
+  if (method === "get" || method === "head") return;
+
+  const url = String(config?.url || "").replace(/^\/+/, "");
+  if (NON_MUTATING_WRITES.some((prefix) => url.startsWith(prefix))) return;
+
+  writeListeners.forEach((listener) => listener(config));
 };
 
 const apiClient = axios.create({
@@ -39,11 +68,13 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => {
     endRequest();
+    notifyWrite(response.config);
     return response;
   },
   (error) => {
     endRequest();
     if (error.response && error.response.status === 401) {
+      clearStoreCache();
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");
       if (!isRedirecting && !window.location.pathname.includes('/login')) {

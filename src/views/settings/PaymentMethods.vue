@@ -8,7 +8,7 @@
         
       </div>
       <div>
-        <button class="btn btn-outline-primary me-2" @click="fetchMethods" :disabled="loading">
+        <button class="btn btn-outline-primary me-2" @click="refresh(fetchMethods)" :disabled="loading">
           <i class="bi bi-arrow-clockwise"></i> Actualiser
         </button>
         <button class="btn btn-primary" @click="openCreateModal">
@@ -125,9 +125,12 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useConfirm } from '@/composables/useConfirm';
 import { useToast } from '@/composables/useToast';
 import SettingsHeader from './SettingsHeader.vue';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const methods = ref([]);
 const loading = ref(false);
@@ -158,7 +161,7 @@ const fetchMethods = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const { data } = await api.get('payment-methods');
+    const { data } = await cachedGet('payment-methods');
     methods.value = data.data || [];
   } catch (err) {
     error.value = err.response?.data?.message || 'Impossible de charger les méthodes de paiement.';

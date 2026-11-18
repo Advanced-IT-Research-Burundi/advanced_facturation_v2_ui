@@ -84,7 +84,10 @@ const companiesModule = {
     },
   },
   actions: {
-    async fetchCompanies({ commit }, { page = 1, search = "" } = {}) {
+    async fetchCompanies({ commit, rootGetters }, { page = 1, search = "", force = false } = {}) {
+      // Même requête chargée récemment : on garde la liste du store
+      if (!force && rootGetters["freshness/isFresh"]("companies", { page, search })) return;
+
       commit("SET_LOADING", true);
       commit("SET_LAST_QUERY", { page, search });
       commit("SET_ERROR", null);
@@ -96,6 +99,7 @@ const companiesModule = {
         const { data, ...meta } = response.data.data;
         commit("SET_COMPANIES", { data, meta });
         commit("SET_UPDATED_AT");
+        commit("freshness/MARK_FETCHED", { dataset: "companies", query: { page, search } }, { root: true });
       } catch (error) {
         commit(
           "SET_ERROR",

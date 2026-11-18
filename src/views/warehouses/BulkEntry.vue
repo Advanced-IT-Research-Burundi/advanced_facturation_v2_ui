@@ -154,6 +154,9 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Select from 'primevue/select';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const router = useRouter();
@@ -188,7 +191,7 @@ const getAvailableProductsForItem = (index) => {
 onMounted(async () => {
   loading.value = true;
   try {
-    const resp = await api.get(`warehouses/${warehouseId}/dashboard`);
+    const resp = await cachedGet(`warehouses/${warehouseId}/dashboard`);
     if (resp.data.success) {
       warehouse.value = resp.data.data.warehouse;
       availableProducts.value = resp.data.data.available_products;

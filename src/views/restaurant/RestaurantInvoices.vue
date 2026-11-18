@@ -171,7 +171,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 
@@ -205,7 +208,7 @@ async function loadInvoices(page = 1) {
       if (!params[key]) delete params[key];
     });
 
-    const { data } = await api.get('/restaurant/invoices', { params });
+    const { data } = await cachedGet('/restaurant/invoices', { params });
     invoices.value = data.data.data || data.data;
     pagination.value = {
       current_page: data.data.current_page || 1,
@@ -221,7 +224,7 @@ async function loadInvoices(page = 1) {
 
 async function loadStats() {
   try {
-    const { data } = await api.get('/restaurant/dashboard');
+    const { data } = await cachedGet('/restaurant/dashboard');
     stats.value = {
       total: invoices.value.length,
       paid: invoices.value.filter(i => i.payment_status === 'paid').length,

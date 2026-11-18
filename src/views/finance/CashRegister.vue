@@ -3,12 +3,15 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
-  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X
+  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X, History
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import FinanceHeader from './FinanceHeader.vue';
 import TransferConfirmModal from './TransferConfirmModal.vue';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const store = useStore();
 const router = useRouter();
@@ -172,7 +175,7 @@ const canTransferFrom = (row) =>
 
 const fetchTransfers = async () => {
   try {
-    const res = await api.get('/cash-transfers', { params: { date: selectedSummaryDate.value } });
+    const res = await cachedGet('/cash-transfers', { params: { date: selectedSummaryDate.value } });
     if (res.data.success) {
       transfers.value = res.data.data.transfers || [];
     }
@@ -184,7 +187,7 @@ const fetchTransfers = async () => {
 const fetchRecipients = async () => {
   if (recipients.value.length) return;
   try {
-    const res = await api.get('/cash-transfers/recipients');
+    const res = await cachedGet('/cash-transfers/recipients');
     if (res.data.success) {
       recipients.value = res.data.data || [];
     }
@@ -201,7 +204,7 @@ const onTransferClick = async (row) => {
   transferAvailableLoading.value = true;
   try {
     const [availableRes] = await Promise.all([
-      api.get(`/cash-transfers/available/${row.user_id}`),
+      cachedGet(`/cash-transfers/available/${row.user_id}`),
       fetchRecipients()
     ]);
     if (availableRes.data.success) {
@@ -222,7 +225,7 @@ const sourceTransfers = computed(() =>
 const cancelFromModal = async (transfer) => {
   await transferAction(transfer, 'cancel');
   try {
-    const res = await api.get(`/cash-transfers/available/${transferSource.value.user_id}`);
+    const res = await cachedGet(`/cash-transfers/available/${transferSource.value.user_id}`);
     if (res.data.success) {
       transferAvailable.value = Number(res.data.data.available) || 0;
     }
@@ -289,8 +292,9 @@ const closeTransferConfirm = () => {
   confirmDone = null;
 };
 
+// Déclenché aussi quand un autre utilisateur change un transfert : on ignore le cache
 const refreshAfterTransferChange = () =>
-  Promise.all([fetchTransfers(), fetchDailySummary(), fetchCurrentRegister()]);
+  refresh(() => Promise.all([fetchTransfers(), fetchDailySummary(), fetchCurrentRegister()]));
 
 const submitTransferConfirm = async () => {
   const transfer = confirmTransfer.value;
@@ -319,10 +323,10 @@ const onSummaryDateChange = async () => {
 // Fetch current register
 const fetchCurrentRegister = async () => {
   try {
-    const res = await api.get('/cash-registers/current');
+    const res = await cachedGet('/cash-registers/current');
     if (res.data.success) {
       currentRegister.value = res.data.data;
-      store.state.data.financeCashRegisterCurrent = currentRegister.value;
+      store.commit('SET_DATA_FIELD', { key: 'financeCashRegisterCurrent', value: currentRegister.value });
     }
   } catch (error) {
     console.error('Error fetching current register:', error);
@@ -334,10 +338,10 @@ const fetchRegisters = async () => {
   if (!hasFullAccess.value) return;
 
   try {
-    const res = await api.get('/cash-registers');
+    const res = await cachedGet('/cash-registers');
     if (res.data.success) {
       registers.value = res.data.data.data || [];
-      store.state.data.financeCashRegisterHistory = registers.value;
+      store.commit('SET_DATA_FIELD', { key: 'financeCashRegisterHistory', value: registers.value });
     }
   } catch (error) {
     console.error('Error fetching registers:', error);
@@ -349,10 +353,10 @@ const fetchUsers = async () => {
   if (!canFilterUsers.value) return;
 
   try {
-    const res = await api.get('/users', { params: { per_page: 100 } });
+    const res = await cachedGet('/users', { params: { per_page: 100 } });
     if (res.data.success) {
       users.value = res.data.data.data || res.data.data || [];
-      store.state.data.financeCashRegisterUsers = users.value;
+      store.commit('SET_DATA_FIELD', { key: 'financeCashRegisterUsers', value: users.value });
     }
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -373,12 +377,12 @@ const fetchDailySummary = async () => {
       params.user_id = 'all';
     }
 
-    const res = await api.get('/cash-registers/daily-summary', {
+    const res = await cachedGet('/cash-registers/daily-summary', {
       params
     });
     if (res.data.success) {
       dailySummary.value = res.data.data;
-      store.state.data.financeCashRegisterDailySummary = dailySummary.value;
+      store.commit('SET_DATA_FIELD', { key: 'financeCashRegisterDailySummary', value: dailySummary.value });
       if (dailySummary.value?.can_filter_users && users.value.length === 0) {
         await fetchUsers();
       }
@@ -524,11 +528,14 @@ onUnmounted(() => {
           {{ hasFullAccess ? 'Gestion de la caisse quotidienne' : 'Vos transactions et transferts du jour' }}
         </p>
       </div>
-      <div v-if="hasFullAccess" class="d-flex gap-2">
-        <button v-if="!currentRegister?.register" class="btn btn-primary" @click="showOpenModal = true">
+      <div class="d-flex gap-2">
+        <router-link :to="{ name: 'cash-register-transfers' }" class="btn btn-outline-primary">
+          <History :size="18" class="me-2" /> Historique des transferts
+        </router-link>
+        <button v-if="hasFullAccess && !currentRegister?.register" class="btn btn-primary" @click="showOpenModal = true">
           <Wallet :size="18" class="me-2" /> Ouvrir la caisse
         </button>
-        <button v-else class="btn btn-danger" @click="showCloseModal = true; closeForm.closing_balance = summary.expected_balance">
+        <button v-else-if="hasFullAccess" class="btn btn-danger" @click="showCloseModal = true; closeForm.closing_balance = summary.expected_balance">
           <XCircle :size="18" class="me-2" /> Fermer la caisse
         </button>
       </div>
@@ -715,9 +722,14 @@ onUnmounted(() => {
             <h6 class="mb-0 fw-bold">Transferts du {{ formatDate(selectedSummaryDate) }}</h6>
             <span v-if="pendingIncomingCount" class="badge bg-danger">{{ pendingIncomingCount }} à valider</span>
           </div>
-          <button class="btn btn-sm btn-outline-secondary" @click="fetchTransfers" title="Actualiser">
-            <RefreshCw :size="14" />
-          </button>
+          <div class="d-flex gap-2">
+            <router-link :to="{ name: 'cash-register-transfers' }" class="btn btn-sm btn-outline-primary">
+              <History :size="14" class="me-1" /> Historique
+            </router-link>
+            <button class="btn btn-sm btn-outline-secondary" @click="refresh(fetchTransfers)" title="Actualiser">
+              <RefreshCw :size="14" />
+            </button>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">

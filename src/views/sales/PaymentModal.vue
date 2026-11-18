@@ -2,8 +2,11 @@
 import { ref, watch, computed } from 'vue';
 import { X, Check, DollarSign, Trash2, Calendar, CreditCard, FileText } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const props = defineProps({
   show: Boolean,
@@ -49,7 +52,7 @@ const fetchPayments = async () => {
   if (!props.invoice?.id) return;
   loading.value = true;
   try {
-    const res = await api.get(`/payments?invoice_id=${props.invoice.id}`);
+    const res = await cachedGet(`/payments?invoice_id=${props.invoice.id}`);
     if (res.data.success) {
       payments.value = res.data.data.data;
     }

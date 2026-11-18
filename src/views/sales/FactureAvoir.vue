@@ -12,8 +12,10 @@ import {
   CheckCircle,
   X,
 } from "lucide-vue-next";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const props = defineProps({
   isSubmitting: Boolean,
@@ -45,7 +47,7 @@ const searchInvoices = async () => {
 
   isLoading.value = true;
   try {
-    const response = await api.get("/invoices", {
+    const response = await cachedGet("/invoices", {
       params: {
         search: searchQuery.value,
         invoice_type: "FN", // Only search normal invoices
@@ -67,7 +69,7 @@ const selectInvoice = async (invoice) => {
   // le détail avant de calculer le TTC de l'avoir.
   isLoading.value = true;
   try {
-    const response = await api.get(`/invoices/${invoice.id}`);
+    const response = await cachedGet(`/invoices/${invoice.id}`);
     if (!response.data.success) {
       toast.error("Impossible de charger le détail de cette facture.");
       return;

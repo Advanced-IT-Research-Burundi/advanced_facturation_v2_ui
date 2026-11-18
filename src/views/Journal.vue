@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from "vue";
 import { Printer, ArrowLeft, FileSpreadsheet, TrendingUp } from "lucide-vue-next";
 import { useStore } from "vuex";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
 import InvoicePrintModal from "@/views/sales/InvoicePrintModal.vue";
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 const store = useStore();
@@ -73,7 +75,7 @@ const fetchPaymentTotals = async () => {
     const params = {};
     if (startDate.value) params.start_date = startDate.value;
     if (endDate.value) params.end_date = endDate.value;
-    const response = await api.get("/reports/payments-by-method", { params });
+    const response = await cachedGet("/reports/payments-by-method", { params });
     if (response.data.success) paymentTotals.value = response.data.data;
   } catch (err) {
     console.error("Journal: Error fetching payment totals:", err);
@@ -118,13 +120,13 @@ const fetchInvoices = async () => {
       params.end_date = endDate.value;
     }
 
-    const response = await api.get("/invoices", { params });
+    const response = await cachedGet("/invoices", { params });
     console.log("Journal: API Response:", response.data);
 
     if (response.data.success) {
       // Exactement comme InvoicesList
       invoices.value = response.data.data.data || response.data.data;
-      store.state.data.journalInvoices = invoices.value;
+      store.commit("SET_DATA_FIELD", { key: "journalInvoices", value: invoices.value });
       console.log(
         "Journal: Invoices loaded:",
         invoices.value.length,
@@ -176,7 +178,7 @@ const printPage = () => {
 
 const fetchCompany = async () => {
   try {
-    const response = await api.get("/companies");
+    const response = await cachedGet("/companies");
     if (response.data?.success && response.data.data?.data?.length > 0) {
       currentCompany.value = response.data.data.data[0];
     }
@@ -188,7 +190,7 @@ const fetchCompany = async () => {
 // Même aperçu/impression que l'historique des ventes (Sales)
 const printInvoice = async (invoice) => {
   try {
-    const response = await api.get(`/invoices/${invoice.id}`);
+    const response = await cachedGet(`/invoices/${invoice.id}`);
     invoiceToPrint.value = response.data?.data ?? invoice;
     showPrintModal.value = true;
   } catch (err) {
@@ -213,7 +215,7 @@ const exportSales = async () => {
       params.include_unvalidated = 1;
     }
 
-    const response = await api.get("/export/sales", {
+    const response = await cachedGet("/export/sales", {
       params,
       responseType: "blob",
     });

@@ -1,20 +1,23 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import api from "@/services/api";
-import { Printer, TrendingUp } from "lucide-vue-next";
+import { useStore } from "vuex";
+import { FileText, Printer, RefreshCw, TrendingUp } from "lucide-vue-next";
 
-const loading = ref(false);
-const error = ref(null);
-const report = ref(null);
-const products = ref([]);
-const view = ref("product"); // product | period | sale
+const store = useStore();
 
-const filters = ref({
-  start_date: "",
-  end_date: "",
-  product_id: "",
-  invoice_id: "",
+// Données issues du store : pas de rechargement à chaque visite de la page
+const loading = computed(() => store.getters["profit/isLoading"]);
+const error = computed(() => store.getters["profit/error"]);
+const report = computed(() => store.getters["profit/report"]);
+const products = computed(() => store.getters["profit/productOptions"]);
+const lastUpdatedAt = computed(() => store.getters["profit/lastUpdatedAt"]);
+const view = computed({
+  get: () => store.getters["profit/view"],
+  set: (value) => store.commit("profit/SET_VIEW", value),
 });
+
+// Copie locale du formulaire, appliquée au store seulement au filtrage
+const filters = ref({ ...store.getters["profit/filters"] });
 
 const isPeriodValid = computed(
   () =>
@@ -23,46 +26,19 @@ const isPeriodValid = computed(
     filters.value.start_date <= filters.value.end_date,
 );
 
-const fetchProducts = async () => {
-  try {
-    const response = await api.get("/products", { params: { per_page: 1000 } });
-    if (response.data.success) {
-      const data = response.data.data;
-      products.value = data?.data || data || [];
-    }
-  } catch (err) {
-    console.error("Profit: error fetching products", err);
-  }
+const fetchReport = (options = {}) => {
+  store.commit("profit/SET_FILTERS", filters.value);
+  return store.dispatch("profit/fetchReport", options);
 };
 
-const fetchReport = async () => {
-  loading.value = true;
-  error.value = null;
-  try {
-    const params = {};
-    for (const [key, value] of Object.entries(filters.value)) {
-      if (value) params[key] = value;
-    }
-    const response = await api.get("/reports/profit", { params });
-    if (response.data.success) {
-      report.value = response.data.data;
-    }
-  } catch (err) {
-    console.error("Profit: error fetching report", err);
-    error.value = "Erreur lors du chargement du rapport de bénéfices";
-  } finally {
-    loading.value = false;
-  }
-};
+const applyFilters = () => fetchReport({ force: true });
+
+const refreshReport = () => fetchReport({ force: true });
 
 const resetFilters = () => {
-  filters.value = {
-    start_date: "",
-    end_date: "",
-    product_id: "",
-    invoice_id: "",
-  };
-  fetchReport();
+  store.commit("profit/RESET_FILTERS");
+  filters.value = { ...store.getters["profit/filters"] };
+  store.dispatch("profit/fetchReport", { force: true });
 };
 
 const formatPrice = (amount) => {
@@ -90,11 +66,197 @@ const formatDate = (value) => {
   return new Date(value).toLocaleDateString("fr-FR");
 };
 
+const formatUpdatedAt = (timestamp) =>
+  timestamp ? new Date(timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "";
+
 const printPage = () => window.print();
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const viewLabels = {
+  product: "Par produit",
+  period: "Par période",
+  sale: "Par vente",
+  expense: "Dépenses",
+};
+
+const buildPdfTable = () => {
+  const data = report.value;
+  const summary = data.summary;
+  const profitCell = (value) =>
+    `<td class="text-right ${Number(value) >= 0 ? "pos" : "neg"}">${formatPrice(value)}</td>`;
+  const amountCells = (row) => `
+    <td class="text-right">${formatPrice(row.revenue)}</td>
+    <td class="text-right">${formatPrice(row.cost)}</td>
+    ${profitCell(row.profit)}
+    <td class="text-right">${formatMargin(row.margin)}</td>`;
+  const totalCells = `
+    <td class="text-right">${formatPrice(summary.revenue)}</td>
+    <td class="text-right">${formatPrice(summary.cost)}</td>
+    ${profitCell(summary.profit)}
+    <td class="text-right">${formatMargin(summary.margin)}</td>`;
+  const amountHeaders =
+    "<th>CA HTVA</th><th>COÛT ACHAT</th><th>BÉNÉFICE BRUT</th><th>MARGE</th>";
+
+  if (view.value === "expense") {
+    return `
+      <table>
+        <thead><tr><th>DATE</th><th>LIBELLÉ</th><th>CATÉGORIE</th><th>MONTANT</th></tr></thead>
+        <tbody>
+          ${rows.value.map((row) => `
+            <tr>
+              <td>${formatDate(row.date)}</td>
+              <td>${escapeHtml(row.name)}</td>
+              <td>${escapeHtml(row.category)}</td>
+              <td class="text-right">${formatPrice(row.montant)}</td>
+            </tr>`).join("")}
+        </tbody>
+        <tfoot><tr><td colspan="3">TOTAL DÉPENSES</td><td class="text-right">${formatPrice(data.expenses.total)}</td></tr></tfoot>
+      </table>`;
+  }
+
+  if (view.value === "sale") {
+    return `
+      <table>
+        <thead><tr><th>FACTURE</th><th>DATE</th><th>CLIENT</th>${amountHeaders}</tr></thead>
+        <tbody>
+          ${rows.value.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.invoice_number || `#${row.invoice_id}`)}</td>
+              <td>${formatDate(row.invoice_date)}</td>
+              <td>${escapeHtml(row.customer_name || "Client anonyme")}</td>
+              ${amountCells(row)}
+            </tr>`).join("")}
+        </tbody>
+        <tfoot><tr><td colspan="3">TOTAL</td>${totalCells}</tr></tfoot>
+      </table>`;
+  }
+
+  const firstHeader = view.value === "product" ? "PRODUIT" : "DATE";
+  const firstCell = (row) =>
+    view.value === "product"
+      ? `${escapeHtml(row.designation)}${row.product_code ? `<br><small>${escapeHtml(row.product_code)}</small>` : ""}`
+      : formatDate(row.date);
+
+  return `
+    <table>
+      <thead><tr><th>${firstHeader}</th><th>QUANTITÉ</th>${amountHeaders}</tr></thead>
+      <tbody>
+        ${rows.value.map((row) => `
+          <tr>
+            <td>${firstCell(row)}</td>
+            <td class="text-right">${formatPrice(row.quantity)}</td>
+            ${amountCells(row)}
+          </tr>`).join("")}
+      </tbody>
+      <tfoot><tr><td>TOTAL</td><td class="text-right">${formatPrice(summary.quantity)}</td>${totalCells}</tr></tfoot>
+    </table>`;
+};
+
+// PDF : ouvre une fenêtre d'impression propre (choisir « Enregistrer en PDF »)
+const exportToPdf = () => {
+  if (!report.value) return;
+
+  const summary = report.value.summary;
+  const applied = store.state.profit.reportFilters || {};
+  const productName = products.value.find(
+    (product) => String(product.id) === String(applied.product_id),
+  )?.item_designation;
+  const period = applied.start_date || applied.end_date
+    ? `Du ${applied.start_date ? formatDate(applied.start_date) : "début"} au ${applied.end_date ? formatDate(applied.end_date) : "aujourd'hui"}`
+    : "Toutes les dates";
+  const filterDetails = [
+    period,
+    productName ? `Produit : ${productName}` : "",
+    applied.invoice_id ? `Facture #${applied.invoice_id}` : "",
+  ].filter(Boolean).map(escapeHtml).join(" — ");
+  const fileTitle = `benefices_${view.value}_${new Date().toISOString().slice(0, 10)}`;
+
+  const html = `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${fileTitle}</title>
+        <style>
+          @page { size: A4; margin: 10mm; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; font-size: 10px; padding: 15px; }
+          .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+          .header h2 { font-size: 16px; margin-bottom: 4px; }
+          .header p { font-size: 10px; color: #666; }
+          .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+          .summary div { padding: 6px 8px; background: #f5f5f5; border-radius: 4px; }
+          .summary span { display: block; color: #666; font-size: 9px; }
+          .summary strong { font-size: 11px; }
+          h3 { font-size: 12px; margin-bottom: 6px; }
+          table { width: 100%; border-collapse: collapse; }
+          thead { display: table-header-group; }
+          tr { page-break-inside: avoid; }
+          th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; }
+          th { background: #e9ecef; font-size: 9px; }
+          tbody tr:nth-child(even) { background-color: #f9f9f9; }
+          tfoot td { font-weight: bold; background: #e9ecef; }
+          small { color: #666; }
+          .text-right { text-align: right; }
+          .pos { color: #198754; }
+          .neg { color: #dc3545; }
+          .note { margin-top: 10px; font-size: 9px; color: #666; }
+          @media print {
+            body { padding: 0; }
+            .summary div, th, tfoot td, tbody tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>Bénéfices sur les ventes</h2>
+          <p>${filterDetails} — Édité le ${new Date().toLocaleString("fr-FR")}</p>
+        </div>
+        <div class="summary">
+          <div><span>Total ventes (HTVA)</span><strong>${formatPrice(summary.revenue)} BIF</strong></div>
+          <div><span>Coût d'achat</span><strong>${formatPrice(summary.cost)} BIF</strong></div>
+          <div><span>Bénéfice brut (${formatMargin(summary.margin)})</span><strong class="${Number(summary.profit) >= 0 ? "pos" : "neg"}">${formatPrice(summary.profit)} BIF</strong></div>
+          <div><span>Total dépenses</span><strong>${formatPrice(summary.expenses_total)} BIF</strong></div>
+          <div><span>Bénéfice net (${formatMargin(summary.net_margin)})</span><strong class="${Number(summary.net_profit) >= 0 ? "pos" : "neg"}">${formatPrice(summary.net_profit)} BIF</strong></div>
+          <div><span>Factures</span><strong>${formatPrice(summary.invoices_count)}</strong></div>
+          <div><span>Quantité vendue</span><strong>${formatPrice(summary.quantity)}</strong></div>
+          <div><span>Lignes de vente</span><strong>${formatPrice(summary.lines_count)}</strong></div>
+        </div>
+        <h3>${viewLabels[view.value]}</h3>
+        ${buildPdfTable()}
+        <p class="note">
+          Bénéfice brut = CA HTVA des ventes − coût d'achat des produits vendus.
+          Bénéfice net = bénéfice brut − dépenses approuvées de la période.
+        </p>
+      </body>
+    </html>`;
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    store.commit(
+      "profit/SET_ERROR",
+      "Impossible d'ouvrir la fenêtre d'impression. Autorisez les fenêtres pop-up pour ce site.",
+    );
+    return;
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 250);
+};
+
 onMounted(() => {
-  fetchProducts();
-  fetchReport();
+  store.dispatch("profit/fetchProductOptions");
+  // Réutilise le rapport en cache s'il est récent, sinon le recharge
+  store.dispatch("profit/fetchReport");
 });
 </script>
 
@@ -105,16 +267,34 @@ onMounted(() => {
         <TrendingUp :size="20" class="me-2 text-success" />
         Bénéfices sur les ventes
       </h5>
-      <button class="btn btn-info btn-sm noprint" @click="printPage">
-        <Printer :size="14" class="me-1" />
-        Imprimer
-      </button>
+      <div class="d-flex align-items-center gap-2 noprint">
+        <small v-if="lastUpdatedAt" class="text-muted">
+          Mis à jour à {{ formatUpdatedAt(lastUpdatedAt) }}
+        </small>
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          :disabled="loading"
+          title="Recharger les données"
+          @click="refreshReport"
+        >
+          <RefreshCw :size="14" class="me-1" :class="{ spin: loading }" />
+          Actualiser
+        </button>
+        <button class="btn btn-outline-danger btn-sm" :disabled="!report" @click="exportToPdf">
+          <FileText :size="14" class="me-1" />
+          PDF
+        </button>
+        <button class="btn btn-info btn-sm" @click="printPage">
+          <Printer :size="14" class="me-1" />
+          Imprimer
+        </button>
+      </div>
     </div>
 
     <!-- Filtres -->
     <div class="card mb-4 noprint">
       <div class="card-body py-3">
-        <form class="row g-2 align-items-end" @submit.prevent="fetchReport">
+        <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
           <div class="col-6 col-md-2">
             <label class="small" for="profit-start">DU</label>
             <input
@@ -496,6 +676,14 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 @media print {
   .noprint {
     display: none !important;
