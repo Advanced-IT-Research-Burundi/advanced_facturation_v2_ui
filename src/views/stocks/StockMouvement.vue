@@ -145,7 +145,7 @@
         </div>
 
         <div class="row g-3 mb-3">
-          <div class="col-md-4">
+          <div class="col-md-6 col-xl-3">
             <div class="summary-card border rounded-3 p-3 bg-light h-100">
               <div class="text-muted small">Produits affichés</div>
               <div class="fs-4 fw-bold">{{ filteredStocks.length }}</div>
@@ -154,7 +154,7 @@
               </div>
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-6 col-xl-3">
             <div class="summary-card border rounded-3 p-3 bg-light h-100">
               <div class="text-muted small">Quantité totale affichée</div>
               <div class="fs-4 fw-bold">
@@ -163,7 +163,7 @@
               <div class="small text-muted">toutes unités confondues</div>
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-6 col-xl-3">
             <div
               class="summary-card border rounded-3 p-3 bg-primary-subtle h-100"
             >
@@ -175,6 +175,24 @@
               </div>
               <div v-if="searchQuery" class="small text-muted">
                 Total stock: {{ formatCurrencyTotals(stockRevenueByCurrency) }}
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-xl-3">
+            <div
+              class="summary-card border rounded-3 p-3 bg-warning-subtle h-100"
+            >
+              <div class="text-muted small">
+                Chiffre d'affaires au prix promotionnel
+              </div>
+              <div class="fs-5 fw-bold text-warning-emphasis">
+                {{ formatCurrencyTotals(filteredPromoRevenueByCurrency) }}
+              </div>
+              <div class="small text-muted">
+                {{ filteredPromoStocksCount }} produit(s) avec prix promotionnel
+              </div>
+              <div v-if="searchQuery" class="small text-muted">
+                Total stock: {{ formatCurrencyTotals(promoRevenueByCurrency) }}
               </div>
             </div>
           </div>
@@ -198,8 +216,9 @@
                 <th class="text-end">Prix d'achat</th>
                 <th class="text-end">Bénéfice</th>
                 <th class="text-end">Prix Promotionnel</th>
-                <th class="text-center">TVA Promo</th>
+                <th class="text-end">TVA Promo</th>
                 <th class="text-end">Total Produit</th>
+                <th class="text-end">Total Promo</th>
                 <th class="text-center">Contrôle prix</th>
                 <th class="text-center">Actions</th>
               </tr>
@@ -264,14 +283,23 @@
                   </span>
                   <span v-else class="text-muted">-</span>
                 </td>
-                <td class="text-center">
-                  <template v-if="hasLibelleVat(stock)">
-                    {{ formatNumber(stock.product.libelle.tva) }}%
+                <td class="text-end">
+                  <template v-if="getLibellePrice(stock) > 0">
+                    {{ formatCurrency(getPromoVatAmount(stock), stock.currency) }}
+                    <small class="d-block text-muted">
+                      {{ formatNumber(stock.product?.vat_rate) }}%
+                    </small>
                   </template>
                   <span v-else class="text-muted">-</span>
                 </td>
                 <td class="text-end fw-bold text-success">
                   {{ formatCurrency(getStockLineTotal(stock), stock.currency) }}
+                </td>
+                <td class="text-end fw-bold">
+                  <span v-if="getLibellePrice(stock) > 0" class="text-warning-emphasis">
+                    {{ formatCurrency(getStockPromoLineTotal(stock), stock.currency) }}
+                  </span>
+                  <span v-else class="text-muted fw-normal">-</span>
                 </td>
                 <td class="text-center">
                   <span
@@ -315,7 +343,7 @@
                 </td>
               </tr>
               <tr v-if="filteredStocks.length === 0">
-                <td colspan="13" class="text-center py-5 text-muted">
+                <td colspan="16" class="text-center py-5 text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                   {{
                     searchQuery
@@ -329,9 +357,12 @@
               <tr class="fw-bold">
                 <td colspan="3" class="text-end">Total</td>
                 <td class="text-end">{{ formatNumber(filteredStockQuantity) }}</td>
-                <td colspan="6"></td>
+                <td colspan="8"></td>
                 <td class="text-end text-success">
                   {{ formatCurrencyTotals(filteredStockRevenueByCurrency) }}
+                </td>
+                <td class="text-end text-warning-emphasis">
+                  {{ formatCurrencyTotals(filteredPromoRevenueByCurrency) }}
                 </td>
                 <td colspan="2"></td>
               </tr>
@@ -883,10 +914,10 @@ const getLibellePrice = (stock) => {
   return toNumber(stock.product?.libelle?.price);
 };
 
-// TVA du libellé : optionnelle, et sans objet s'il n'y a pas de prix promotionnel
-const hasLibelleVat = (stock) => {
-  const vat = stock.product?.libelle?.tva;
-  return getLibellePrice(stock) > 0 && vat !== null && vat !== undefined;
+// Montant de TVA unitaire au prix promotionnel : comme au POS, le prix promo est HT
+// et la TVA facturée est celle du produit
+const getPromoVatAmount = (stock) => {
+  return (getLibellePrice(stock) * toNumber(stock.product?.vat_rate)) / 100;
 };
 
 const getPriceHTVA = (stock) => toNumber(stock.unit_price);
@@ -953,13 +984,20 @@ const getStockLineTotal = (stock) => {
   return toNumber(stock.quantity) * getStockDisplayPrice(stock);
 };
 
-const groupRevenueByCurrency = (stockList) => {
+// Chiffre d'affaires si tout le stock est vendu au prix promotionnel (libellé)
+const getStockPromoLineTotal = (stock) => {
+  return toNumber(stock.quantity) * getLibellePrice(stock);
+};
+
+const groupRevenueByCurrency = (stockList, getLineTotal = getStockLineTotal) => {
   return stockList.reduce((totals, stock) => {
     const currency = stock.currency || "BIF";
-    totals[currency] = (totals[currency] || 0) + getStockLineTotal(stock);
+    totals[currency] = (totals[currency] || 0) + getLineTotal(stock);
     return totals;
   }, {});
 };
+
+const hasPromoPrice = (stock) => getLibellePrice(stock) > 0;
 
 const formatNumber = (value) => {
   return new Intl.NumberFormat("fr-FR", {
@@ -1018,8 +1056,9 @@ const buildStockTableHtml = () => {
         <td style="text-align:right;">${formatNumber(getPurchasePrice(stock))} ${currency}</td>
         <td style="text-align:right;">${formatNumber(getProfit(stock))} ${currency} (${formatNumber(getProfitMargin(stock))}%)</td>
         <td style="text-align:right;">${getLibellePrice(stock) > 0 ? `${formatNumber(getLibellePrice(stock))} ${currency}` : "-"}</td>
-        <td style="text-align:center;">${hasLibelleVat(stock) ? `${formatNumber(stock.product.libelle.tva)}%` : "-"}</td>
+        <td style="text-align:right;">${getLibellePrice(stock) > 0 ? `${formatNumber(getPromoVatAmount(stock))} ${currency} (${formatNumber(stock.product?.vat_rate || 0)}%)` : "-"}</td>
         <td style="text-align:right;">${formatNumber(total)} ${currency}</td>
+        <td style="text-align:right;">${hasPromoPrice(stock) ? `${formatNumber(getStockPromoLineTotal(stock))} ${currency}` : "-"}</td>
         <td>${mismatches.length ? escapeHtml(mismatches.join(" ; ")) : "OK"}</td>
       </tr>
     `;
@@ -1043,6 +1082,7 @@ const buildStockTableHtml = () => {
               <th>Prix Promotionnel</th>
               <th>TVA Promo</th>
               <th>Total Produit</th>
+              <th>Total Promo</th>
               <th>Contrôle prix</th>
             </tr>
           </thead>
@@ -1055,6 +1095,7 @@ const buildStockTableHtml = () => {
               <td style="text-align:right;">${formatNumber(filteredStockQuantity.value)}</td>
               <td colspan="8"></td>
               <td style="text-align:right;">${escapeHtml(formatCurrencyTotals(filteredStockRevenueByCurrency.value))}</td>
+              <td style="text-align:right;">${escapeHtml(formatCurrencyTotals(filteredPromoRevenueByCurrency.value))}</td>
               <td></td>
             </tr>
           </tfoot>
@@ -1133,6 +1174,7 @@ const exportStockToPdf = () => {
           <span><strong>Produits :</strong> ${formatNumber(filteredStocks.value.length)}</span>
           <span><strong>Quantité totale :</strong> ${formatNumber(filteredStockQuantity.value)}</span>
           <span><strong>Valeur :</strong> ${escapeHtml(formatCurrencyTotals(filteredStockRevenueByCurrency.value))}</span>
+          <span><strong>Valeur au prix promotionnel :</strong> ${escapeHtml(formatCurrencyTotals(filteredPromoRevenueByCurrency.value))}</span>
         </div>
         ${buildStockTableHtml()}
       </body>
@@ -1228,6 +1270,18 @@ const stockRevenueByCurrency = computed(() =>
 
 const filteredStockRevenueByCurrency = computed(() =>
   groupRevenueByCurrency(filteredStocks.value),
+);
+
+const promoRevenueByCurrency = computed(() =>
+  groupRevenueByCurrency(validStocks.value.filter(hasPromoPrice), getStockPromoLineTotal),
+);
+
+const filteredPromoRevenueByCurrency = computed(() =>
+  groupRevenueByCurrency(filteredStocks.value.filter(hasPromoPrice), getStockPromoLineTotal),
+);
+
+const filteredPromoStocksCount = computed(
+  () => filteredStocks.value.filter(hasPromoPrice).length,
 );
 
 const showQuickEntryModal = ref(false);
