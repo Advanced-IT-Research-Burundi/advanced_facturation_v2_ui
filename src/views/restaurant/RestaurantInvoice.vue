@@ -179,8 +179,11 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const router = useRouter();
@@ -201,7 +204,7 @@ onMounted(async () => {
 async function loadInvoice() {
   loading.value = true;
   try {
-    const { data } = await api.get(`/restaurant/invoices/${route.params.id}`);
+    const { data } = await cachedGet(`/restaurant/invoices/${route.params.id}`);
     invoice.value = data.data;
     paymentAmount.value = invoice.value.invoice_total_amount;
   } catch (error) {

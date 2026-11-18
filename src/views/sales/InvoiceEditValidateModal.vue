@@ -16,7 +16,10 @@ import {
   Tag,
 } from "lucide-vue-next";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
+
+const { cachedGet } = useCachedApi();
 
 const props = defineProps({
   show: {
@@ -63,7 +66,7 @@ const clientSearchText = ref("");
 
 const fetchWarehouses = async () => {
   try {
-    const res = await api.get("/warehouses");
+    const res = await cachedGet("/warehouses");
     if (res.data?.success) {
       warehouses.value = res.data.data?.data || res.data.data || [];
     }
@@ -74,7 +77,7 @@ const fetchWarehouses = async () => {
 
 const fetchLibelles = async () => {
   try {
-    const res = await api.get("/libelles", { params: { per_page: 100 } });
+    const res = await cachedGet("/libelles", { params: { per_page: 100 } });
     if (res.data?.success) {
       libellesList.value = res.data.data?.data || res.data.data || [];
     }
@@ -90,7 +93,7 @@ const fetchProducts = async () => {
     return;
   }
   try {
-    const res = await api.get("/products", { params: { per_page: 500 } });
+    const res = await cachedGet("/products", { params: { per_page: 500 } });
     if (res.data?.success) {
       productsList.value = res.data.data?.data || res.data.data || [];
     }
@@ -213,7 +216,7 @@ watch(
       if (!props.invoice.invoice_items && !props.invoice.invoiceItems) {
         isLoading.value = true;
         try {
-          const res = await api.get(`/invoices/${props.invoice.id}`);
+          const res = await cachedGet(`/invoices/${props.invoice.id}`);
           initFromInvoice(res.data?.data || props.invoice);
         } catch (e) {
           console.error("Error fetching invoice details:", e);

@@ -115,6 +115,9 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Select from 'primevue/select';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet } = useCachedApi();
 
 const router = useRouter();
 const loading = ref(false);
@@ -131,7 +134,7 @@ const form = reactive({
 
 onMounted(async () => {
   try {
-    const resp = await api.get('bakery/production/finished-products');
+    const resp = await cachedGet('bakery/production/finished-products');
     if (resp.data.success) {
       finishedProducts.value = resp.data.data;
     }

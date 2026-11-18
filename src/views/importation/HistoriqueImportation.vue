@@ -71,7 +71,9 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import StockHeader from "../stocks/StockHeader.vue";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
+
+const { cachedGet } = useCachedApi();
 
 const loading = ref(false);
 const movements = ref([]);
@@ -119,7 +121,7 @@ const buildParams = () => ({
 const fetchMovements = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/mouvement_stock_importations", {
+    const response = await cachedGet("/mouvement_stock_importations", {
       params: buildParams(),
     });
 

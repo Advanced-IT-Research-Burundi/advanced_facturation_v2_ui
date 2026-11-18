@@ -5,8 +5,10 @@ import {
   ArrowLeft, Calendar, RefreshCw, Clock, Users
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
-import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import FinanceHeader from './FinanceHeader.vue';
+
+const { cachedGet } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const route = useRoute();
 const router = useRouter();
@@ -107,7 +109,7 @@ const fetchUserProfile = async () => {
   }
 
   try {
-    const res = await api.get(`/users/${userId.value}`);
+    const res = await cachedGet(`/users/${userId.value}`);
     if (res.data.success) {
       userProfile.value = res.data.data;
     }
@@ -119,7 +121,7 @@ const fetchUserProfile = async () => {
 
 const fetchCurrentRegister = async () => {
   try {
-    const res = await api.get('/cash-registers/current');
+    const res = await cachedGet('/cash-registers/current');
     if (res.data.success) {
       currentRegister.value = res.data.data;
     }
@@ -134,7 +136,7 @@ const fetchActivity = async () => {
   loading.value = true;
   try {
     const [summaryRes] = await Promise.all([
-      api.get('/cash-registers/daily-summary', {
+      cachedGet('/cash-registers/daily-summary', {
         params: {
           date: selectedDate.value,
           user_id: userId.value,

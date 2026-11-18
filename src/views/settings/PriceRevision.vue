@@ -1,8 +1,11 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -36,7 +39,7 @@ const produitsFiltres = computed(() => {
 const fetchData = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/products/price-revision");
+    const response = await cachedGet("/products/price-revision");
     produits.value = response.data.data.produits;
     sansPrix.value = response.data.data.sans_prix;
     entrepot.value = response.data.data.entrepot;
@@ -83,7 +86,7 @@ onMounted(fetchData);
           </div>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-primary" :disabled="loading || applying" @click="fetchData">
+          <button class="btn btn-outline-primary" :disabled="loading || applying" @click="refresh(fetchData)">
             <i class="bi bi-arrow-clockwise"></i> Actualiser
           </button>
           <button

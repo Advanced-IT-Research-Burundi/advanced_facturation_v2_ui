@@ -5,7 +5,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
       <h1 class="h3 mb-0">{{ tabTitles[activeTab] }}</h1>
       <div>
-        <button v-if="!['tvaCorrection', 'priceRevision'].includes(activeTab)" class="btn btn-outline-primary me-2" @click="refreshActiveTab">
+        <button v-if="!['tvaCorrection', 'priceRevision'].includes(activeTab)" class="btn btn-outline-primary me-2" @click="refresh(refreshActiveTab)">
           <i class="bi bi-arrow-clockwise"></i> Actualiser
         </button>
         <button
@@ -366,6 +366,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import SettingsHeader from './SettingsHeader.vue';
 import TvaCorrection from './TvaCorrection.vue';
 import PriceRevision from './PriceRevision.vue';
@@ -373,6 +374,8 @@ import ObrSyncModal from './ObrSyncModal.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const store = useStore();
 const route = useRoute();
@@ -536,7 +539,7 @@ const fetchObrInvoices = async (page = 1) => {
       params.search = obrSearch.value;
     }
 
-    const response = await api.get('/invoices/obr-monitor', { params });
+    const response = await cachedGet('/invoices/obr-monitor', { params });
     const pageData = response.data?.data || {};
     const stats = response.data?.stats || {};
 
@@ -615,7 +618,7 @@ const sendObrInvoice = async (invoice) => {
 const printObrInvoiceFromList = async (invoice) => {
   printingInvoiceId.value = invoice.id;
   try {
-    const response = await api.get(`/invoices/${invoice.id}`);
+    const response = await cachedGet(`/invoices/${invoice.id}`);
     const fullInvoice = response.data?.data || invoice;
     await printObrInvoice(fullInvoice, fullInvoice.company);
   } catch (err) {

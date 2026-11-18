@@ -5,9 +5,12 @@ import {
   Mail, MessageSquare, FileText, Plus, Filter, Search
 } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import FinanceHeader from './FinanceHeader.vue';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -53,7 +56,7 @@ const fetchReminders = async () => {
     const params = {};
     if (statusFilter.value !== 'all') params.status = statusFilter.value;
 
-    const res = await api.get('/reminders', { params });
+    const res = await cachedGet('/reminders', { params });
     if (res.data.success) {
       reminders.value = res.data.data.data || [];
     }
@@ -64,7 +67,7 @@ const fetchReminders = async () => {
 
 const fetchUnpaidInvoices = async () => {
   try {
-    const res = await api.get('/reminders/unpaid-invoices');
+    const res = await cachedGet('/reminders/unpaid-invoices');
     if (res.data.success) {
       unpaidInvoices.value = res.data.data.invoices || [];
     }
@@ -75,7 +78,7 @@ const fetchUnpaidInvoices = async () => {
 
 const fetchStats = async () => {
   try {
-    const res = await api.get('/reminders/stats');
+    const res = await cachedGet('/reminders/stats');
     if (res.data.success) {
       stats.value = res.data.data;
     }

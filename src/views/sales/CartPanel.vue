@@ -13,9 +13,11 @@ import {
   Landmark,
   Smartphone,
 } from "lucide-vue-next";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -362,7 +364,7 @@ const openPaymentInformation = async () => {
   paymentMethods.value = [];
 
   try {
-    const { data } = await api.get("payment-methods");
+    const { data } = await cachedGet("payment-methods", { ttl: 10 * 60 * 1000 });
     const methods = Array.isArray(data?.data) ? data.data : [];
     paymentMethods.value = methods.filter(
       (method) =>

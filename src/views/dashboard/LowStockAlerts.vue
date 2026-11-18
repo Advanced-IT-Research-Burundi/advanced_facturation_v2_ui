@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import ListPagination from './ListPagination.vue';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const loading = ref(false);
 const error = ref('');
@@ -33,7 +35,7 @@ const fetchData = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const resp = await api.get('/analytics/low-stock', { params: { threshold: threshold.value } });
+    const resp = await cachedGet('/analytics/low-stock', { params: { threshold: threshold.value } });
     if (resp.data.success) {
       alerts.value = resp.data.data?.alerts || [];
       summary.value = resp.data.data?.summary || {};
@@ -274,7 +276,7 @@ onMounted(fetchData);
             </div>
           </div>
           <div class="col-12 col-md-2">
-            <button class="btn btn-primary w-100" @click="fetchData" :disabled="loading">Actualiser</button>
+            <button class="btn btn-primary w-100" @click="refresh(fetchData)" :disabled="loading">Actualiser</button>
           </div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border text-primary"></div></div>

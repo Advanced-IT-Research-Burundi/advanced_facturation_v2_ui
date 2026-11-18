@@ -14,9 +14,12 @@ import {
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useConfirm } from '@/composables/useConfirm';
 import { useToast } from '@/composables/useToast';
 import FinanceHeader from './FinanceHeader.vue';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -55,10 +58,10 @@ const formatDate = (date) => date ? new Date(date).toLocaleDateString('fr-FR') :
 const formatDateTime = (date) => date ? new Date(date).toLocaleString('fr-FR') : '-';
 
 const fetchCurrentRegister = async () => {
-  const res = await api.get('/cash-registers/current');
+  const res = await cachedGet('/cash-registers/current');
   if (res.data.success) {
     currentRegister.value = res.data.data;
-    store.state.data.financeBankDepositsCurrentRegister = currentRegister.value;
+    store.commit('SET_DATA_FIELD', { key: 'financeBankDepositsCurrentRegister', value: currentRegister.value });
     form.value.cash_register_id = res.data.data?.register?.id || null;
   }
 };
@@ -67,10 +70,10 @@ const fetchDeposits = async () => {
   const params = Object.fromEntries(
     Object.entries(filters.value).filter(([, value]) => value !== ''),
   );
-  const res = await api.get('/bank-deposits', { params });
+  const res = await cachedGet('/bank-deposits', { params });
   if (res.data.success) {
     deposits.value = res.data.data.data || [];
-    store.state.data.financeBankDeposits = deposits.value;
+    store.commit('SET_DATA_FIELD', { key: 'financeBankDeposits', value: deposits.value });
   }
 };
 
@@ -78,10 +81,10 @@ const fetchSummary = async () => {
   const params = Object.fromEntries(
     Object.entries(filters.value).filter(([, value]) => value !== ''),
   );
-  const res = await api.get('/bank-deposits/summary', { params });
+  const res = await cachedGet('/bank-deposits/summary', { params });
   if (res.data.success) {
     summary.value = res.data.data;
-    store.state.data.financeBankDepositsSummary = summary.value;
+    store.commit('SET_DATA_FIELD', { key: 'financeBankDepositsSummary', value: summary.value });
   }
 };
 
@@ -178,7 +181,7 @@ onMounted(refreshAll);
         <p class="text-muted mb-0">Transférer l’argent des ventes de la caisse vers un compte bancaire</p>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary" @click="refreshAll">
+        <button class="btn btn-outline-secondary" @click="refresh(refreshAll)">
           <RefreshCw :size="18" class="me-2" /> Actualiser
         </button>
         <button class="btn btn-primary" @click="openCreateModal">

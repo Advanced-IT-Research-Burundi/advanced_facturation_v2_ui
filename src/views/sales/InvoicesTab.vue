@@ -1,10 +1,12 @@
 <script setup>
 import { ref } from "vue";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import InvoicesList from "./InvoicesList.vue";
 import PaymentModal from "./PaymentModal.vue";
 import InvoiceCancelModal from "./InvoiceCancelModal.vue";
 import InvoiceEditValidateModal from "./InvoiceEditValidateModal.vue";
+
+const { cachedGet } = useCachedApi();
 
 const props = defineProps({
   customers: {
@@ -37,7 +39,7 @@ const refreshInvoices = () => {
 const openInvoiceDetails = async (invoice) => {
   let fullInvoice = invoice;
   try {
-    const response = await api.get(`/invoices/${invoice.id}`);
+    const response = await cachedGet(`/invoices/${invoice.id}`);
     fullInvoice = response.data?.data ?? invoice;
   } catch (error) {
     console.error("Erreur lors du chargement du détail de la facture:", error);

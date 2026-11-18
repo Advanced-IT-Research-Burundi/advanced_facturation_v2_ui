@@ -4,9 +4,12 @@ import {
   DollarSign, TrendingUp, RefreshCw, Plus, Edit2, Trash2, History
 } from 'lucide-vue-next';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import FinanceHeader from './FinanceHeader.vue';
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -56,7 +59,7 @@ const formatDate = (date) => new Date(date).toLocaleDateString('fr-FR');
 // Fetch currencies
 const fetchCurrencies = async () => {
   try {
-    const res = await api.get('/currencies', { params: { active_only: false } });
+    const res = await cachedGet('/currencies', { params: { active_only: false } });
     if (res.data.success) {
       currencies.value = res.data.data;
     }
@@ -120,7 +123,7 @@ const deleteCurrency = async (id) => {
 // Convert
 const convert = async () => {
   try {
-    const res = await api.get('/currencies/convert', {
+    const res = await cachedGet('/currencies/convert', {
       params: convertForm.value
     });
     if (res.data.success) {
@@ -135,7 +138,7 @@ const convert = async () => {
 const viewHistory = async (currency) => {
   selectedCurrency.value = currency;
   try {
-    const res = await api.get(`/currencies/${currency.id}/history`);
+    const res = await cachedGet(`/currencies/${currency.id}/history`);
     if (res.data.success) {
       rateHistory.value = res.data.data.history || [];
       showHistoryModal.value = true;

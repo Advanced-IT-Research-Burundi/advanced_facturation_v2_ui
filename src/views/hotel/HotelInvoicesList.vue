@@ -7,7 +7,7 @@
         <h5 class="mb-0 fw-bold">
           <i class="bi bi-receipt me-2 text-primary"></i>Factures Hôtel
         </h5>
-        <button class="btn btn-outline-secondary" @click="loadInvoices">
+        <button class="btn btn-outline-secondary" @click="refresh(loadInvoices)">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
       </div>
@@ -165,8 +165,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const loading = ref(false);
 const invoices = ref([]);
@@ -208,7 +210,7 @@ const loadInvoices = async (page = pagination.value.current_page) => {
     if (filterDateFrom.value) params.date_from = filterDateFrom.value;
     if (filterDateTo.value) params.date_to = filterDateTo.value;
 
-    const { data } = await api.get('/hotel/invoices', { params });
+    const { data } = await cachedGet('/hotel/invoices', { params });
     invoices.value = data.data.data;
     pagination.value = {
       current_page: data.data.current_page,

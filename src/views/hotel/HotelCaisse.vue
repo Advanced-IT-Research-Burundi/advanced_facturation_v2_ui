@@ -7,7 +7,7 @@
         <h5 class="mb-0 fw-bold">
           <i class="bi bi-cash-register me-2 text-success"></i>Caisse Hôtel
         </h5>
-        <button class="btn btn-outline-secondary btn-sm" @click="loadAll">
+        <button class="btn btn-outline-secondary btn-sm" @click="refresh(loadAll)">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
       </div>
@@ -271,7 +271,10 @@
 import { ref, computed, onMounted } from 'vue';
 import HotelHeader from '@/views/hotel/HotelHeader.vue';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const toast = useToast();
 
@@ -311,11 +314,11 @@ const formatDateTime = (d) => d ? new Date(d).toLocaleString('fr-FR') : '—';
 
 const loadCurrent = async () => {
   try {
-    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: activeSection.value } });
+    const res = await cachedGet('/hotel/caisse/current', { params: { hotel_section: activeSection.value } });
     const data = res.data?.data;
     if (data && data.register && data.register.id) {
       currentRegister.value = data;
-      const mRes = await api.get(`/hotel/caisse/${data.register.id}/movements`);
+      const mRes = await cachedGet(`/hotel/caisse/${data.register.id}/movements`);
       movements.value = Array.isArray(mRes.data?.data) ? mRes.data.data.filter(Boolean) : [];
     } else {
       currentRegister.value = null;
@@ -329,7 +332,7 @@ const loadCurrent = async () => {
 
 const loadHistory = async () => {
   try {
-    const res = await api.get('/hotel/caisse', { params: { hotel_section: activeSection.value } });
+    const res = await cachedGet('/hotel/caisse', { params: { hotel_section: activeSection.value } });
     const raw = res.data?.data?.data ?? res.data?.data ?? [];
     registers.value = Array.isArray(raw) ? raw.filter(Boolean) : [];
   } catch {

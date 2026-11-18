@@ -8,7 +8,7 @@
           <i class="bi bi-door-closed me-2 text-primary"></i>Chambres
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary" @click="loadAll">
+          <button class="btn btn-outline-secondary" @click="refresh(loadAll)">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button class="btn btn-success" @click="openWalkInModal">
@@ -921,7 +921,10 @@
 <script setup>
 import { ref, computed, onMounted, reactive, TransitionGroup, Teleport } from 'vue';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -960,8 +963,8 @@ const loadAll = async () => {
   loading.value = true;
   try {
     const [roomsRes, statsRes] = await Promise.all([
-      api.get('/hotel/rooms'),
-      api.get('/hotel/dashboard'),
+      cachedGet('/hotel/rooms'),
+      cachedGet('/hotel/dashboard'),
     ]);
     rooms.value = roomsRes.data.data;
     stats.value = statsRes.data.data;
@@ -1112,7 +1115,7 @@ const loadReservations = async (page = 1) => {
     if (resSearch.value) { params.search = resSearch.value; }
     if (resFilterStatus.value) { params.status = resFilterStatus.value; }
     if (resFilterDate.value) { params.date = resFilterDate.value; }
-    const res = await api.get('/hotel/reservations', { params });
+    const res = await cachedGet('/hotel/reservations', { params });
     reservations.value = res.data.data.data;
     const meta = res.data.data;
     resPagination.value = { current_page: meta.current_page, last_page: meta.last_page, total: meta.total };
@@ -1139,7 +1142,7 @@ const changeResPage = (page) => { loadReservations(page); };
 
 const loadCustomers = async () => {
   try {
-    const res = await api.get('/customers', { params: { per_page: 500 } });
+    const res = await cachedGet('/customers', { params: { per_page: 500 } });
     customers.value = res.data?.data?.data ?? res.data?.data ?? [];
   } catch (e) {
     console.error('Erreur chargement clients:', e);
@@ -1275,7 +1278,7 @@ const openRecordPaymentModal = (reservation) => {
 
 const registerPaymentInCaisse = async (amount, description, reference) => {
   try {
-    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: 'rooms' } });
+    const res = await cachedGet('/hotel/caisse/current', { params: { hotel_section: 'rooms' } });
     const register = res.data?.data?.register;
     if (register?.id) {
       await api.post(`/hotel/caisse/${register.id}/movements`, {
@@ -1383,8 +1386,8 @@ const openRoomServiceModal = async (reservation) => {
   rsNewItem.qty = 1;
   if (rsMenuItems.value.length === 0 || rsDishes.value.length === 0) {
     const [menuRes, dishRes] = await Promise.all([
-      api.get('/hotel/menu-items'),
-      api.get('/hotel/dishes'),
+      cachedGet('/hotel/menu-items'),
+      cachedGet('/hotel/dishes'),
     ]);
     rsMenuItems.value = menuRes.data.data;
     rsDishes.value = dishRes.data.data;

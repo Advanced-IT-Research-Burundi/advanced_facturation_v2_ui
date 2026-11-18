@@ -8,7 +8,7 @@
           <i class="bi bi-graph-up me-2 text-primary"></i>Rapport Directeur
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" @click="loadReport">
+          <button class="btn btn-outline-secondary btn-sm" @click="refresh(loadReport)">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button class="btn btn-success btn-sm" @click="exportToExcel" :disabled="!report">
@@ -582,7 +582,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import HotelHeader from './HotelHeader.vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const loading = ref(false);
 const report = ref(null);
@@ -596,7 +598,7 @@ const loadReport = async () => {
     if (filters.value.start_date) { params.start_date = filters.value.start_date; }
     if (filters.value.end_date) { params.end_date = filters.value.end_date; }
 
-    const res = await api.get('/hotel/reports/summary', { params });
+    const res = await cachedGet('/hotel/reports/summary', { params });
     report.value = res.data.data;
   } catch (e) {
     console.error('Erreur chargement rapport:', e);

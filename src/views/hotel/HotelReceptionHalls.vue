@@ -8,7 +8,7 @@
           <i class="bi bi-balloon-heart me-2 text-primary"></i>Salles de Réception
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary" @click="loadAll">
+          <button class="btn btn-outline-secondary" @click="refresh(loadAll)">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button class="btn btn-primary" @click="openAddModal">
@@ -637,8 +637,11 @@
 <script setup>
 import { ref, computed, onMounted, reactive, watch, toRaw } from 'vue';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const toast = useToast();
 
@@ -786,7 +789,7 @@ const loadBookings = async (page = 1) => {
     const params = { page };
     if (bookingSearch.value.trim()) params.search = bookingSearch.value.trim();
     if (bookingStatusFilter.value) params.status = bookingStatusFilter.value;
-    const res = await api.get('/hotel/reception-bookings', { params });
+    const res = await cachedGet('/hotel/reception-bookings', { params });
     bookings.value = res.data.data;
     bookingPagination.value = res.data.meta ?? { current_page: 1, last_page: 1, total: bookings.value.length };
   } catch (e) {
@@ -855,7 +858,7 @@ const openPaymentModal = (booking) => {
 
 const registerPaymentInCaisse = async (amount, description) => {
   try {
-    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: 'reception' } });
+    const res = await cachedGet('/hotel/caisse/current', { params: { hotel_section: 'reception' } });
     const register = res.data?.data?.register;
     if (register?.id) {
       await api.post(`/hotel/caisse/${register.id}/movements`, {
@@ -898,7 +901,7 @@ const loadAll = async () => {
   loading.value = true;
   try {
     const [hallsRes] = await Promise.all([
-      api.get('/hotel/reception-halls'),
+      cachedGet('/hotel/reception-halls'),
       loadBookings(1),
     ]);
     halls.value = hallsRes.data.data;

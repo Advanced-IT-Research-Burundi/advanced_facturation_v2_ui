@@ -13,7 +13,7 @@
         <router-link to="/bakery/production" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-arrow-left me-1"></i>Retour
         </router-link>
-        <button class="btn btn-outline-secondary btn-sm" @click="loadReport">
+        <button class="btn btn-outline-secondary btn-sm" @click="refresh(loadReport)">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-success btn-sm" :disabled="!report" @click="exportToExcel">
@@ -577,7 +577,9 @@
 
 <script setup>
 import { computed, defineComponent, h, onMounted, ref } from 'vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const emptyStockSummary = {
   items_count: 0,
@@ -683,7 +685,7 @@ const loadReport = async () => {
     if (filters.value.start_date) { params.start_date = filters.value.start_date; }
     if (filters.value.end_date) { params.end_date = filters.value.end_date; }
 
-    const response = await api.get('bakery/production/rapports', { params });
+    const response = await cachedGet('bakery/production/rapports', { params });
     if (response.data.success) {
       report.value = response.data.data;
     } else {

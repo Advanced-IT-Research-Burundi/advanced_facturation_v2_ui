@@ -8,7 +8,7 @@
           <i class="bi bi-fire me-2 text-danger"></i>Cuisine
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary" @click="loadAll">
+          <button class="btn btn-outline-secondary" @click="refresh(loadAll)">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button v-if="canManage" class="btn btn-primary" @click="openDishModal(null)">
@@ -577,9 +577,12 @@
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useStore } from 'vuex';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const store = useStore();
 const toast = useToast();
@@ -657,9 +660,9 @@ const loadAll = async () => {
   loading.value = true;
   try {
     const [ordersRes, dishesRes, stockRes] = await Promise.all([
-      api.get('/hotel/kitchen/orders'),
-      api.get('/hotel/dishes'),
-      api.get('/hotel/kitchen-stock'),
+      cachedGet('/hotel/kitchen/orders'),
+      cachedGet('/hotel/dishes'),
+      cachedGet('/hotel/kitchen-stock'),
     ]);
     kitchenOrders.value = ordersRes.data.data.map(o => ({
       ...o,
@@ -709,7 +712,7 @@ const saveDish = async () => {
       await api.post('/hotel/dishes', dishForm);
     }
     showDishModal.value = false;
-    const res = await api.get('/hotel/dishes');
+    const res = await cachedGet('/hotel/dishes');
     dishes.value = res.data.data;
   } catch (e) {
     toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
@@ -721,7 +724,7 @@ const saveDish = async () => {
 const deleteDish = async (dish) => {
   try {
     await api.delete(`/hotel/dishes/${dish.id}`);
-    const res = await api.get('/hotel/dishes');
+    const res = await cachedGet('/hotel/dishes');
     dishes.value = res.data.data;
   } catch (e) {
     toast.error(e.response?.data?.message || 'Erreur lors de la suppression');
@@ -746,7 +749,7 @@ const saveStock = async () => {
       await api.post('/hotel/kitchen-stock', stockForm);
     }
     showStockModal.value = false;
-    const res = await api.get('/hotel/kitchen-stock');
+    const res = await cachedGet('/hotel/kitchen-stock');
     stockItems.value = res.data.data;
   } catch (e) {
     toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
@@ -769,7 +772,7 @@ const formatCurrency = (value) => {
 
 const loadMovements = async () => {
   try {
-    const res = await api.get('/hotel/stock-movements', { params: { stock_type: 'kitchen' } });
+    const res = await cachedGet('/hotel/stock-movements', { params: { stock_type: 'kitchen' } });
     stockMovements.value = res.data.data?.data ?? res.data.data ?? [];
   } catch (e) {
     console.error('Erreur chargement mouvements cuisine:', e);

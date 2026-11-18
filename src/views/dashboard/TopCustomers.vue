@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import ListPagination from './ListPagination.vue';
+
+const { cachedGet } = useCachedApi();
 
 const today = new Date().toISOString().slice(0, 10);
 const monthStart = today.slice(0, 8) + '01';
@@ -30,7 +32,7 @@ const fetchData = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const resp = await api.get('/analytics/top-customers', { params: filters.value });
+    const resp = await cachedGet('/analytics/top-customers', { params: filters.value });
     if (resp.data.success) {
       customers.value = resp.data.data?.customers || [];
       totalRevenue.value = resp.data.data?.total_revenue || 0;

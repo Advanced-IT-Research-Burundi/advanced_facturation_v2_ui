@@ -8,7 +8,7 @@
           <i class="bi bi-cup-straw me-2 text-primary"></i>Restaurant-Bar
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary" @click="loadAll">
+          <button class="btn btn-outline-secondary" @click="refresh(loadAll)">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button v-if="canOrder" class="btn btn-primary" @click="openNewOrderModal">
@@ -779,9 +779,12 @@
 import { ref, computed, onMounted, reactive } from 'vue';
 import { useStore } from 'vuex';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
 import { useInvoicePrint } from '@/composables/useInvoicePrint';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const store = useStore();
 const toast = useToast();
@@ -880,11 +883,11 @@ const loadAll = async () => {
   loading.value = true;
   try {
     const [tablesRes, ordersRes, menuRes, dishesRes, barStockRes] = await Promise.all([
-      api.get('/hotel/restaurant-tables'),
-      api.get('/hotel/restaurant-orders', { params: { today: true } }),
-      api.get('/hotel/menu-items'),
-      api.get('/hotel/dishes'),
-      api.get('/hotel/bar-stock'),
+      cachedGet('/hotel/restaurant-tables'),
+      cachedGet('/hotel/restaurant-orders', { params: { today: true } }),
+      cachedGet('/hotel/menu-items'),
+      cachedGet('/hotel/dishes'),
+      cachedGet('/hotel/bar-stock'),
     ]);
     tables.value = tablesRes.data.data;
     orders.value = ordersRes.data.data;
@@ -982,7 +985,7 @@ const viewOrder = (order) => { viewingOrder.value = order; };
 
 const registerOrderInCaisse = async (amount, description, section, reference) => {
   try {
-    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: section } });
+    const res = await cachedGet('/hotel/caisse/current', { params: { hotel_section: section } });
     const register = res.data?.data?.register;
     if (register?.id) {
       await api.post(`/hotel/caisse/${register.id}/movements`, {
@@ -1133,7 +1136,7 @@ const saveMenuItem = async () => {
       await api.post('/hotel/menu-items', menuForm);
     }
     showMenuModal.value = false;
-    const menuRes = await api.get('/hotel/menu-items');
+    const menuRes = await cachedGet('/hotel/menu-items');
     menuItems.value = menuRes.data.data;
   } catch (e) {
     toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
@@ -1190,7 +1193,7 @@ const saveBarStock = async () => {
       await api.post('/hotel/bar-stock', barStockForm);
     }
     showBarStockModal.value = false;
-    const res = await api.get('/hotel/bar-stock');
+    const res = await cachedGet('/hotel/bar-stock');
     barStockItems.value = res.data.data;
   } catch (e) {
     toast.error(e.response?.data?.message || 'Erreur lors de l\'enregistrement');
@@ -1199,7 +1202,7 @@ const saveBarStock = async () => {
 
 const loadMovements = async () => {
   try {
-    const res = await api.get('/hotel/stock-movements', { params: { stock_type: 'bar' } });
+    const res = await cachedGet('/hotel/stock-movements', { params: { stock_type: 'bar' } });
     stockMovements.value = res.data.data?.data ?? res.data.data ?? [];
   } catch (e) {
     console.error('Erreur chargement mouvements:', e);

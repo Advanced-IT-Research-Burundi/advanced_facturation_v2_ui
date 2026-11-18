@@ -5,7 +5,7 @@
         <h1 class="page-title">Historique des mouvements de stock OBR</h1>
         <p class="page-subtitle">Suivi des mouvements de stock envoyés à l'OBR</p>
       </div>
-      <button class="btn btn-secondary" @click="fetchObrMouvements">
+      <button class="btn btn-secondary" @click="refresh(fetchObrMouvements)">
         Actualiser
       </button>
     </div>
@@ -102,8 +102,10 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 
@@ -133,7 +135,7 @@ const fetchObrMouvements = async () => {
     if (filters.value.search) params.search = filters.value.search;
     if (filters.value.status !== "all") params.status = filters.value.status;
 
-    const response = await api.get("/obr-mouvements-stock", { params });
+    const response = await cachedGet("/obr-mouvements-stock", { params });
     if (response.data.success) {
       const data = response.data.data;
       mouvements.value = data.data || [];

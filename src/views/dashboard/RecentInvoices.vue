@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import ListPagination from './ListPagination.vue';
+
+const { cachedGet } = useCachedApi();
 
 const loading = ref(false);
 const error = ref('');
@@ -36,7 +38,7 @@ const fetchData = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const resp = await api.get('/dashboard', { params: { limit: limit.value } });
+    const resp = await cachedGet('/dashboard', { params: { limit: limit.value } });
     if (resp.data.success) {
       invoices.value = resp.data.data?.recent_invoices || [];
     }

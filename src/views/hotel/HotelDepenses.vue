@@ -8,7 +8,7 @@
           <i class="bi bi-wallet2 me-2 text-danger"></i>Dépenses Hôtel
         </h5>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" @click="loadAll">
+          <button class="btn btn-outline-secondary btn-sm" @click="refresh(loadAll)">
             <i class="bi bi-arrow-clockwise"></i>
           </button>
           <button class="btn btn-danger btn-sm" @click="openAddModal">
@@ -153,8 +153,11 @@
 import { ref, computed, onMounted } from 'vue';
 import HotelHeader from '@/views/hotel/HotelHeader.vue';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirm();
@@ -205,7 +208,7 @@ const loadDepenses = async (page = 1) => {
     if (filterStartDate.value) params.start_date = filterStartDate.value;
     if (filterEndDate.value) params.end_date = filterEndDate.value;
 
-    const res = await api.get('/hotel/depenses', { params });
+    const res = await cachedGet('/hotel/depenses', { params });
     const paged = res.data.data;
     depenses.value = paged.data ?? paged;
     pagination.value = {
@@ -222,7 +225,7 @@ const loadDepenses = async (page = 1) => {
 
 const loadCategories = async () => {
   try {
-    const res = await api.get('/hotel/depense-categories');
+    const res = await cachedGet('/hotel/depense-categories');
     const raw = res.data.data;
     categories.value = Array.isArray(raw) ? raw : (raw?.data ?? []);
   } catch (e) {

@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useStore } from "vuex";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import PrescriptionFormModal from "./PrescriptionFormModal.vue";
 import PharmaceHeader from "../pharmaceutical/PharmaceHeader.vue";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const store = useStore();
 const toast = useToast();
@@ -39,8 +41,8 @@ const fetchPrescriptions = async () => {
 const loadFormData = async () => {
   try {
     const [custRes, prodRes] = await Promise.all([
-      api.get("/customers", { params: { per_page: 100 } }),
-      api.get("/products/pharmaceutical?per_page=100"),
+      cachedGet("/customers", { params: { per_page: 100 } }),
+      cachedGet("/products/pharmaceutical?per_page=100"),
     ]);
     customers.value = custRes.data.data.data || custRes.data.data || [];
     products.value = prodRes.data.data.data || prodRes.data.data || [];
@@ -68,7 +70,7 @@ const openCreateModal = () => {
 
 const viewPrescription = async (prescription) => {
   try {
-    const response = await api.get(`/prescriptions/${prescription.id}`);
+    const response = await cachedGet(`/prescriptions/${prescription.id}`);
     if (response.data.success) {
       selectedPrescription.value = response.data.data;
       showModal.value = true;

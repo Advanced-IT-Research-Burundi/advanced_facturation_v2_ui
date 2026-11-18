@@ -167,7 +167,10 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const { confirm: confirmDialog } = useConfirm();
@@ -192,7 +195,7 @@ onMounted(async () => {
 const fetchData = async () => {
   loading.value = true;
   try {
-    const resp = await api.get(`warehouses/${warehouseId}/dashboard`);
+    const resp = await cachedGet(`warehouses/${warehouseId}/dashboard`);
     if (resp.data.success) {
       warehouse.value = resp.data.data.warehouse;
       pendingTransfers.value = resp.data.data.pending_transfers;

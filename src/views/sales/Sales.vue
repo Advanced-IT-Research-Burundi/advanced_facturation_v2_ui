@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from "vue";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from "@/composables/useToast";
 
 // Layout & Navigation
@@ -18,6 +19,8 @@ import Reports from "./Reports.vue";
 // Global Shared Modals
 import InvoicePrintModal from "./InvoicePrintModal.vue";
 import ClientFormModal from "./ClientFormModal.vue";
+
+const { cachedGet } = useCachedApi();
 
 const toast = useToast();
 
@@ -47,7 +50,7 @@ const showNotification = (message, type = "success") => {
 // --- DATA FETCHING ---
 const fetchCustomers = async () => {
   try {
-    const response = await api.get("/customers");
+    const response = await cachedGet("/customers");
     if (response.data?.success) {
       customers.value = response.data.data?.data || response.data.data || [];
     }
@@ -58,7 +61,7 @@ const fetchCustomers = async () => {
 
 const fetchCompany = async () => {
   try {
-    const response = await api.get("/companies");
+    const response = await cachedGet("/companies");
     if (response.data?.success && response.data.data?.data?.length > 0) {
       currentCompany.value = response.data.data.data[0];
     }

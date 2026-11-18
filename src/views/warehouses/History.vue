@@ -195,7 +195,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const warehouseId = route.params.id;
@@ -253,7 +255,7 @@ onMounted(async () => {
 
 const fetchWarehouse = async () => {
   try {
-    const resp = await api.get(`warehouses/${warehouseId}/dashboard`);
+    const resp = await cachedGet(`warehouses/${warehouseId}/dashboard`);
     if (resp.data.success) {
       warehouse.value = resp.data.data.warehouse;
     }
@@ -266,7 +268,7 @@ const fetchMovements = async () => {
   loading.value = true;
   try {
     const params = { ...filters.value };
-    const resp = await api.get(`warehouses/${warehouseId}/movements`, { params });
+    const resp = await cachedGet(`warehouses/${warehouseId}/movements`, { params });
     
     if (resp.data.success) {
       movements.value = resp.data.data.data;

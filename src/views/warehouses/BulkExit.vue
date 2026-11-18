@@ -155,7 +155,10 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Select from 'primevue/select';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const router = useRouter();
@@ -184,7 +187,7 @@ const availableStocksFiltered = computed(() => {
 onMounted(async () => {
   loading.value = true;
   try {
-    const resp = await api.get(`warehouses/${warehouseId}/dashboard`);
+    const resp = await cachedGet(`warehouses/${warehouseId}/dashboard`);
     if (resp.data.success) {
       warehouse.value = resp.data.data.warehouse;
       stocks.value = resp.data.data.stocks;

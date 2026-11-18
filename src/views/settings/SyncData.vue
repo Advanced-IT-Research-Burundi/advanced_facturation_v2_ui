@@ -52,8 +52,10 @@
 
 <script setup>
 import { nextTick, onMounted, ref } from "vue";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import SettingsHeader from "./SettingsHeader.vue";
+
+const { cachedGet } = useCachedApi();
 
 const logs = ref([]);
 const running = ref(false);
@@ -72,7 +74,7 @@ const formatDate = (value) => (value ? new Date(value).toLocaleString("fr-FR") :
 
 const fetchLastRun = async () => {
   try {
-    const response = await api.get("/sync-data/last");
+    const response = await cachedGet("/sync-data/last");
     const data = response.data.data || {};
     lastRun.value = data.last_run;
     if (data.last_run?.logs && logs.value.length === 0) {

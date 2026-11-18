@@ -13,7 +13,9 @@ import {
   DollarSign,
   Ban,
 } from "lucide-vue-next";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
+
+const { cachedGet } = useCachedApi();
 
 const isLoading = ref(false);
 const invoices = ref([]);
@@ -30,7 +32,7 @@ const pagination = ref({
   to: 0,
 });
 
-const fetchInvoices = async (page = 1) => {
+const fetchInvoices = async (page = 1, { force = false } = {}) => {
   isLoading.value = true;
   try {
     const params = { page };
@@ -49,7 +51,7 @@ const fetchInvoices = async (page = 1) => {
       params.search = searchQuery.value;
     }
 
-    const response = await api.get("/invoices", { params });
+    const response = await cachedGet("/invoices", { params, force });
     if (response.data.success) {
       invoices.value = response.data.data.data || response.data.data;
       pagination.value = {
@@ -170,7 +172,7 @@ const changePage = (page) => {
           Liste des Factures
         </h5>
         <button
-          @click="fetchInvoices(1)"
+          @click="fetchInvoices(1, { force: true })"
           class="btn btn-outline-primary btn-sm"
           :disabled="isLoading"
         >

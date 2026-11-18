@@ -14,8 +14,10 @@ import {
   DollarSign,
   RefreshCw,
 } from "lucide-vue-next";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const props = defineProps({
   isSubmitting: Boolean,
@@ -86,7 +88,7 @@ const loadCustomerDeposits = async (customerId) => {
   isLoading.value = true;
   depositsError.value = "";
   try {
-    const response = await api.get(`/customers/${customerId}/deposits`);
+    const response = await cachedGet(`/customers/${customerId}/deposits`);
     if (response.data.success) {
       // L'API peut retourner directement un tableau ou une réponse paginée.
       deposits.value = response.data.data?.data || response.data.data || [];
@@ -101,10 +103,10 @@ const loadCustomerDeposits = async (customerId) => {
 };
 
 // Historique global des cautions et de leurs remboursements.
-const loadRefunds = async () => {
+const loadRefunds = async ({ force = false } = {}) => {
   isLoadingRefunds.value = true;
   try {
-    const response = await api.get("/invoices", { params: { per_page: 100 } });
+    const response = await cachedGet("/invoices", { params: { per_page: 100 }, force });
     if (response.data.success) {
       const invoices = response.data.data?.data || response.data.data || [];
       refunds.value = invoices.filter((invoice) =>
@@ -276,7 +278,7 @@ watch(
             <h6 class="mb-0">Liste des cautions et remboursements</h6>
             <small class="text-muted">Historique des cautions enregistrées et des remboursements effectués</small>
           </div>
-          <button class="btn btn-sm btn-outline-primary" @click="loadRefunds" :disabled="isLoadingRefunds">
+          <button class="btn btn-sm btn-outline-primary" @click="loadRefunds({ force: true })" :disabled="isLoadingRefunds">
             <Loader2 v-if="isLoadingRefunds" :size="15" class="animate-spin" />
             <RefreshCw v-else :size="15" />
           </button>

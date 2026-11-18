@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted } from "vue";
-import api from "../../../services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import StockHeader from "../../stocks/StockHeader.vue";
 import { Loader2, Printer } from "lucide-vue-next";
 
@@ -10,6 +10,8 @@ import BarCodeSearch from "./BarCodeSearch.vue";
 import BarCodeConfig from "./BarCodeConfig.vue";
 import BarCodePreview from "./BarCodePreview.vue";
 import BarCodeProductList from "./BarCodeProductList.vue";
+
+const { cachedGet } = useCachedApi();
 
 const searchQuery = ref("");
 const selectedProduct = ref(null);
@@ -32,7 +34,7 @@ const fetchProducts = async (query = "") => {
   loading.value = true;
   try {
     const url = query ? `/products?search=${query}` : "/products";
-    const response = await api.get(url);
+    const response = await cachedGet(url);
     products.value = response.data.data.data || response.data.data || [];
     showDropdown.value = query.length >= 2 && products.value.length > 0;
   } catch (error) {
@@ -54,7 +56,7 @@ const handleSearchInput = () => {
 const fetchCodeImage = async (productId) => {
   try {
     const endpoint = codeType.value === "barcode" ? "barcode" : "qrcode";
-    const response = await api.get(`/products/${productId}/${endpoint}`, {
+    const response = await cachedGet(`/products/${productId}/${endpoint}`, {
       responseType: "blob",
     });
     const blob = new Blob([response.data], { type: "image/svg+xml" });

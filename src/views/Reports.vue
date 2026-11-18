@@ -1,12 +1,14 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import {
   Printer, FileText, Package, ArrowDownCircle, ArrowUpCircle,
   CreditCard, FileCheck, History, Download, Eye, FileSpreadsheet, Wallet
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const store = useStore();
 const toast = useToast();
@@ -137,7 +139,7 @@ const formatCurrency = (num) => `${formatNumber(num)} FBU`;
 // Fetch warehouses
 const fetchWarehouses = async () => {
   try {
-    const response = await api.get('/warehouses');
+    const response = await cachedGet('/warehouses');
     if (response.data.success) {
       warehouses.value = response.data.data.data || response.data.data || [];
     }
@@ -175,7 +177,7 @@ const fetchReport = async () => {
       params.page = reportPage.value;
       params.per_page = reportPerPage;
     }
-    const response = await api.get(endpoints[activeTab.value], { params });
+    const response = await cachedGet(endpoints[activeTab.value], { params });
     if (response.data.success) {
       reportData.value = restrictReportToCurrentUser(response.data.data);
     }
@@ -249,7 +251,7 @@ const printSelectedInvoices = async () => {
   }
 
   try {
-    const response = await api.get('/reports/invoices-print', {
+    const response = await cachedGet('/reports/invoices-print', {
       params: { ids: selectedInvoices.value }
     });
 

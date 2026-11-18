@@ -2,7 +2,10 @@
 import { ref, computed, nextTick, onMounted, watch } from "vue";
 import { Search, Loader2 } from "lucide-vue-next";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useStore } from "vuex";
+
+const { cachedGet } = useCachedApi();
 
 const props = defineProps({
   isLoading: Boolean,
@@ -77,7 +80,7 @@ const focusSearchInput = async () => {
 
 const fetchStock = async () => {
   try {
-    const response = await api.get("/mes_stock");
+    const response = await cachedGet("/mes_stock");
     if (response.data.success) {
       const stocksData = response.data.data || [];
       store.commit("SET_POS_STOCKS", stocksData);

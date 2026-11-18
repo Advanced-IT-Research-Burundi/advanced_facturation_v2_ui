@@ -459,7 +459,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const router = useRouter();
 const { confirm: confirmDialog } = useConfirm();
@@ -532,7 +535,7 @@ const fetchDashboard = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const resp = await api.get('bakery/production/dashboard');
+    const resp = await cachedGet('bakery/production/dashboard');
     
     if (resp.data.success) {
       productionWarehouse.value = resp.data.data.production_warehouse;

@@ -370,7 +370,10 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import { useToast } from '@/composables/useToast';
+
+const { cachedGet } = useCachedApi();
 
 const route = useRoute();
 const store = useStore();
@@ -425,7 +428,7 @@ const handleSearchInStock = () => {
 const loadProductsInStock = async (page = 1) => {
   loadingProductsInStock.value = true;
   try {
-    const resIn = await api.get(`/product_in_stock/${warehouseId}`, {
+    const resIn = await cachedGet(`/product_in_stock/${warehouseId}`, {
       params: { search: searchInStock.value, page, per_page: perPage },
     });
     const payload = resIn.data?.data;
@@ -447,7 +450,7 @@ const loadProductsInStock = async (page = 1) => {
 const loadProductsNotInStock = async (page = 1) => {
   loadingProductsNotInStock.value = true;
   try {
-    const resNot = await api.get(`/product_not_stock/${warehouseId}`, {
+    const resNot = await cachedGet(`/product_not_stock/${warehouseId}`, {
       params: { search: search.value, page, per_page: perPage },
     });
     const payload = resNot.data?.data;

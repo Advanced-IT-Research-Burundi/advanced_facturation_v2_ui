@@ -733,7 +733,10 @@
 import { ref, computed, onMounted, reactive, watch, TransitionGroup, Teleport } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import HotelHeader from './HotelHeader.vue';
+
+const { cachedGet } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const route = useRoute();
 
@@ -816,7 +819,7 @@ const loadReservations = async (page = 1) => {
     if (filterDate.value) {
       params.date = filterDate.value;
     }
-    const res = await api.get('/hotel/reservations', { params });
+    const res = await cachedGet('/hotel/reservations', { params });
     reservations.value = res.data.data.data;
     const meta = res.data.data;
     pagination.value = {
@@ -833,7 +836,7 @@ const loadReservations = async (page = 1) => {
 
 const loadRooms = async () => {
   try {
-    const res = await api.get('/hotel/rooms');
+    const res = await cachedGet('/hotel/rooms');
     allRooms.value = res.data.data;
   } catch (e) {
     console.error('Erreur chargement chambres:', e);
@@ -932,7 +935,7 @@ const saveReservation = async () => {
 
 const loadCustomers = async () => {
   try {
-    const res = await api.get('/customers', { params: { per_page: 500 } });
+    const res = await cachedGet('/customers', { params: { per_page: 500 } });
     customers.value = res.data?.data?.data ?? res.data?.data ?? [];
   } catch (e) {
     console.error('Erreur chargement clients:', e);
@@ -1012,7 +1015,7 @@ const openRecordPaymentModal = (reservation) => {
 
 const registerPaymentInCaisse = async (amount, description, reference) => {
   try {
-    const res = await api.get('/hotel/caisse/current', { params: { hotel_section: 'rooms' } });
+    const res = await cachedGet('/hotel/caisse/current', { params: { hotel_section: 'rooms' } });
     const register = res.data?.data?.register;
     if (register?.id) {
       await api.post(`/hotel/caisse/${register.id}/movements`, {
@@ -1122,8 +1125,8 @@ const openRoomServiceModal = async (reservation) => {
 
   if (rsMenuItems.value.length === 0 || rsDishes.value.length === 0) {
     const [menuRes, dishRes] = await Promise.all([
-      api.get('/hotel/menu-items'),
-      api.get('/hotel/dishes'),
+      cachedGet('/hotel/menu-items'),
+      cachedGet('/hotel/dishes'),
     ]);
     rsMenuItems.value = menuRes.data.data;
     rsDishes.value = dishRes.data.data;

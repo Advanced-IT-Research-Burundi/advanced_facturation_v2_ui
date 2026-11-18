@@ -2,9 +2,11 @@
 import { onMounted, ref } from 'vue';
 import { Boxes, RefreshCw } from 'lucide-vue-next';
 import { useStore } from 'vuex';
-import api from '@/services/api';
+import { useCachedApi } from '@/composables/useCachedApi';
 import { useToast } from '@/composables/useToast';
 import FinanceHeader from './FinanceHeader.vue';
+
+const { cachedGet, refresh } = useCachedApi();
 
 const toast = useToast();
 const store = useStore();
@@ -17,11 +19,11 @@ const formatCurrency = (amount, currency = 'FBU') =>
 const fetchStockValue = async () => {
   loading.value = true;
   try {
-    const response = await api.get('/reports/stock-sheet', {
+    const response = await cachedGet('/reports/stock-sheet', {
       params: { per_page: 1 },
     });
     stocks.value = response.data?.data?.summary?.value_by_warehouse || [];
-    store.state.data.financeStockValues = stocks.value;
+    store.commit('SET_DATA_FIELD', { key: 'financeStockValues', value: stocks.value });
   } catch (error) {
     toast.error(error.response?.data?.message || 'Erreur lors du chargement de la valeur du stock');
   } finally {
@@ -38,7 +40,7 @@ onMounted(fetchStockValue);
 
     <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
       <h1 class="h3 mb-0">Valeur du stock</h1>
-      <button class="btn btn-outline-secondary" :disabled="loading" @click="fetchStockValue">
+      <button class="btn btn-outline-secondary" :disabled="loading" @click="refresh(fetchStockValue)">
         <RefreshCw :size="18" :class="{ 'spin': loading }" />
       </button>
     </div>

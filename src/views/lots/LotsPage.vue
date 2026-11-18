@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useStore } from "vuex";
-import api from "@/services/api";
+import { useCachedApi } from "@/composables/useCachedApi";
 import LotFormModal from "./LotFormModal.vue";
 import PharmaceHeader from "../pharmaceutical/PharmaceHeader.vue";
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet } = useCachedApi();
 
 const store = useStore();
 const toast = useToast();
@@ -41,9 +43,9 @@ const fetchLots = async () => {
 const loadFormData = async () => {
   try {
     const [prodRes, wareRes, fournRes] = await Promise.all([
-      api.get("/products/pharmaceutical?per_page=100"),
-      api.get("/warehouses"),
-      api.get("/fournisseurs"),
+      cachedGet("/products/pharmaceutical?per_page=100"),
+      cachedGet("/warehouses"),
+      cachedGet("/fournisseurs"),
     ]);
     products.value = prodRes.data.data.data || prodRes.data.data || [];
     warehouses.value = wareRes.data.data.data || wareRes.data.data || [];

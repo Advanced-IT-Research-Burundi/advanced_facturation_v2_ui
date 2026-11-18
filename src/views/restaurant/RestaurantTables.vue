@@ -6,7 +6,7 @@
         <router-link :to="{ name: 'restaurant.invoices' }" class="btn btn-outline-info">
           <i class="bi bi-receipt me-1"></i> Factures
         </router-link>
-        <button class="btn btn-outline-secondary" @click="loadDashboard">
+        <button class="btn btn-outline-secondary" @click="refresh(loadDashboard)">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-primary" @click="showAddModal = true">
@@ -281,9 +281,12 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
+import { useCachedApi, LIVE_TTL_MS } from '@/composables/useCachedApi';
 import ClientFormModal from '@/views/sales/ClientFormModal.vue';
 import { useToast } from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+
+const { cachedGet, refresh } = useCachedApi({ ttl: LIVE_TTL_MS });
 
 const router = useRouter();
 const toast = useToast();
@@ -329,7 +332,7 @@ onMounted(() => {
 
 async function loadWarehouses() {
   try {
-    const { data } = await api.get('/restaurant/warehouses');
+    const { data } = await cachedGet('/restaurant/warehouses');
     warehouses.value = data.data || [];
     if (warehouses.value.length > 0) {
       invoiceWarehouseId.value = warehouses.value[0].id;
@@ -342,7 +345,7 @@ async function loadWarehouses() {
 
 async function loadTables() {
   try {
-    const { data } = await api.get('/restaurant/tables');
+    const { data } = await cachedGet('/restaurant/tables');
     tables.value = data.data;
   } catch (error) {
     console.error('Erreur chargement tables:', error);
@@ -351,7 +354,7 @@ async function loadTables() {
 
 async function loadDashboard() {
   try {
-    const { data } = await api.get('/restaurant/dashboard');
+    const { data } = await cachedGet('/restaurant/dashboard');
     dashboard.value = data.data;
     loadTables();
   } catch (error) {
@@ -363,7 +366,7 @@ async function selectTable(table) {
   selectedTable.value = table;
   showDetailModal.value = true;
   try {
-    const { data } = await api.get(`/restaurant/tables/${table.id}/orders`);
+    const { data } = await cachedGet(`/restaurant/tables/${table.id}/orders`);
     tableOrders.value = data.data;
   } catch (error) {
     console.error('Erreur chargement commandes:', error);
@@ -425,7 +428,7 @@ function goToOrders(table) {
 // Customer management functions
 async function loadCustomers() {
   try {
-    const { data } = await api.get('/customers');
+    const { data } = await cachedGet('/customers');
     // Handle paginated response: data.data.data or data.data (array) or data (array)
     if (Array.isArray(data.data)) {
       customers.value = data.data;
