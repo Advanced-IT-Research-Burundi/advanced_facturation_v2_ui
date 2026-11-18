@@ -362,6 +362,12 @@ const router = createRouter({
           // Accessible à tous : sans accès complet, l'utilisateur ne voit que ses propres transferts
         },
         {
+          path: "cash-register/bank",
+          name: "cash-register-bank",
+          component: () => import("../views/finance/BankCash.vue"),
+          // Accessible à tous : sans accès complet, l'utilisateur ne transfère et ne voit que sa propre caisse
+        },
+        {
           path: "cash-register/users/:userId",
           name: "cash-register-user",
           component: () => import("../views/finance/CashUserActivity.vue"),

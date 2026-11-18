@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Wallet, DollarSign, ArrowUpCircle, ArrowDownCircle,
-  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X, History, Smartphone
+  XCircle, Plus, RefreshCw, Printer, Users, Eye, ArrowLeftRight, Check, X, History, Smartphone, Landmark
 } from 'lucide-vue-next';
 import { useStore } from 'vuex';
 import api from '@/services/api';
@@ -535,6 +535,9 @@ onUnmounted(() => {
       <div class="d-flex gap-2">
         <router-link :to="{ name: 'cash-register-transfers' }" class="btn btn-outline-primary">
           <History :size="18" class="me-2" /> Historique des transferts
+        </router-link>
+        <router-link :to="{ name: 'cash-register-bank' }" class="btn btn-outline-primary">
+          <Landmark :size="18" class="me-2" /> Caisse Banque
         </router-link>
         <button v-if="hasFullAccess && !currentRegister?.register" class="btn btn-primary" @click="showOpenModal = true">
           <Wallet :size="18" class="me-2" /> Ouvrir la caisse

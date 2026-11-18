@@ -3,6 +3,7 @@ import { Bell, Boxes, Coins, Landmark, Wallet } from 'lucide-vue-next';
 
 const links = [
   { name: 'Caisse', path: '/cash-register', icon: Wallet },
+  { name: 'Caisse Banque', path: '/cash-register/bank', icon: Landmark },
   { name: 'Versements banque', path: '/bank-deposits', icon: Landmark },
   { name: 'Valeur du stock', path: '/finance-stock-value', icon: Boxes },
   // { name: 'Relances', path: '/reminders', icon: Bell },
